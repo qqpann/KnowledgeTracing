@@ -11,6 +11,7 @@ import time
 import datetime
 import logging
 import random
+import configparser
 import pickle
 from pathlib import Path
 import math
@@ -99,6 +100,7 @@ def save_sns_fig(sns_fig, fname):
 
 @click.command()
 @click.option('--debug', is_flag=True)
+@click.option('--config', default='')
 @click.option('--model', 'model_name', default='encdec')
 @click.option('--load-model', 'load_model', default='')
 @click.option('--plot-heatmap', is_flag=True)
@@ -112,8 +114,27 @@ def save_sns_fig(sns_fig, fname):
 @click.option('--learning-rate', '-lr', 'lr', default=0.05)
 @click.option('--n-skills', default=124)
 @click.option('--cuda/--no-cuda', default=True)
-def main(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
+def main(debug, config, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
          epoch_size, sequence_size, lr, n_skills, cuda):
+    if config:
+        cp = configparser.ConfigParser()
+        cp.read(config)
+        debug = cp.getboolean('train', 'debug', fallback=False)
+        model_name = cp.get('train', 'model', fallback='encdec')
+        load_model = cp.get('train', 'load_model', fallback='')
+        plot_heatmap = cp.getboolean('train', 'plot_heatmap', fallback=False)
+        plot_lc = cp.getboolean('train', 'plot_lc', fallback=False)
+        source_data = cp.get('train', 'source_data',
+                             fallback=SOURCE_ASSIST0910_ORIG)
+        ks_loss = cp.getboolean('train', 'ks_loss', fallback=False)
+        extend_backward = cp.getint('train', 'extend_backward', fallback=0)
+        extend_forward = cp.getint('train', 'extend_forward', fallback=0)
+        epoch_size = cp.getint('train', 'epoch_size', fallback=200)
+        sequence_size = cp.getint('train', 'sequence_size', fallback=20)
+        lr = cp.getfloat('train', 'lr', fallback=0.05)
+        n_skills = cp.getint('train', 'n_skills', fallback=124)
+        cuda = cp.getboolean('train', 'cuda', fallback=True)
+
     run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
         epoch_size, sequence_size, lr, n_skills, cuda)
 
