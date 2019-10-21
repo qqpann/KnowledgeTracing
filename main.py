@@ -45,17 +45,17 @@ def save_model(model, name, auc, epoch, debug):
 def save_model(model, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
     torch.save(model.state_dict(), f'models/{prefix}_{name}_{auc}.{epoch}')
-    
-    
+
+
 def save_log(data, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
     with open(f'data/output/{prefix}_{name}_{auc}.{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
-        
-        
+
+
 def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug):
     prefix = get_name_prefix(debug)
-    
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     if train_loss_list:
@@ -68,12 +68,12 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     ax.legend()
     print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
     plt.savefig(f'data/output/learning_curve/{prefix}_{fname}.png')
-    
+
 
 def save_sns_fig(sns_fig, fname):
     prefix = get_name_prefix(debug=False)
     sns_fig.savefig(f'data/output/heatmap/{prefix}_{fname}.png')
-    
+
 
 def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug):
     prefix = get_name_prefix(debug)
@@ -99,7 +99,7 @@ def save_sns_fig(sns_fig, fname):
 
 @click.command()
 @click.option('--debug', is_flag=True)
-@click.option('--model', 'model_name',default='encdec')
+@click.option('--model', 'model_name', default='encdec')
 @click.option('--load-model', 'load_model', default='')
 @click.option('--plot-heatmap', is_flag=True)
 @click.option('--plot-learning-curve', 'plot_lc', is_flag=True)
@@ -115,17 +115,16 @@ def save_sns_fig(sns_fig, fname):
 def main(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
          epoch_size, sequence_size, lr, n_skills, cuda):
     run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-         epoch_size, sequence_size, lr, n_skills, cuda)
+        epoch_size, sequence_size, lr, n_skills, cuda)
 
 
 def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-         epoch_size, sequence_size, lr, n_skills, cuda):
+        epoch_size, sequence_size, lr, n_skills, cuda):
     assert model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
     model_fname = model_name
     model_fname += f'eb{extend_backward}' if extend_backward else ''
     model_fname += f'ef{extend_forward}' if extend_forward else ''
     model_fname += f'ks' if ks_loss else ''
-
 
     # Version, Device
     print('PyTorch:', torch.__version__)
@@ -169,22 +168,23 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
         train_dl, eval_dl = prepare_data(
             source_data, 'encdec', n_skills, PRESERVED_TOKENS,
             min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward':extend_backward, 'extend_forward':extend_forward})
+            params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
     elif model_name == 'seq2seq':
         model = get_Seq2Seq(
-            onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT, 
+            onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
             OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
         loss_batch = get_loss_batch_seq2seq(extend_forward, ks_loss=ks_loss)
         train_dl, eval_dl = prepare_data(
             source_data, 'encdec', n_skills, PRESERVED_TOKENS,
             min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward':extend_backward, 'extend_forward':extend_forward})
+            params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
 
     elif model_name == 'basernn':
         model = BaseDKT(
             dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
         ).to(dev)
-        loss_batch = get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
+        loss_batch = get_loss_batch_basedkt(
+            onehot_size, n_input, batch_size, sequence_size, dev)
         train_dl, eval_dl = prepare_data(
             source_data, 'base', n_skills, preserved_tokens='?',
             min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
@@ -192,7 +192,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
         model = BaseDKT(
             dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
         ).to(dev)
-        loss_batch = get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
+        loss_batch = get_loss_batch_basedkt(
+            onehot_size, n_input, batch_size, sequence_size, dev)
         train_dl, eval_dl = prepare_data(
             source_data, 'base', n_skills, preserved_tokens='?',
             min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
@@ -213,7 +214,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
         # -------------------------
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f'The model has {count_parameters(model):,} trainable parameters')
+        print(
+            f'The model has {count_parameters(model):,} trainable parameters')
 
         loss_func = nn.BCELoss()
         opt = optim.SGD(model.parameters(), lr=lr)
@@ -239,7 +241,6 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
             print_eval = epoch % 10 == 0
             print_auc = epoch % 10 == 0
 
-
             # =====
             # TRAIN
             # =====
@@ -250,7 +251,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
             val_actual = []
             current_epoch_train_loss = []
             for args in train_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(model, loss_func, *args, opt=opt)
+                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+                    model, loss_func, *args, opt=opt)
                 current_epoch_train_loss.append(loss_item)
                 val_pred.append(pred)
                 val_actual.append(actu)
@@ -273,11 +275,10 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                 # # AUC
                 # fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=1)
                 # if epoch % 100 == 0:
-                    # logger.log(logging.INFO,
-                    #            'TRAIN Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
+                # logger.log(logging.INFO,
+                #            'TRAIN Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
                 # train_auc_list.append(metrics.auc(fpr, tpr))
             # -----------------------------------
-
 
             # =====
             # EVAL
@@ -291,7 +292,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                     val_actual = []
                     current_eval_loss = []
                     for args in eval_dl:
-                        loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(model, loss_func, *args, opt=None)
+                        loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+                            model, loss_func, *args, opt=None)
                         current_eval_loss.append(loss_item)
                         val_pred.append(pred)
                         val_actual.append(actu)
@@ -308,10 +310,12 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
 
                     # AUC, Recall, F1
                     if print_auc:
-                        y = torch.cat(val_actual).view(-1).cpu()  # TODO: viewしない？　最後の1個で？
+                        # TODO: viewしない？　最後の1個で？
+                        y = torch.cat(val_actual).view(-1).cpu()
                         pred = torch.cat(val_pred).view(-1).cpu()
                         # AUC
-                        fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=1)
+                        fpr, tpr, thresholds = metrics.roc_curve(
+                            y, pred, pos_label=1)
                         if epoch % 100 == 0:
                             logger.log(logging.INFO,
                                        'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
@@ -320,7 +324,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                         if epoch % 100 == 0:
                             save_model(model, model_fname, auc, epoch, debug)
                             save_log(
-                                (x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list),
+                                (x, train_loss_list, train_auc_list,
+                                 eval_loss_list, eval_auc_list),
                                 model_fname, auc, epoch, debug
                             )
 
@@ -338,7 +343,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
 
         if plot_lc:
             fname = model_fname
-            save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug)
+            save_learning_curve(x, train_loss_list, train_auc_list,
+                                eval_loss_list, eval_auc_list, fname, debug)
 
     # model is trained or loaded now.
 
@@ -354,26 +360,29 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
             loss_batch = get_loss_batch_encdec(extend_forward, ks_loss=ks_loss)
         elif model_name == 'seq2seq':
             model = get_Seq2Seq(
-                onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT, 
+                onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
                 OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
-            loss_batch = get_loss_batch_seq2seq(extend_forward, ks_loss=ks_loss)
+            loss_batch = get_loss_batch_seq2seq(
+                extend_forward, ks_loss=ks_loss)
         elif model_name == 'basernn':
             model = BaseDKT(
                 dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(dev)
-            loss_batch = get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
+            loss_batch = get_loss_batch_basedkt(
+                onehot_size, n_input, batch_size, sequence_size, dev)
         elif model_name == 'baselstm':
             model = BaseDKT(
                 dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(dev)
-            loss_batch = get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
+            loss_batch = get_loss_batch_basedkt(
+                onehot_size, n_input, batch_size, sequence_size, dev)
         else:
             raise ValueError(f'model_name {model_name} is wrong')
         if load_model:
             model.load_state_dict(torch.load(load_model))
             model = model.to(dev)
         heat_dl = prepare_heatmap_data(
-            source_data, model_name, n_skills, PRESERVED_TOKENS, 
+            source_data, model_name, n_skills, PRESERVED_TOKENS,
             min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
             params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
         loss_func = nn.BCELoss()
@@ -404,7 +413,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
             yticklabels = set()
             xticklabels = []
             for args in heat_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(model, loss_func, *args, opt=None)
+                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+                    model, loss_func, *args, opt=None)
                 # current_eval_loss.append(loss_item[-1])
                 # print(pred.shape, actu.shape)
                 # val_pred.append(pred[-1])
@@ -415,7 +425,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                 xticklabels.append((yq, ya))
 
                 # print(pred_ks.shape)
-                assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(pred_ks.shape)
+                assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(
+                    pred_ks.shape)
                 assert pred_ks.shape[0] == n_skills
                 all_out_prob.append(pred_ks.unsqueeze(0))
 
@@ -452,18 +463,20 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
         fig, ax = plt.subplots(figsize=(20, 7))
         sns.heatmap(
             related_d, vmin=0, vmax=1, ax=ax,
-            # cmap="Reds_r", 
-            xticklabels=['{}'.format(y) for y in xticklabels], 
-            yticklabels=['s{}'.format(x) for x in yticklabels], 
+            # cmap="Reds_r",
+            xticklabels=['{}'.format(y) for y in xticklabels],
+            yticklabels=['s{}'.format(x) for x in yticklabels],
         )
         xtick_dic = {s: i for i, s in enumerate(yticklabels)}
         # 正解
         sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
+        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+                 qa in enumerate(xticklabels) if qa[1] == 1]
         ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
         # 不正解
         sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
+        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+                 qa in enumerate(xticklabels) if qa[1] == 0]
         ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
 
         save_sns_fig(fig, model_fname)
