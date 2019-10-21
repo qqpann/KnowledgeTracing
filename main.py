@@ -12,6 +12,7 @@ import datetime
 import logging
 import random
 import configparser
+from pprint import pprint
 import pickle
 from pathlib import Path
 import math
@@ -99,44 +100,51 @@ def save_sns_fig(sns_fig, fname):
 
 
 @click.command()
-@click.option('--debug', is_flag=True)
 @click.option('--config', default='')
-@click.option('--model', 'model_name', default='encdec')
-@click.option('--load-model', 'load_model', default='')
-@click.option('--plot-heatmap', is_flag=True)
-@click.option('--plot-learning-curve', 'plot_lc', is_flag=True)
-@click.option('--source-data', default=SOURCE_ASSIST0910_ORIG)
-@click.option('--ks-loss', '-ks', is_flag=True)
-@click.option('--extend-backward', '-eb', default=0)
-@click.option('--extend-forward', '-ef', default=0)
-@click.option('--epoch-size', '-e', default=200)
-@click.option('--sequence-size', default=20)
-@click.option('--learning-rate', '-lr', 'lr', default=0.05)
-@click.option('--n-skills', default=124)
-@click.option('--cuda/--no-cuda', default=True)
-def main(debug, config, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-         epoch_size, sequence_size, lr, n_skills, cuda):
-    if config:
-        cp = configparser.ConfigParser()
-        cp.read(config)
-        debug = cp.getboolean('train', 'debug', fallback=False)
-        model_name = cp.get('train', 'model', fallback='encdec')
-        load_model = cp.get('train', 'load_model', fallback='')
-        plot_heatmap = cp.getboolean('train', 'plot_heatmap', fallback=False)
-        plot_lc = cp.getboolean('train', 'plot_lc', fallback=False)
-        source_data = cp.get('train', 'source_data',
-                             fallback=SOURCE_ASSIST0910_ORIG)
-        ks_loss = cp.getboolean('train', 'ks_loss', fallback=False)
-        extend_backward = cp.getint('train', 'extend_backward', fallback=0)
-        extend_forward = cp.getint('train', 'extend_forward', fallback=0)
-        epoch_size = cp.getint('train', 'epoch_size', fallback=200)
-        sequence_size = cp.getint('train', 'sequence_size', fallback=20)
-        lr = cp.getfloat('train', 'lr', fallback=0.05)
-        n_skills = cp.getint('train', 'n_skills', fallback=124)
-        cuda = cp.getboolean('train', 'cuda', fallback=True)
+def main(config):
+    if not config:
+        print('Other options are depricated. Please use --config.')
+        return
+    cp = configparser.ConfigParser()
+    cp.read(config)
+    section_list = cp.sections()
+    pprint(section_list)
+    for section in section_list:
+        if section == 'common':
+            continue
+        cps = cp[section]
+        pprint(dict(cps))
+        debug = \
+            cps.getboolean('debug', fallback=False)
+        model_name = \
+            cps.get('model', fallback='encdec')
+        load_model = \
+            cps.get('load_model', fallback='')
+        plot_heatmap = \
+            cps.getboolean('plot_heatmap', fallback=False)
+        plot_lc = \
+            cps.getboolean('plot_lc', fallback=False)
+        source_data = \
+            cps.get('source_data', fallback=SOURCE_ASSIST0910_ORIG)
+        ks_loss = \
+            cps.getboolean('ks_loss', fallback=False)
+        extend_backward = \
+            cps.getint('extend_backward', fallback=0)
+        extend_forward = \
+            cps.getint('extend_forward', fallback=0)
+        epoch_size = \
+            cps.getint('epoch_size', fallback=200)
+        sequence_size = \
+            cps.getint('sequence_size', fallback=20)
+        lr = \
+            cps.getfloat('lr', fallback=0.05)
+        n_skills = \
+            cps.getint('n_skills', fallback=124)
+        cuda = \
+            cps.getboolean('cuda', fallback=True)
 
-    run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-        epoch_size, sequence_size, lr, n_skills, cuda)
+        run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
+            epoch_size, sequence_size, lr, n_skills, cuda)
 
 
 def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
