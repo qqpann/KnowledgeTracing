@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 
 from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 from src.utils import sAsMinutes, timeSince
+from src.config import get_option_fallback, Config
 from eddkt import EncDecDKT, get_loss_batch_encdec
 from basedkt import BaseDKT, get_loss_batch_basedkt
 from seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
@@ -109,55 +110,44 @@ def main(config):
     cp.read(config)
     section_list = cp.sections()
     pprint(section_list)
+    common_opt = dict(cp['common']) if 'common' in section_list else dict()
     for section in section_list:
         if section == 'common':
             continue
-        cps = cp[section]
-        pprint(dict(cps))
-        debug = \
-            cps.getboolean('debug', fallback=False)
-        model_name = \
-            cps.get('model', fallback='encdec')
-        load_model = \
-            cps.get('load_model', fallback='')
-        plot_heatmap = \
-            cps.getboolean('plot_heatmap', fallback=False)
-        plot_lc = \
-            cps.getboolean('plot_lc', fallback=False)
-        source_data = \
-            cps.get('source_data', fallback=SOURCE_ASSIST0910_ORIG)
-        ks_loss = \
-            cps.getboolean('ks_loss', fallback=False)
-        extend_backward = \
-            cps.getint('extend_backward', fallback=0)
-        extend_forward = \
-            cps.getint('extend_forward', fallback=0)
-        epoch_size = \
-            cps.getint('epoch_size', fallback=200)
-        sequence_size = \
-            cps.getint('sequence_size', fallback=20)
-        lr = \
-            cps.getfloat('lr', fallback=0.05)
-        n_skills = \
-            cps.getint('n_skills', fallback=124)
-        cuda = \
-            cps.getboolean('cuda', fallback=True)
+        section_opt = dict(cp[section])
+        default_dict = {
+            'debug': False,
+            'model_name': str,
+            'load_model': '',
+            'plot_heatmap': False,
+            'plot_lc': False,
+            'source_data': SOURCE_ASSIST0910_ORIG,
+            'ks_loss': False,
+            'extend_backward': 0,
+            'extend_forward': 0,
+            'epoch_size': 200,
+            'sequence_size': 20,
+            'lr': 0.05,
+            'n_skills': 124,
+            'cuda': True,
+        }
+        config_dict = get_option_fallback({**common_opt, **section_opt}, fallback=default_dict)
+        config = Config(config_dict)
+        pprint(config.as_dict())
 
-        run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-            epoch_size, sequence_size, lr, n_skills, cuda)
+        run(config)
 
 
-def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_loss, extend_backward, extend_forward,
-        epoch_size, sequence_size, lr, n_skills, cuda):
-    assert model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
-    model_fname = model_name
-    model_fname += f'eb{extend_backward}' if extend_backward else ''
-    model_fname += f'ef{extend_forward}' if extend_forward else ''
-    model_fname += f'ks' if ks_loss else ''
+def run(config):
+    assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
+    model_fname = config.model_name
+    model_fname += f'eb{config.extend_backward}' if config.extend_backward else ''
+    model_fname += f'ef{config.extend_forward}' if config.extend_forward else ''
+    model_fname += f'ks' if config.ks_loss else ''
 
     # Version, Device
     print('PyTorch:', torch.__version__)
-    dev = torch.device('cuda' if cuda and torch.cuda.is_available() else 'cpu')
+    dev = torch.device('cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
     print('Using Device:', dev)
     # =========================
     # Seed
@@ -172,7 +162,7 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
     # =========================
     # Parameters
     # =========================
-    batch_size, n_hidden, n_skills, n_layers = 100, 200, n_skills, 2
+    batch_size, n_hidden, n_skills, n_layers = 100, 200, config.n_skills, 2
     n_output = n_skills
     PRESERVED_TOKENS = 2  # PAD, SOS
     onehot_size = 2 * n_skills + PRESERVED_TOKENS
@@ -187,47 +177,47 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
     # =========================
     # Prepare models, LossBatch, and Data
     # =========================
-    if model_name == 'encdec':
+    if config.model_name == 'encdec':
         model = EncDecDKT(
             INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
             OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
             N_SKILLS,
             dev).to(dev)
-        loss_batch = get_loss_batch_encdec(extend_forward, ks_loss=ks_loss)
+        loss_batch = get_loss_batch_encdec(config.extend_forward, ks_loss=config.ks_loss)
         train_dl, eval_dl = prepare_data(
-            source_data, 'encdec', n_skills, PRESERVED_TOKENS,
-            min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
-    elif model_name == 'seq2seq':
+            config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
+            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
+            params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
+    elif config.model_name == 'seq2seq':
         model = get_Seq2Seq(
             onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
             OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
-        loss_batch = get_loss_batch_seq2seq(extend_forward, ks_loss=ks_loss)
+        loss_batch = get_loss_batch_seq2seq(config.extend_forward, ks_loss=config.ks_loss)
         train_dl, eval_dl = prepare_data(
-            source_data, 'encdec', n_skills, PRESERVED_TOKENS,
-            min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
+            config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
+            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
+            params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
 
-    elif model_name == 'basernn':
+    elif config.model_name == 'basernn':
         model = BaseDKT(
-            dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
+            dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
         ).to(dev)
         loss_batch = get_loss_batch_basedkt(
-            onehot_size, n_input, batch_size, sequence_size, dev)
+            onehot_size, n_input, batch_size, config.sequence_size, dev)
         train_dl, eval_dl = prepare_data(
-            source_data, 'base', n_skills, preserved_tokens='?',
-            min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
-    elif model_name == 'baselstm':
+            config.source_data, 'base', n_skills, preserved_tokens='?',
+            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
+    elif config.model_name == 'baselstm':
         model = BaseDKT(
-            dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
+            dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
         ).to(dev)
         loss_batch = get_loss_batch_basedkt(
-            onehot_size, n_input, batch_size, sequence_size, dev)
+            onehot_size, n_input, batch_size, config.sequence_size, dev)
         train_dl, eval_dl = prepare_data(
-            source_data, 'base', n_skills, preserved_tokens='?',
-            min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
+            config.source_data, 'base', n_skills, preserved_tokens='?',
+            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
     else:
-        raise ValueError(f'model_name {model_name} is wrong')
+        raise ValueError(f'model_name {config.model_name} is wrong')
     print('train_dl.dataset size:', len(train_dl.dataset))
     print('eval_dl.dataset size:', len(eval_dl.dataset))
 
@@ -236,8 +226,8 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
     # ========================
     # Load trained model
     # ========================
-    if load_model:
-        model.load_state_dict(torch.load(load_model))
+    if config.load_model:
+        model.load_state_dict(torch.load(config.load_model))
         model = model.to(dev)
     else:
         # -------------------------
@@ -247,7 +237,7 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
             f'The model has {count_parameters(model):,} trainable parameters')
 
         loss_func = nn.BCELoss()
-        opt = optim.SGD(model.parameters(), lr=lr)
+        opt = optim.SGD(model.parameters(), lr=config.lr)
 
         # ==========================
         # Run!
@@ -265,7 +255,7 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
         x = []
 
         start_time = time.time()
-        for epoch in range(1, epoch_size + 1):
+        for epoch in range(1, config.epoch_size + 1):
             print_train = epoch % 10 == 0
             print_eval = epoch % 10 == 0
             print_auc = epoch % 10 == 0
@@ -287,7 +277,7 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                 val_actual.append(actu)
 
                 # stop at first batch if debug
-                if debug:
+                if config.debug:
                     break
 
             if print_train:
@@ -328,7 +318,7 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                         val_actual.append(actu)
 
                         # stop at first batch if debug
-                        if debug:
+                        if config.debug:
                             break
 
                     loss = np.array(current_eval_loss)
@@ -351,11 +341,11 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                         auc = metrics.auc(fpr, tpr)
                         eval_auc_list.append(auc)
                         if epoch % 100 == 0:
-                            save_model(model, model_fname, auc, epoch, debug)
+                            save_model(model, model_fname, auc, epoch, config.debug)
                             save_log(
                                 (x, train_loss_list, train_auc_list,
                                  eval_loss_list, eval_auc_list),
-                                model_fname, auc, epoch, debug
+                                model_fname, auc, epoch, config.debug
                             )
 
                     #     # Recall
@@ -368,54 +358,54 @@ def run(debug, model_name, load_model, plot_heatmap, plot_lc, source_data, ks_lo
                 x.append(epoch)
                 if epoch % 100 == 0:
                     logger.log(logging.INFO,
-                               f'{timeSince(start_time, epoch / epoch_size)} ({epoch} {epoch / epoch_size * 100})')
+                               f'{timeSince(start_time, epoch / config.epoch_size)} ({epoch} {epoch / config.epoch_size * 100})')
 
-        if plot_lc:
+        if config.plot_lc:
             fname = model_fname
             save_learning_curve(x, train_loss_list, train_auc_list,
-                                eval_loss_list, eval_auc_list, fname, debug)
+                                eval_loss_list, eval_auc_list, fname, config.debug)
 
     # model is trained or loaded now.
 
-    if plot_heatmap:
+    if config.plot_heatmap:
         batch_size = 1
         # TODO: don't repeat yourself
-        if model_name == 'encdec':
+        if config.model_name == 'encdec':
             model = EncDecDKT(
                 INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
                 OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
                 N_SKILLS,
                 dev).to(dev)
-            loss_batch = get_loss_batch_encdec(extend_forward, ks_loss=ks_loss)
-        elif model_name == 'seq2seq':
+            loss_batch = get_loss_batch_encdec(config.extend_forward, ks_loss=config.ks_loss)
+        elif config.model_name == 'seq2seq':
             model = get_Seq2Seq(
                 onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
                 OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
             loss_batch = get_loss_batch_seq2seq(
-                extend_forward, ks_loss=ks_loss)
-        elif model_name == 'basernn':
+                config.extend_forward, ks_loss=config.ks_loss)
+        elif config.model_name == 'basernn':
             model = BaseDKT(
-                dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
+                dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(dev)
             loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, sequence_size, dev)
-        elif model_name == 'baselstm':
+                onehot_size, n_input, batch_size, config.sequence_size, dev)
+        elif config.model_name == 'baselstm':
             model = BaseDKT(
-                dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size
+                dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(dev)
             loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, sequence_size, dev)
+                onehot_size, n_input, batch_size, config.sequence_size, dev)
         else:
-            raise ValueError(f'model_name {model_name} is wrong')
-        if load_model:
-            model.load_state_dict(torch.load(load_model))
+            raise ValueError(f'model_name {config.model_name} is wrong')
+        if config.load_model:
+            model.load_state_dict(torch.load(config.load_model))
             model = model.to(dev)
         heat_dl = prepare_heatmap_data(
-            source_data, model_name, n_skills, PRESERVED_TOKENS,
-            min_n=3, max_n=sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward': extend_backward, 'extend_forward': extend_forward})
+            config.source_data, config.model_name, n_skills, PRESERVED_TOKENS,
+            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
+            params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
         loss_func = nn.BCELoss()
-        opt = optim.SGD(model.parameters(), lr=lr)
+        opt = optim.SGD(model.parameters(), lr=config.lr)
 
         debug = False
         logging.basicConfig()
