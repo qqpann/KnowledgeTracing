@@ -29,9 +29,9 @@ import matplotlib.pyplot as plt
 from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 from src.utils import sAsMinutes, timeSince
 from src.config import get_option_fallback, Config
-from eddkt import EncDecDKT, get_loss_batch_encdec
-from basedkt import BaseDKT, get_loss_batch_basedkt
-from seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from model.eddkt import EncDecDKT, get_loss_batch_encdec
+from model.basedkt import BaseDKT, get_loss_batch_basedkt
+from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
 def get_name_prefix(debug):
