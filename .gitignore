@@ -118,3 +118,14 @@ dmypy.json
 models/
 
 debug_*
+
+data/output/201910220228_baselstm_0.8300232473517459.100.pickle
+data/output/debug_201910211718_encdec_0.4083516483516484.100.pickle
+data/output/debug_201910211718_encdec_0.41934065934065934.200.pickle
+data/output/debug_201910220403_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220404_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220535_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220900_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220902_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220917_baselstm_0.5451591942820013.100.pickle
+data/output/debug_201910220930_baselstm_0.5451591942820013.100.pickle
