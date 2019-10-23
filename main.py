@@ -42,7 +42,8 @@ def get_name_prefix(debug):
 
 def save_model(model, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
-    torch.save(model.state_dict(), outdir / f'checkpoints/{prefix}_{name}_{auc}.{epoch}')
+    torch.save(model.state_dict(), outdir /
+               f'checkpoints/{prefix}_{name}_{auc}.{epoch}')
 
 
 def save_log(data, name, auc, epoch, debug):
@@ -107,7 +108,8 @@ def main(config):
 
             'batch_size': 100,
         }
-        config_dict = get_option_fallback({**common_opt, **section_opt}, fallback=default_dict)
+        config_dict = get_option_fallback(
+            {**common_opt, **section_opt}, fallback=default_dict)
         config = Config(config_dict)
         pprint(config.as_dict())
 
@@ -144,7 +146,8 @@ def train(config):
     # Version, Device
     # =========================
     print('PyTorch:', torch.__version__)
-    dev = torch.device('cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
+    dev = torch.device(
+        'cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
     print('Using Device:', dev)
 
     # =========================
@@ -157,7 +160,7 @@ def train(config):
     # =========================
     # Parameters
     # =========================
-    batch_size = config.batch_size 
+    batch_size = config.batch_size
     n_hidden, n_skills, n_layers = 200, config.n_skills, 2
     n_output = n_skills
     PRESERVED_TOKENS = 2  # PAD, SOS
@@ -179,7 +182,8 @@ def train(config):
             OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
             N_SKILLS,
             dev).to(dev)
-        loss_batch = get_loss_batch_encdec(config.extend_forward, ks_loss=config.ks_loss)
+        loss_batch = get_loss_batch_encdec(
+            config.extend_forward, ks_loss=config.ks_loss)
         train_dl, eval_dl = prepare_data(
             config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
             min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
@@ -188,7 +192,8 @@ def train(config):
         model = get_Seq2Seq(
             onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
             OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
-        loss_batch = get_loss_batch_seq2seq(config.extend_forward, ks_loss=config.ks_loss)
+        loss_batch = get_loss_batch_seq2seq(
+            config.extend_forward, ks_loss=config.ks_loss)
         train_dl, eval_dl = prepare_data(
             config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
             min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
@@ -334,7 +339,8 @@ def train(config):
                         auc = metrics.auc(fpr, tpr)
                         eval_auc_list.append(auc)
                         if epoch % 100 == 0:
-                            save_model(model, model_fname, auc, epoch, config.debug)
+                            save_model(model, model_fname, auc,
+                                       epoch, config.debug)
                             save_log(
                                 (x, train_loss_list, train_auc_list,
                                  eval_loss_list, eval_auc_list),
@@ -373,7 +379,8 @@ def train(config):
                 OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
                 N_SKILLS,
                 dev).to(dev)
-            loss_batch = get_loss_batch_encdec(config.extend_forward, ks_loss=config.ks_loss)
+            loss_batch = get_loss_batch_encdec(
+                config.extend_forward, ks_loss=config.ks_loss)
         elif config.model_name == 'seq2seq':
             model = get_Seq2Seq(
                 onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
