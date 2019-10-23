@@ -1,12 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader, random_split
 
-import os
-import sys
 import time
 import datetime
 import logging
@@ -15,13 +10,11 @@ import configparser
 from pprint import pprint
 import pickle
 from pathlib import Path
-import math
 from math import log, ceil
-from typing import List, Tuple, Set, Dict
+from typing import List, Tuple, Set, Dict  # noqa
 
 import click
 import numpy as np
-import pandas as pd
 from sklearn import metrics
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -204,8 +197,8 @@ def train(config):
             min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
     else:
         raise ValueError(f'model_name {config.model_name} is wrong')
-    logger.log('train_dl.dataset size:', len(train_dl.dataset))
-    logger.log('eval_dl.dataset size:', len(eval_dl.dataset))
+    logger.log('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    logger.log('eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
 
     print(model)
 
@@ -219,7 +212,7 @@ def train(config):
         # -------------------------
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(
+        logger.log(
             f'The model has {count_parameters(model):,} trainable parameters')
 
         loss_func = nn.BCELoss()
