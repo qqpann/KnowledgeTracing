@@ -2,12 +2,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+import os
+import random
 import time
 import datetime
 import logging
-import random
-import configparser
 from pprint import pprint
+import configparser
+import json
 import pickle
 from pathlib import Path
 from math import log, ceil
@@ -27,6 +29,11 @@ from model.basedkt import BaseDKT, get_loss_batch_basedkt
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
+projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
+outdir = projectdir / 'output' / 'results'
+outdir.mkdir(parents=True, exist_ok=True)
+
+
 def get_name_prefix(debug):
     debug = 'debug_' if debug else ''
     now = datetime.datetime.now().strftime('%Y%m%d%H%M')
@@ -35,18 +42,18 @@ def get_name_prefix(debug):
 
 def save_model(model, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
-    torch.save(model.state_dict(), f'models/{prefix}_{name}_{auc}.{epoch}')
+    torch.save(model.state_dict(), outdir / f'checkpoints/{prefix}_{name}_{auc}.{epoch}')
 
 
 def save_log(data, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
-    with open(f'data/output/{prefix}_{name}_{auc}.{epoch}.pickle', 'wb') as f:
+    with open(outdir / f'lc_data/{prefix}_{name}_{auc}.{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
 
 
 def save_sns_fig(sns_fig, fname):
     prefix = get_name_prefix(debug=False)
-    sns_fig.savefig(f'data/output/heatmap/{prefix}_{fname}.png')
+    sns_fig.savefig(outdir / f'heatmap/{prefix}_{fname}.png')
 
 
 def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug):
@@ -63,7 +70,7 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     ax.plot(x, eval_auc_list, label='eval auc')
     ax.legend()
     print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
-    plt.savefig(f'data/output/learning_curve/{prefix}_{fname}.png')
+    plt.savefig(outdir / f'learning_curve/{prefix}_{fname}.png')
 
 
 @click.command()
@@ -77,6 +84,7 @@ def main(config):
     section_list = cp.sections()
     pprint(section_list)
     common_opt = dict(cp['common']) if 'common' in section_list else dict()
+    report_list = list()
     for section in section_list:
         if section == 'common':
             continue
@@ -96,16 +104,23 @@ def main(config):
             'lr': 0.05,
             'n_skills': 124,
             'cuda': True,
+
+            'batch_size': 100,
         }
         config_dict = get_option_fallback({**common_opt, **section_opt}, fallback=default_dict)
         config = Config(config_dict)
         pprint(config.as_dict())
 
-        train(config)
+        report = train(config)
+        report_list.append(report)
+    print(report)
+    with open(projectdir / 'output' / 'reports' / '{}result.json'.format(get_name_prefix(False)), 'w') as f:
+        json.dump(report_list, f)
 
 
 def train(config):
     assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
+    report = dict()
     # =========================
     # Outfile name
     # =========================
@@ -113,6 +128,7 @@ def train(config):
     model_fname += f'eb{config.extend_backward}' if config.extend_backward else ''
     model_fname += f'ef{config.extend_forward}' if config.extend_forward else ''
     model_fname += f'ks' if config.ks_loss else ''
+    report['model_fname'] = model_fname
 
     # =========================
     # Seed
@@ -141,7 +157,8 @@ def train(config):
     # =========================
     # Parameters
     # =========================
-    batch_size, n_hidden, n_skills, n_layers = 100, 200, config.n_skills, 2
+    batch_size = config.batch_size 
+    n_hidden, n_skills, n_layers = 200, config.n_skills, 2
     n_output = n_skills
     PRESERVED_TOKENS = 2  # PAD, SOS
     onehot_size = 2 * n_skills + PRESERVED_TOKENS
@@ -197,8 +214,8 @@ def train(config):
             min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
     else:
         raise ValueError(f'model_name {config.model_name} is wrong')
-    logger.log('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-    logger.log('eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
+    logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    logger.info('eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
 
     print(model)
 
@@ -212,7 +229,7 @@ def train(config):
         # -------------------------
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
-        logger.log(
+        logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
 
         loss_func = nn.BCELoss()
@@ -228,6 +245,7 @@ def train(config):
         eval_recall_list = []
         eval_f1_list = []
         x = []
+        bset_eval_auc = 0.
 
         start_time = time.time()
         for epoch in range(1, config.epoch_size + 1):
@@ -322,6 +340,10 @@ def train(config):
                                  eval_loss_list, eval_auc_list),
                                 model_fname, auc, epoch, config.debug
                             )
+                            if auc > bset_eval_auc:
+                                bset_eval_auc = auc
+                                report['best_eval_auc'] = bset_eval_auc
+                                report['best_eval_auc_epoch'] = epoch
 
                     #     # Recall
                     #     logger.debug('EVAL  Epoch: {} Recall: {}'.format(epoch, metrics.recall_score(y, pred.round())))
@@ -474,6 +496,8 @@ def train(config):
         ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
 
         save_sns_fig(fig, model_fname)
+
+    return report
 
 
 if __name__ == '__main__':
