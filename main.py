@@ -45,34 +45,12 @@ def save_model(model, name, auc, epoch, debug):
     torch.save(model.state_dict(), f'models/{prefix}_{name}_{auc}.{epoch}')
 
 
-def save_model(model, name, auc, epoch, debug):
-    prefix = get_name_prefix(debug)
-    torch.save(model.state_dict(), f'models/{prefix}_{name}_{auc}.{epoch}')
-
-
 def save_log(data, name, auc, epoch, debug):
     prefix = get_name_prefix(debug)
     with open(f'data/output/{prefix}_{name}_{auc}.{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
 
 
-def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug):
-    prefix = get_name_prefix(debug)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if train_loss_list:
-        ax.plot(x, train_loss_list, label='train loss')
-    if train_auc_list:
-        ax.plot(x, train_auc_list, label='train auc')
-    if eval_loss_list:
-        ax.plot(x, eval_loss_list, label='eval loss')
-    ax.plot(x, eval_auc_list, label='eval auc')
-    ax.legend()
-    print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
-    plt.savefig(f'data/output/learning_curve/{prefix}_{fname}.png')
-
-
 def save_sns_fig(sns_fig, fname):
     prefix = get_name_prefix(debug=False)
     sns_fig.savefig(f'data/output/heatmap/{prefix}_{fname}.png')
@@ -93,11 +71,6 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     ax.legend()
     print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
     plt.savefig(f'data/output/learning_curve/{prefix}_{fname}.png')
-
-
-def save_sns_fig(sns_fig, fname):
-    prefix = get_name_prefix(debug=False)
-    sns_fig.savefig(f'data/output/heatmap/{prefix}_{fname}.png')
 
 
 @click.command()
@@ -135,20 +108,19 @@ def main(config):
         config = Config(config_dict)
         pprint(config.as_dict())
 
-        run(config)
+        train(config)
 
 
-def run(config):
+def train(config):
     assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
+    # =========================
+    # Outfile name
+    # =========================
     model_fname = config.model_name
     model_fname += f'eb{config.extend_backward}' if config.extend_backward else ''
     model_fname += f'ef{config.extend_forward}' if config.extend_forward else ''
     model_fname += f'ks' if config.ks_loss else ''
 
-    # Version, Device
-    print('PyTorch:', torch.__version__)
-    dev = torch.device('cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
-    print('Using Device:', dev)
     # =========================
     # Seed
     # =========================
@@ -158,6 +130,20 @@ def run(config):
     torch.manual_seed(SEED)
     # torch.backends.cudnn.deterministic = True
     # torch.backends.cudnn.benchmark = False
+
+    # =========================
+    # Version, Device
+    # =========================
+    print('PyTorch:', torch.__version__)
+    dev = torch.device('cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
+    print('Using Device:', dev)
+
+    # =========================
+    # Logging
+    # =========================
+    logging.basicConfig()
+    logger = logging.getLogger(config.model_name)
+    logger.setLevel(logging.INFO)
 
     # =========================
     # Parameters
@@ -218,8 +204,8 @@ def run(config):
             min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0)
     else:
         raise ValueError(f'model_name {config.model_name} is wrong')
-    print('train_dl.dataset size:', len(train_dl.dataset))
-    print('eval_dl.dataset size:', len(eval_dl.dataset))
+    logger.log('train_dl.dataset size:', len(train_dl.dataset))
+    logger.log('eval_dl.dataset size:', len(eval_dl.dataset))
 
     print(model)
 
@@ -242,10 +228,6 @@ def run(config):
         # ==========================
         # Run!
         # ==========================
-        logging.basicConfig()
-        logger = logging.getLogger('DKT')
-        logger.setLevel(logging.INFO)
-
         train_loss_list = []
         train_auc_list = []
         eval_loss_list = []
