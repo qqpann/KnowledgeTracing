@@ -44,8 +44,6 @@ def run(file, csid, cusr, cans, sort_by, outfile_name=''):
         print('example: nkf -Lu -w file_name > new_file_name')
         print(e)
 
-
-    print(df.shape)
     df.dropna(subset=[csid, cusr, cans])
     print(df.shape)
 
