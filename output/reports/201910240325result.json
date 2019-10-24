@@ -1,0 +1,62 @@
+[
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6765850935844517,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6794166948026112,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6634383039329019,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6768554128933233,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6728518538198794,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6696197714792037,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6657498359083533,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6722477314213261,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6715401732362271,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6835096947657446,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6743662960265987,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6653580578087188,
+        "best_eval_auc_epoch": 1000
+    }
+]
