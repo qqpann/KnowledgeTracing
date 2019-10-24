@@ -120,7 +120,6 @@ models/
 debug_*
 
 output/**/*.pickle
-output/**/*.json
 output/results/checkpoints/*
 
 data/*/*.csv
