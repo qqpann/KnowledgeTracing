@@ -1,0 +1,92 @@
+[
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.65725806534954,
+        "best_eval_auc_epoch": 400
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6808547946876478,
+        "best_eval_auc_epoch": 500
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6841488872726786,
+        "best_eval_auc_epoch": 500
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.703581144404763,
+        "best_eval_auc_epoch": 500
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.6957194736021952,
+        "best_eval_auc_epoch": 500
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7240602144281916,
+        "best_eval_auc_epoch": 800
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.711828265051365,
+        "best_eval_auc_epoch": 600
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7206536667839425,
+        "best_eval_auc_epoch": 600
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7171213768098312,
+        "best_eval_auc_epoch": 700
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7347067776294993,
+        "best_eval_auc_epoch": 800
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7433539917111622,
+        "best_eval_auc_epoch": 900
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7422600112234041,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7191195396447425,
+        "best_eval_auc_epoch": 700
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.727547743381336,
+        "best_eval_auc_epoch": 900
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7492279512775896,
+        "best_eval_auc_epoch": 800
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7391669421487603,
+        "best_eval_auc_epoch": 1000
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7592779999004595,
+        "best_eval_auc_epoch": 900
+    },
+    {
+        "model_fname": "baselstm",
+        "best_eval_auc": 0.7548151072509541,
+        "best_eval_auc_epoch": 1000
+    }
+]
