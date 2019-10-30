@@ -159,7 +159,6 @@ class QandAEmbedder:
         return base
 
     
-# type: base, encdec, generative
 def slice_d(d: List, x_seq_size:int, type:str='base', sliding_window:int=0, reverse:bool=False, extend_backward:int=0, extend_forward:int=0) -> Tuple[List]:
     '''
     Params
@@ -365,7 +364,6 @@ def prepare_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_s
 
 
 
-# type: base, encdec, generative
 def slide_d(d: List, x_seq_size:int, type:str='base') -> Tuple[List]:
     '''
     Params
