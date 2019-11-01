@@ -1,0 +1,92 @@
+[
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6432194229649955,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6514765081856919,
+    "best_eval_auc_epoch": 600
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6649784039489921,
+    "best_eval_auc_epoch": 200
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6520163757366896,
+    "best_eval_auc_epoch": 700
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6640109726743179,
+    "best_eval_auc_epoch": 800
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6573263888888888,
+    "best_eval_auc_epoch": 800
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6723456790123457,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6527752715724133,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.7255890854158984,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.7010673903211218,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6384832392963824,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6329653401797176,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6150329852994649,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6187857703961396,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.6044451871657754,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.5789473684210527,
+    "best_eval_auc_epoch": 1000
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.540479421076436,
+    "best_eval_auc_epoch": 900
+  },
+  {
+    "model_fname": "baselstm",
+    "best_eval_auc": 0.5474045474045474,
+    "best_eval_auc_epoch": 900
+  }
+]
