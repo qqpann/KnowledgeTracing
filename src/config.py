@@ -1,5 +1,7 @@
 import configparser
 from typing import Dict
+from pathlib import Path
+import datetime
 
 
 def get_option_fallback(options: Dict, fallback: Dict):
@@ -52,6 +54,19 @@ class Config(BaseConfig):
     '''
     Specific functionalities.
     '''
+    def __init__(self, options: Dict, projectdir: Path):
+        super().__init__(options)
+        self.projectpdir = projectdir
+        self.outdir = projectdir / 'output' / 'results'
+        self.outdir.mkdir(parents=True, exist_ok=True)
+        self.starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
 
-    def setup(self):
-        pass
+    def _get_stem_name(self):
+        debug_prefix = 'debug' if self.debug else ''
+        return '_'.join([debug_prefix, self.starttime, self.section_name, self.model_name])
+
+    @property
+    def resultsdir(self):
+        resultdir = self.outdir / self._get_stem_name()
+        resultdir.mkdir(parents=True, exist_ok=True)
+        return resultdir
