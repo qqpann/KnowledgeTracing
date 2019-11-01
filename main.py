@@ -29,37 +29,27 @@ from model.basedkt import BaseDKT, get_loss_batch_basedkt
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
-projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
-outdir = projectdir / 'output' / 'results'
-outdir.mkdir(parents=True, exist_ok=True)
+def save_model(config, model, auc, epoch):
+    checkpointsdir = config.resultsdir / 'checkpoints'
+    checkpointsdir.mkdir(exist_ok=True)
+    torch.save(model.state_dict(), checkpointsdir /
+               f'{config.model_name}_auc{auc:.4f}_e{epoch}.model')
 
 
-def get_name_prefix(debug):
-    debug = 'debug_' if debug else ''
-    now = datetime.datetime.now().strftime('%Y%m%d%H%M')
-    return debug + now
-
-
-def save_model(model, name, auc, epoch, debug):
-    prefix = get_name_prefix(debug)
-    torch.save(model.state_dict(), outdir /
-               f'checkpoints/{prefix}_{name}_{auc}.{epoch}')
-
-
-def save_log(data, name, auc, epoch, debug):
-    prefix = get_name_prefix(debug)
-    with open(outdir / f'lc_data/{prefix}_{name}_{auc}.{epoch}.pickle', 'wb') as f:
+def save_log(config, data, auc, epoch):
+    lc_datadir = config.resultsdir / 'lc_data'
+    lc_datadir.mkdir(exist_ok=True)
+    with open(lc_datadir / f'{config.model_name}_auc{auc:.4f}_e{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
 
 
-def save_sns_fig(sns_fig, fname):
-    prefix = get_name_prefix(debug=False)
-    sns_fig.savefig(outdir / f'heatmap/{prefix}_{fname}.png')
+def save_hm_fig(config, sns_fig):
+    hmdir = config.resultsdir / 'heatmap'
+    hmdir.mkdir(exist_ok=True)
+    sns_fig.savefig(hmdir / f'{config.model_name}.png')
 
 
-def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, fname, debug):
-    prefix = get_name_prefix(debug)
-
+def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, config):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     if train_loss_list:
@@ -71,7 +61,8 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     ax.plot(x, eval_auc_list, label='eval auc')
     ax.legend()
     print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
-    plt.savefig(outdir / f'learning_curve/{prefix}_{fname}.png')
+    lcdir = config.resultsdir / 'learning_curve'
+    plt.savefig(lcdir / f'{config.model_name}.png')
 
 
 @click.command()
@@ -91,6 +82,9 @@ def main(config):
             continue
         section_opt = dict(cp[section])
         default_dict = {
+            'common_name': '',
+            'section_name': common_opt.get('common_name', '') + section,
+
             'debug': False,
             'model_name': str,
             'load_model': '',
@@ -110,17 +104,18 @@ def main(config):
         }
         config_dict = get_option_fallback(
             {**common_opt, **section_opt}, fallback=default_dict)
-        config = Config(config_dict)
+        projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
+        config = Config(config_dict, projectdir)
         pprint(config.as_dict())
 
-        report = train(config)
+        report = run(config)
         report_list.append(report)
     print(report)
-    with open(projectdir / 'output' / 'reports' / '{}result.json'.format(get_name_prefix(False)), 'w') as f:
+    with open(projectdir / 'output' / 'reports' / '{}result.json'.format(config._get_stem_name()), 'w') as f:
         json.dump(report_list, f)
 
 
-def train(config):
+def run(config):
     assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
     report = dict()
     # =========================
@@ -339,12 +334,12 @@ def train(config):
                         auc = metrics.auc(fpr, tpr)
                         eval_auc_list.append(auc)
                         if epoch % 100 == 0:
-                            save_model(model, model_fname, auc,
-                                       epoch, config.debug)
+                            save_model(config, model, auc,epoch)
                             save_log(
+                                config, 
                                 (x, train_loss_list, train_auc_list,
                                  eval_loss_list, eval_auc_list),
-                                model_fname, auc, epoch, config.debug
+                                auc, epoch
                             )
                             if auc > bset_eval_auc:
                                 bset_eval_auc = auc
@@ -366,7 +361,7 @@ def train(config):
         if config.plot_lc:
             fname = model_fname
             save_learning_curve(x, train_loss_list, train_auc_list,
-                                eval_loss_list, eval_auc_list, fname, config.debug)
+                                eval_loss_list, eval_auc_list, config)
 
     # model is trained or loaded now.
 
@@ -502,7 +497,7 @@ def train(config):
                  qa in enumerate(xticklabels) if qa[1] == 0]
         ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
 
-        save_sns_fig(fig, model_fname)
+        save_sns_fig(config, fig)
 
     return report
 
