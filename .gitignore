@@ -123,6 +123,7 @@ debug_*
 
 output/**/*.pickle
 output/results/checkpoints/*
+output/results/*
 
 data/*/*.csv
 data/*/*.pickle
