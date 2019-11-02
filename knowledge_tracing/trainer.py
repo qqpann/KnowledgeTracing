@@ -12,12 +12,6 @@ class Trainer(object):
 
     def train_model(self):
         train_loss_list = []
-        train_auc_list = []
-        eval_loss_list = []
-        eval_auc_list = []
-        eval_recall_list = []
-        eval_f1_list = []
-        x = []
         bset_eval_auc = 0.
 
         # start_time = time.time()

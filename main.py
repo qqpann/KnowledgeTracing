@@ -405,12 +405,10 @@ def run(config):
     #     save_hm_fig(config, fig)
 
     # return report
+    return None
 
 
 if __name__ == '__main__':
-    # =========================
-    # Seed
-    # =========================
     SEED = 0
     random.seed(SEED)
     np.random.seed(SEED)
