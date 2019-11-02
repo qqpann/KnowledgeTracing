@@ -466,7 +466,6 @@ def run(config):
         #     # F1 score
         #     logger.debug('EVAL  Epoch: {} F1 score: {}'.format(epoch, metrics.f1_score(y, pred.round())))
 
-        prefix = get_name_prefix(debug)
         _d = torch.cat(all_out_prob).transpose(0, 1)
         _d = _d.cpu().numpy()
         print(_d.shape)
@@ -497,7 +496,7 @@ def run(config):
                  qa in enumerate(xticklabels) if qa[1] == 0]
         ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
 
-        save_sns_fig(config, fig)
+        save_hm_fig(config, fig)
 
     return report
 
