@@ -27,6 +27,7 @@ from src.config import get_option_fallback, Config
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
 from model.basedkt import BaseDKT, get_loss_batch_basedkt
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from knowledge_tracing.trainer import Trainer
 
 
 def save_model(config, model, auc, epoch):
@@ -66,7 +67,7 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
 
 
 @click.command()
-@click.option('--config', default='')
+@click.option('--config', '-c', default='')
 def main(config):
     if not config:
         print('Other options are depricated. Please use --config.')
@@ -232,273 +233,197 @@ def run(config):
         logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
 
-        loss_func = nn.BCELoss()
+        loss = nn.BCELoss()
         opt = optim.SGD(model.parameters(), lr=config.lr)
 
-        # ==========================
-        # Run!
-        # ==========================
-        train_loss_list = []
-        train_auc_list = []
-        eval_loss_list = []
-        eval_auc_list = []
-        eval_recall_list = []
-        eval_f1_list = []
-        x = []
-        bset_eval_auc = 0.
+        trainer = Trainer(config, model, loss_batch, logger, loss, opt, train_dl)
+        trainer.train_model()
 
-        start_time = time.time()
-        for epoch in range(1, config.epoch_size + 1):
-            print_train = epoch % 10 == 0
-            print_eval = epoch % 10 == 0
-            print_auc = epoch % 10 == 0
+    #         # =====
+    #         # EVAL
+    #         # =====
+    #         if print_eval:
+    #             with torch.no_grad():
+    #                 model.eval()
 
-            # =====
-            # TRAIN
-            # =====
-            model.train()
+    #                 # ------------------ eval -----------------
+    #                 val_pred = []
+    #                 val_actual = []
+    #                 current_eval_loss = []
+    #                 for args in eval_dl:
+    #                     loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+    #                         model, loss_func, *args, opt=None)
+    #                     current_eval_loss.append(loss_item)
+    #                     val_pred.append(pred)
+    #                     val_actual.append(actu)
 
-            # ------------------ train -----------------
-            val_pred = []
-            val_actual = []
-            current_epoch_train_loss = []
-            for args in train_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
-                    model, loss_func, *args, opt=opt)
-                current_epoch_train_loss.append(loss_item)
-                val_pred.append(pred)
-                val_actual.append(actu)
+    #                     # stop at first batch if debug
+    #                     if config.debug:
+    #                         break
 
-                # stop at first batch if debug
-                if config.debug:
-                    break
+    #                 loss = np.array(current_eval_loss)
+    #                 if epoch % 100 == 0:
+    #                     logger.log(logging.INFO,
+    #                                'EVAL  Epoch: {} Loss: {}'.format(epoch,  loss.mean()))
+    #                 eval_loss_list.append(loss.mean())
 
-            if print_train:
-                loss = np.array(current_epoch_train_loss)
-                if epoch % 100 == 0:
-                    logger.log(logging.INFO,
-                               'TRAIN Epoch: {} Loss: {}'.format(epoch, loss.mean()))
-                train_loss_list.append(loss.mean())
+    #                 # AUC, Recall, F1
+    #                 if print_auc:
+    #                     # TODO: viewしない？　最後の1個で？
+    #                     y = torch.cat(val_actual).view(-1).cpu()
+    #                     pred = torch.cat(val_pred).view(-1).cpu()
+    #                     # AUC
+    #                     fpr, tpr, thresholds = metrics.roc_curve(
+    #                         y, pred, pos_label=1)
+    #                     if epoch % 100 == 0:
+    #                         logger.log(logging.INFO,
+    #                                    'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
+    #                     auc = metrics.auc(fpr, tpr)
+    #                     eval_auc_list.append(auc)
+    #                     if epoch % 100 == 0:
+    #                         save_model(config, model, auc,epoch)
+    #                         save_log(
+    #                             config, 
+    #                             (x, train_loss_list, train_auc_list,
+    #                              eval_loss_list, eval_auc_list),
+    #                             auc, epoch
+    #                         )
+    #                         if auc > bset_eval_auc:
+    #                             bset_eval_auc = auc
+    #                             report['best_eval_auc'] = bset_eval_auc
+    #                             report['best_eval_auc_epoch'] = epoch
 
-                # # AUC, Recall, F1
-                # # TRAINの場合、勾配があるから処理が必要
-                # y = torch.cat(val_targ).cpu().detach().numpy()
-                # pred = torch.cat(val_prob).cpu().detach().numpy()
-                # # AUC
-                # fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=1)
-                # if epoch % 100 == 0:
-                # logger.log(logging.INFO,
-                #            'TRAIN Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
-                # train_auc_list.append(metrics.auc(fpr, tpr))
-            # -----------------------------------
 
-            # =====
-            # EVAL
-            # =====
-            if print_eval:
-                with torch.no_grad():
-                    model.eval()
+    #         if epoch % 10 == 0:
+    #             x.append(epoch)
+    #             if epoch % 100 == 0:
+    #                 logger.log(logging.INFO,
+    #                            f'{timeSince(start_time, epoch / config.epoch_size)} ({epoch} {epoch / config.epoch_size * 100})')
 
-                    # ------------------ eval -----------------
-                    val_pred = []
-                    val_actual = []
-                    current_eval_loss = []
-                    for args in eval_dl:
-                        loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
-                            model, loss_func, *args, opt=None)
-                        current_eval_loss.append(loss_item)
-                        val_pred.append(pred)
-                        val_actual.append(actu)
+    #     if config.plot_lc:
+    #         fname = model_fname
+    #         save_learning_curve(x, train_loss_list, train_auc_list,
+    #                             eval_loss_list, eval_auc_list, config)
 
-                        # stop at first batch if debug
-                        if config.debug:
-                            break
+    # # model is trained or loaded now.
 
-                    loss = np.array(current_eval_loss)
-                    if epoch % 100 == 0:
-                        logger.log(logging.INFO,
-                                   'EVAL  Epoch: {} Loss: {}'.format(epoch,  loss.mean()))
-                    eval_loss_list.append(loss.mean())
+    # if config.plot_heatmap:
+    #     batch_size = 1
+    #     # TODO: don't repeat yourself
+    #     if config.model_name == 'encdec':
+    #         model = EncDecDKT(
+    #             INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
+    #             OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
+    #             N_SKILLS,
+    #             dev).to(dev)
+    #         loss_batch = get_loss_batch_encdec(
+    #             config.extend_forward, ks_loss=config.ks_loss)
+    #     elif config.model_name == 'seq2seq':
+    #         model = get_Seq2Seq(
+    #             onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
+    #             OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
+    #         loss_batch = get_loss_batch_seq2seq(
+    #             config.extend_forward, ks_loss=config.ks_loss)
+    #     elif config.model_name == 'basernn':
+    #         model = BaseDKT(
+    #             dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
+    #         ).to(dev)
+    #         loss_batch = get_loss_batch_basedkt(
+    #             onehot_size, n_input, batch_size, config.sequence_size, dev)
+    #     elif config.model_name == 'baselstm':
+    #         model = BaseDKT(
+    #             dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
+    #         ).to(dev)
+    #         loss_batch = get_loss_batch_basedkt(
+    #             onehot_size, n_input, batch_size, config.sequence_size, dev)
+    #     else:
+    #         raise ValueError(f'model_name {config.model_name} is wrong')
+    #     if config.load_model:
+    #         model.load_state_dict(torch.load(config.load_model))
+    #         model = model.to(dev)
+    #     heat_dl = prepare_heatmap_data(
+    #         config.source_data, config.model_name, n_skills, PRESERVED_TOKENS,
+    #         min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
+    #         params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
+    #     loss_func = nn.BCELoss()
+    #     opt = optim.SGD(model.parameters(), lr=config.lr)
 
-                    # AUC, Recall, F1
-                    if print_auc:
-                        # TODO: viewしない？　最後の1個で？
-                        y = torch.cat(val_actual).view(-1).cpu()
-                        pred = torch.cat(val_pred).view(-1).cpu()
-                        # AUC
-                        fpr, tpr, thresholds = metrics.roc_curve(
-                            y, pred, pos_label=1)
-                        if epoch % 100 == 0:
-                            logger.log(logging.INFO,
-                                       'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
-                        auc = metrics.auc(fpr, tpr)
-                        eval_auc_list.append(auc)
-                        if epoch % 100 == 0:
-                            save_model(config, model, auc,epoch)
-                            save_log(
-                                config, 
-                                (x, train_loss_list, train_auc_list,
-                                 eval_loss_list, eval_auc_list),
-                                auc, epoch
-                            )
-                            if auc > bset_eval_auc:
-                                bset_eval_auc = auc
-                                report['best_eval_auc'] = bset_eval_auc
-                                report['best_eval_auc_epoch'] = epoch
+    #     debug = False
+    #     logging.basicConfig()
+    #     logger = logging.getLogger('dkt log')
+    #     logger.setLevel(logging.INFO)
+    #     train_loss_list = []
+    #     train_auc_list = []
+    #     eval_loss_list = []
+    #     eval_auc_list = []
+    #     eval_recall_list = []
+    #     eval_f1_list = []
+    #     x = []
 
-                    #     # Recall
-                    #     logger.debug('EVAL  Epoch: {} Recall: {}'.format(epoch, metrics.recall_score(y, pred.round())))
-                    #     # F1 score
-                    #     logger.debug('EVAL  Epoch: {} F1 score: {}'.format(epoch, metrics.f1_score(y, pred.round())))
-                    # -----------------------------------
+    #     with torch.no_grad():
+    #         model.eval()
+    #         # =====
+    #         # HEATMAP
+    #         # =====
+    #         all_out_prob = []
+    #         # ------------------ heatmap (eval) -----------------
+    #         val_pred = []
+    #         val_actual = []
+    #         current_eval_loss = []
+    #         yticklabels = set()
+    #         xticklabels = []
+    #         for args in heat_dl:
+    #             loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+    #                 model, loss_func, *args, opt=None)
+    #             # current_eval_loss.append(loss_item[-1])
+    #             # print(pred.shape, actu.shape)
+    #             # val_pred.append(pred[-1])
+    #             # val_actual.append(actu[-1])
+    #             yq = torch.max(actu_q.squeeze(), 0)[1].item()
+    #             ya = int(actu.item())
+    #             yticklabels.add(yq)
+    #             xticklabels.append((yq, ya))
 
-            if epoch % 10 == 0:
-                x.append(epoch)
-                if epoch % 100 == 0:
-                    logger.log(logging.INFO,
-                               f'{timeSince(start_time, epoch / config.epoch_size)} ({epoch} {epoch / config.epoch_size * 100})')
+    #             # print(pred_ks.shape)
+    #             assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(
+    #                 pred_ks.shape)
+    #             assert pred_ks.shape[0] == n_skills
+    #             all_out_prob.append(pred_ks.unsqueeze(0))
 
-        if config.plot_lc:
-            fname = model_fname
-            save_learning_curve(x, train_loss_list, train_auc_list,
-                                eval_loss_list, eval_auc_list, config)
 
-    # model is trained or loaded now.
+    #     _d = torch.cat(all_out_prob).transpose(0, 1)
+    #     _d = _d.cpu().numpy()
+    #     print(_d.shape)
+    #     print(len(yticklabels), len(xticklabels))
+    #     yticklabels = sorted(list(yticklabels))
+    #     related_d = np.matrix([_d[x, :] for x in yticklabels])
 
-    if config.plot_heatmap:
-        batch_size = 1
-        # TODO: don't repeat yourself
-        if config.model_name == 'encdec':
-            model = EncDecDKT(
-                INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
-                OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT,
-                N_SKILLS,
-                dev).to(dev)
-            loss_batch = get_loss_batch_encdec(
-                config.extend_forward, ks_loss=config.ks_loss)
-        elif config.model_name == 'seq2seq':
-            model = get_Seq2Seq(
-                onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
-                OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, dev)
-            loss_batch = get_loss_batch_seq2seq(
-                config.extend_forward, ks_loss=config.ks_loss)
-        elif config.model_name == 'basernn':
-            model = BaseDKT(
-                dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
-            ).to(dev)
-            loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, config.sequence_size, dev)
-        elif config.model_name == 'baselstm':
-            model = BaseDKT(
-                dev, config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
-            ).to(dev)
-            loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, config.sequence_size, dev)
-        else:
-            raise ValueError(f'model_name {config.model_name} is wrong')
-        if config.load_model:
-            model.load_state_dict(torch.load(config.load_model))
-            model = model.to(dev)
-        heat_dl = prepare_heatmap_data(
-            config.source_data, config.model_name, n_skills, PRESERVED_TOKENS,
-            min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-            params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
-        loss_func = nn.BCELoss()
-        opt = optim.SGD(model.parameters(), lr=config.lr)
+    #     # Regular Heatmap
+    #     # fig, ax = plt.subplots(figsize=(20, 10))
+    #     # sns.heatmap(_d, ax=ax)
 
-        debug = False
-        logging.basicConfig()
-        logger = logging.getLogger('dkt log')
-        logger.setLevel(logging.INFO)
-        train_loss_list = []
-        train_auc_list = []
-        eval_loss_list = []
-        eval_auc_list = []
-        eval_recall_list = []
-        eval_f1_list = []
-        x = []
+    #     fig, ax = plt.subplots(figsize=(20, 7))
+    #     sns.heatmap(
+    #         related_d, vmin=0, vmax=1, ax=ax,
+    #         # cmap="Reds_r",
+    #         xticklabels=['{}'.format(y) for y in xticklabels],
+    #         yticklabels=['s{}'.format(x) for x in yticklabels],
+    #     )
+    #     xtick_dic = {s: i for i, s in enumerate(yticklabels)}
+    #     # 正解
+    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
+    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+    #              qa in enumerate(xticklabels) if qa[1] == 1]
+    #     ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
+    #     # 不正解
+    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
+    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+    #              qa in enumerate(xticklabels) if qa[1] == 0]
+    #     ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
 
-        with torch.no_grad():
-            model.eval()
-            # =====
-            # HEATMAP
-            # =====
-            all_out_prob = []
-            # ------------------ heatmap (eval) -----------------
-            val_pred = []
-            val_actual = []
-            current_eval_loss = []
-            yticklabels = set()
-            xticklabels = []
-            for args in heat_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
-                    model, loss_func, *args, opt=None)
-                # current_eval_loss.append(loss_item[-1])
-                # print(pred.shape, actu.shape)
-                # val_pred.append(pred[-1])
-                # val_actual.append(actu[-1])
-                yq = torch.max(actu_q.squeeze(), 0)[1].item()
-                ya = int(actu.item())
-                yticklabels.add(yq)
-                xticklabels.append((yq, ya))
+    #     save_hm_fig(config, fig)
 
-                # print(pred_ks.shape)
-                assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(
-                    pred_ks.shape)
-                assert pred_ks.shape[0] == n_skills
-                all_out_prob.append(pred_ks.unsqueeze(0))
-
-            # loss = np.array(current_eval_loss)
-            # logger.log(logging.INFO ,
-            #            'EVAL Loss: {}'.format( loss.mean()))
-            # eval_loss_list.append(loss.mean())
-
-            # -----------------------------------
-
-            # AUC, Recall, F1
-            # y = torch.cat(val_actual).view(-1).cpu()  # TODO: viewしない？　最後の1個で？
-            # pred = torch.cat(val_pred).view(-1).cpu()
-            # AUC
-            # fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=1)
-            # eval_auc_list.append(metrics.auc(fpr, tpr))
-        #     # Recall
-        #     logger.debug('EVAL  Epoch: {} Recall: {}'.format(epoch, metrics.recall_score(y, pred.round())))
-        #     # F1 score
-        #     logger.debug('EVAL  Epoch: {} F1 score: {}'.format(epoch, metrics.f1_score(y, pred.round())))
-
-        _d = torch.cat(all_out_prob).transpose(0, 1)
-        _d = _d.cpu().numpy()
-        print(_d.shape)
-        print(len(yticklabels), len(xticklabels))
-        yticklabels = sorted(list(yticklabels))
-        related_d = np.matrix([_d[x, :] for x in yticklabels])
-
-        # Regular Heatmap
-        # fig, ax = plt.subplots(figsize=(20, 10))
-        # sns.heatmap(_d, ax=ax)
-
-        fig, ax = plt.subplots(figsize=(20, 7))
-        sns.heatmap(
-            related_d, vmin=0, vmax=1, ax=ax,
-            # cmap="Reds_r",
-            xticklabels=['{}'.format(y) for y in xticklabels],
-            yticklabels=['s{}'.format(x) for x in yticklabels],
-        )
-        xtick_dic = {s: i for i, s in enumerate(yticklabels)}
-        # 正解
-        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-                 qa in enumerate(xticklabels) if qa[1] == 1]
-        ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
-        # 不正解
-        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-                 qa in enumerate(xticklabels) if qa[1] == 0]
-        ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
-
-        save_hm_fig(config, fig)
-
-    return report
+    # return report
 
 
 if __name__ == '__main__':
