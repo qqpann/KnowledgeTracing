@@ -28,12 +28,12 @@ from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF,
 from src.utils import sAsMinutes, timeSince
 
 
-
 # =========================
 # Model
 # =========================
 class BaseDKT(nn.Module):
     ''' オリジナルのDKT '''
+
     def __init__(self, dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size, dropout=0.6, bidirectional=False):
         super().__init__()
         self.dev = dev
@@ -43,23 +43,26 @@ class BaseDKT(nn.Module):
         self.n_output = n_output
         self.n_layers = n_layers
         self.batch_size = batch_size
-        
+
         self.bidirectional = bidirectional
         self.directions = 2 if self.bidirectional else 1
-        
+
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
         if model_name == 'basernn':
             self.rnn = nn.RNN(n_input, n_hidden, n_layers,
                               nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
         elif model_name == 'baselstm':
-            self.lstm = nn.LSTM(n_input, n_hidden, n_layers, dropout=dropout, bidirectional=self.bidirectional)
+            self.lstm = nn.LSTM(n_input, n_hidden, n_layers,
+                                dropout=dropout, bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
         self.decoder = nn.Linear(n_hidden * self.directions, n_output)
         # self.sigmoid = nn.Sigmoid()
 
-    def forward(self, input):
+        self._loss = nn.BCELoss()
+
+    def forward(self, input, yqs, target):
         if self.model_name == 'basernn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(input, h0)
@@ -71,9 +74,17 @@ class BaseDKT(nn.Module):
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
         out = self.decoder(out)
         # decoded = self.sigmoid(decoded)
+        # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
 
-        return out
-    
+        pred = torch.sigmoid(out)  # [0, 1]区間にする
+        prob = torch.max(pred * yqs, 2)[0]
+        loss = self._loss(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
+
+        out_dic = {
+            'loss': loss
+        }
+        return out_dic
+
     def initHidden0(self):
         return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
 
@@ -81,7 +92,6 @@ class BaseDKT(nn.Module):
         return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
 
 
-# 
 def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev):
     def loss_batch_basedkt(model, loss_func, *args, opt=None):
         '''
@@ -113,36 +123,8 @@ def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
         actual_q = yq
         actual_a = ya
 
-        out = model(input)
-        # print(out.shape) => [20, 100, 124]
-        # [sequence_len, batch_size, skill_size]
-        # print(out[-1].shape) => [100, 124]
-        # [batch_size, skill_size]
-
-        pred = torch.sigmoid(out)  # [0, 1]区間にする
-        prob = torch.max(pred * yqs, 2)[0]
-        # print(pred.shape, yqs.shape)
-        # print(prob.shape, target.shape)
-
-        predicted = torch.max(torch.sigmoid(out[-1]) * yq, 1)[0]
-        # If only last y: print(pred.shape, yq.shape) => [100, 124], [100, 124]
-        # If only last y: print(prob.shape, target.shape) => [100], [100]
-        loss = loss_func(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
-
-        # print(pred.shape)
-        hm_pred_ks = pred[-1].squeeze()
-
-
-        # assert tuple(pred.shape) == (20, 100, 124), "Unexpected shape {}".format(pred.shape)
-        # waviness_norm_l1 = torch.abs(pred[1:, :, :] - pred[:-1, :, :])
-        # waviness_l1 = torch.sum(waviness_norm_l1) / ((pred.shape[0] - 1) * pred.shape[1] * pred.shape[2])
-        # lambda_l1 = 0.1
-        # loss += lambda_l1 * waviness_l1
-        
-        # waviness_norm_l2 = torch.pow(pred[1:, :, :] - pred[:-1, :, :], 2)
-        # waviness_l2 = torch.sum(waviness_norm_l2) / ((pred.shape[0] - 1) * pred.shape[1] * pred.shape[2])
-        # lambda_l2 = 0.1
-        # loss += lambda_l2 * waviness_l2
+        out = model(input, yqs, target)
+        loss = out['loss']
 
         if opt:
             # バックプロバゲーション
@@ -150,5 +132,7 @@ def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
             loss.backward()
             opt.step()
 
-        return loss.item(), len(ya), predicted, actual_q, actual_a, hm_pred_ks, None, None
+        # hm_pred_ks = pred[-1].squeeze()
+
+        return loss
     return loss_batch_basedkt

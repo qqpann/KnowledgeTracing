@@ -11,9 +11,6 @@ class Trainer(object):
         self.train_dl = train_dl
 
     def train_model(self):
-        # ==========================
-        # Run!
-        # ==========================
         train_loss_list = []
         train_auc_list = []
         eval_loss_list = []
@@ -29,28 +26,19 @@ class Trainer(object):
             print_eval = epoch % 10 == 0
             print_auc = epoch % 10 == 0
 
-            # =====
-            # TRAIN
-            # =====
             self.model.train()
 
-            # ------------------ train -----------------
-            val_pred = []
-            val_actual = []
             current_epoch_train_loss = []
             for args in self.train_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = self.loss_batch(
-                    self.model, self.loss, *args, opt=self.opt)
-                current_epoch_train_loss.append(loss_item)
-                val_pred.append(pred)
-                val_actual.append(actu)
+                loss = self.loss_batch(self.model, self.loss, *args, opt=self.opt)
+                current_epoch_train_loss.append(loss.item())
 
                 # stop at first batch if debug
                 if self.config.debug:
                     break
 
             if print_train:
-                loss = np.array(current_epoch_train_loss)
+                loss_array = np.array(current_epoch_train_loss)
                 if epoch % 100 == 0:
-                    self.logger.info('TRAIN Epoch: {} Loss: {}'.format(epoch, loss.mean()))
+                    self.logger.info('TRAIN Epoch: {} Loss: {}'.format(epoch, loss_array.mean()))
                 train_loss_list.append(loss.mean())
