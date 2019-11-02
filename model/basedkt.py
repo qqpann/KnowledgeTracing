@@ -93,7 +93,7 @@ class BaseDKT(nn.Module):
 
 
 def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev):
-    def loss_batch_basedkt(model, loss_func, *args, opt=None):
+    def loss_batch_basedkt(model, *args, opt=None):
         '''
         DataLoaderの１イテレーションから，
         適宜back propagationし，
