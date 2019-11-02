@@ -128,3 +128,5 @@ output/results/*
 data/*/*.csv
 data/*/*.pickle
 data/*/*.txt
+
+output/_archive_models/
