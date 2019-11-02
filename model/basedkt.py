@@ -95,16 +95,17 @@ class BaseDKT(nn.Module):
 def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev):
     def loss_batch_basedkt(model, loss_func, *args, opt=None):
         '''
+        DataLoaderの１イテレーションから，
+        適宜back propagationし，
+        lossを返す．
+
         xs: shapeは[100, 20, 654]
         yq: qのonehot配列からなる配列
         ya: aの0,1 intからなる配列
         '''
         # Unpack data from DataLoader
         xs, yq, ya, yqs, yas = args
-        # print(xs)
-        # print(xs.shape)
         # print(yq.shape) => [100, 124] = [batch_size, skill_size]
-        # raise
         input = xs
         compressed_sensing = True
         if compressed_sensing and onehot_size != n_input:
