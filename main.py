@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 import os
+import sys
 import random
 import time
 import datetime
@@ -15,7 +16,6 @@ from pathlib import Path
 from math import log, ceil
 from typing import List, Tuple, Set, Dict  # noqa
 
-import click
 import numpy as np
 from sklearn import metrics
 import seaborn as sns
@@ -28,6 +28,10 @@ from model.eddkt import EncDecDKT, get_loss_batch_encdec
 from model.basedkt import BaseDKT, get_loss_batch_basedkt
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 from knowledge_tracing.trainer import Trainer
+
+logging.basicConfig()
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 def save_model(config, model, auc, epoch):
@@ -66,14 +70,9 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     plt.savefig(lcdir / f'{config.model_name}.png')
 
 
-@click.command()
-@click.option('--config', '-c', default='')
-def main(config):
-    if not config:
-        print('Other options are depricated. Please use --config.')
-        return
+def main(configpath: Path):
     cp = configparser.ConfigParser()
-    cp.read(config)
+    cp.read(str(configpath))
     section_list = cp.sections()
     pprint(section_list)
     common_opt = dict(cp['common']) if 'common' in section_list else dict()
@@ -129,29 +128,12 @@ def run(config):
     report['model_fname'] = model_fname
 
     # =========================
-    # Seed
-    # =========================
-    SEED = 0
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
-
-    # =========================
     # Version, Device
     # =========================
     print('PyTorch:', torch.__version__)
     dev = torch.device(
         'cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
     print('Using Device:', dev)
-
-    # =========================
-    # Logging
-    # =========================
-    logging.basicConfig()
-    logger = logging.getLogger(config.model_name)
-    logger.setLevel(logging.INFO)
 
     # =========================
     # Parameters
@@ -236,7 +218,8 @@ def run(config):
         loss = nn.BCELoss()
         opt = optim.SGD(model.parameters(), lr=config.lr)
 
-        trainer = Trainer(config, model, loss_batch, logger, loss, opt, train_dl)
+        trainer = Trainer(config, model, loss_batch,
+                          logger, loss, opt, train_dl)
         trainer.train_model()
 
     #         # =====
@@ -283,7 +266,7 @@ def run(config):
     #                     if epoch % 100 == 0:
     #                         save_model(config, model, auc,epoch)
     #                         save_log(
-    #                             config, 
+    #                             config,
     #                             (x, train_loss_list, train_auc_list,
     #                              eval_loss_list, eval_auc_list),
     #                             auc, epoch
@@ -292,7 +275,6 @@ def run(config):
     #                             bset_eval_auc = auc
     #                             report['best_eval_auc'] = bset_eval_auc
     #                             report['best_eval_auc_epoch'] = epoch
-
 
     #         if epoch % 10 == 0:
     #             x.append(epoch)
@@ -390,7 +372,6 @@ def run(config):
     #             assert pred_ks.shape[0] == n_skills
     #             all_out_prob.append(pred_ks.unsqueeze(0))
 
-
     #     _d = torch.cat(all_out_prob).transpose(0, 1)
     #     _d = _d.cpu().numpy()
     #     print(_d.shape)
@@ -427,4 +408,17 @@ def run(config):
 
 
 if __name__ == '__main__':
-    main()
+    # =========================
+    # Seed
+    # =========================
+    SEED = 0
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+
+    config = sys.argv[1]
+    config = Path(config)
+    assert config.exists(), config
+    main(config)
