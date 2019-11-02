@@ -130,3 +130,5 @@ data/*/*.pickle
 data/*/*.txt
 
 output/_archive_models/
+
+nohup.out
