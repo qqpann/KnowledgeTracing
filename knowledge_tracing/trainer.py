@@ -1,8 +1,8 @@
+import torch
+
 import logging
 import numpy as np
 from math import log, ceil
-
-import torch
 
 from src.data import prepare_data
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
@@ -101,7 +101,6 @@ class Trainer(object):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
         self.logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
-
 
         return model, loss_batch, train_dl, eval_dl
 
