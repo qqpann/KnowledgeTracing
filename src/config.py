@@ -70,3 +70,11 @@ class Config(BaseConfig):
         resultdir = self.outdir / self._get_stem_name()
         resultdir.mkdir(parents=True, exist_ok=True)
         return resultdir
+
+    @property
+    def outfname(self):
+        outfname = self.model_name
+        outfname += f'eb{self.extend_backward}' if self.extend_backward else ''
+        outfname += f'ef{self.extend_forward}' if self.extend_forward else ''
+        outfname += f'ks' if self.ks_loss else ''
+        return outfname
