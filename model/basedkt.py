@@ -28,9 +28,6 @@ from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF,
 from src.utils import sAsMinutes, timeSince
 
 
-# =========================
-# Model
-# =========================
 class BaseDKT(nn.Module):
     ''' オリジナルのDKT '''
 
