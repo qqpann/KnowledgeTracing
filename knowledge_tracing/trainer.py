@@ -15,7 +15,7 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger()
         self.device = self.get_device()
-        self.model, self.loss_batch, self.train_dl, _eval_dl = self.get_model()
+        self.model, self.loss_batch, self.train_dl, self.eval_dl = self.get_model()
         self.opt = self.get_opt(self.model)
 
     def get_logger(self):
@@ -136,3 +136,65 @@ class Trainer(object):
                     self.logger.info('TRAIN Epoch: {} Loss: {}'.format(
                         epoch, loss_array.mean()))
                 train_loss_list.append(loss.mean())
+
+    def valid_model(self):
+        with torch.no_grad():
+            self.model.eval()
+
+            # ------------------ eval -----------------
+            val_pred = []
+            val_actual = []
+            current_eval_loss = []
+            for args in self.eval_dl:
+                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = self.loss_batch(
+                    self.model, loss_func, *args, opt=None)
+                current_eval_loss.append(loss_item)
+                val_pred.append(pred)
+                val_actual.append(actu)
+
+                # stop at first batch if debug
+                if self.config.debug:
+                    break
+
+            loss = np.array(current_eval_loss)
+            if epoch % 100 == 0:
+                logger.log(logging.INFO,
+                           'EVAL  Epoch: {} Loss: {}'.format(epoch,  loss.mean()))
+            eval_loss_list.append(loss.mean())
+
+            # AUC, Recall, F1
+            if print_auc:
+                # TODO: viewしない？　最後の1個で？
+                y = torch.cat(val_actual).view(-1).cpu()
+                pred = torch.cat(val_pred).view(-1).cpu()
+                # AUC
+                fpr, tpr, thresholds = metrics.roc_curve(
+                    y, pred, pos_label=1)
+                if epoch % 100 == 0:
+                    logger.log(logging.INFO,
+                               'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
+                auc = metrics.auc(fpr, tpr)
+                eval_auc_list.append(auc)
+                if epoch % 100 == 0:
+                    save_model(config, model, auc,epoch)
+                    save_log(
+                        config,
+                        (x, train_loss_list, train_auc_list,
+                         eval_loss_list, eval_auc_list),
+                        auc, epoch
+                    )
+                    if auc > bset_eval_auc:
+                        bset_eval_auc = auc
+                        report['best_eval_auc'] = bset_eval_auc
+                        report['best_eval_auc_epoch'] = epoch
+
+    #       if epoch % 10 == 0:
+    #           x.append(epoch)
+    #           if epoch % 100 == 0:
+    #               logger.log(logging.INFO,
+    #                          f'{timeSince(start_time, epoch / config.epoch_size)} ({epoch} {epoch / config.epoch_size * 100})')
+
+    #   if config.plot_lc:
+    #       fname = model_fname
+    #       save_learning_curve(x, train_loss_list, train_auc_list,
+    #                           eval_loss_list, eval_auc_list, config)
