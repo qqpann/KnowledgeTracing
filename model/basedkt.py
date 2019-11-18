@@ -59,14 +59,14 @@ class BaseDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, input, yqs, target):
+    def forward(self, inputs, yqs, target):
         if self.model_name == 'basernn':
             h0 = self.initHidden0()
-            out, _hn = self.rnn(input, h0)
+            out, _hn = self.rnn(inputs, h0)
         elif self.model_name == 'baselstm':
             h0 = self.initHidden0()
             c0 = self.initC0()
-            out, (_hn, _cn) = self.lstm(input, (h0, c0))
+            out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
         # top_n, top_i = out.topk(1)
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
         out = self.decoder(out)
@@ -74,7 +74,12 @@ class BaseDKT(nn.Module):
         # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
 
         pred = torch.sigmoid(out)  # [0, 1]区間にする
+        # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
+        # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         prob = torch.max(pred * yqs, 2)[0]
+        # print(pred, pred.shape)  # (20, 100, 124)
+        # print(prob, prob.shape)  # (20, 100)
+        # print(target, target.shape)  # (20, 100)
         loss = self._loss(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
 
         out_dic = {
@@ -89,7 +94,7 @@ class BaseDKT(nn.Module):
         return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
 
 
-def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev):
+def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_size, device):
     def loss_batch_basedkt(model, *args, opt=None):
         '''
         DataLoaderの１イテレーションから，
@@ -101,27 +106,41 @@ def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
         ya: aの0,1 intからなる配列
         '''
         # Unpack data from DataLoader
-        xs, yq, ya, yqs, yas = args
+        xseq, yseq = args
         # print(yq.shape) => [100, 124] = [batch_size, skill_size]
-        input = xs
+        # print(xseq.shape, yseq.shape) => [100, 20, 2], [100, 20, 2]
+        # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
+        # https://pytorch.org/docs/master/nn.functional.html#one-hot
+        skill_n = n_skills
+        onehot_size = skill_n * 2 + 2
+        # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
+        inputs = torch.LongTensor(np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        inputs = inputs.squeeze()
+        inputs = F.one_hot(inputs, num_classes=onehot_size).float()
+        yqs = torch.LongTensor(np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = yqs.squeeze()
+        yqs = F.one_hot(yqs, num_classes=skill_n).float()
+        target = torch.Tensor(np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        target = target.squeeze()
+        # print(target, target.shape)
         compressed_sensing = True
         if compressed_sensing and onehot_size != n_input:
             SEED = 0
             torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, n_input).to(dev)
-            input = torch.mm(
-                input.contiguous().view(-1, onehot_size), cs_basis)
+            cs_basis = torch.randn(onehot_size, n_input).to(device)
+            inputs = torch.mm(
+                inputs.contiguous().view(-1, onehot_size), cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
-            input = input.view(batch_size, sequence_size, n_input)
-        input = input.permute(1, 0, 2)
+            inputs = inputs.view(batch_size, sequence_size, n_input)
+        inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
-        target = yas.permute(1, 0)
-        actual_q = yq
-        actual_a = ya
+        target = target.permute(1, 0)
+        # actual_q = yq
+        # actual_a = ya
 
-        out = model(input, yqs, target)
+        out = model(inputs, yqs, target)
         loss = out['loss']
 
         if opt:
