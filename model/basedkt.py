@@ -31,8 +31,9 @@ from src.utils import sAsMinutes, timeSince
 class BaseDKT(nn.Module):
     ''' オリジナルのDKT '''
 
-    def __init__(self, dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size, dropout=0.6, bidirectional=False):
+    def __init__(self, config, dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size, dropout=0.6, bidirectional=False):
         super().__init__()
+        self.config = config
         self.dev = dev
         self.model_name = model_name
         self.n_input = n_input
@@ -93,9 +94,7 @@ class BaseDKT(nn.Module):
     def initC0(self):
         return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
 
-
-def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_size, device):
-    def loss_batch_basedkt(model, *args, opt=None):
+    def loss_batch(self, xseq, yseq, opt=None):
         '''
         DataLoaderの１イテレーションから，
         適宜back propagationし，
@@ -105,14 +104,13 @@ def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_
         yq: qのonehot配列からなる配列
         ya: aの0,1 intからなる配列
         '''
-        # Unpack data from DataLoader
-        xseq, yseq = args
         # print(yq.shape) => [100, 124] = [batch_size, skill_size]
         # print(xseq.shape, yseq.shape) => [100, 20, 2], [100, 20, 2]
         # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
-        skill_n = n_skills
+        skill_n = self.config.n_skills
         onehot_size = skill_n * 2 + 2
+        device = self.dev
         # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
         inputs = torch.LongTensor(np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
         inputs = inputs.squeeze()
@@ -124,15 +122,15 @@ def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_
         target = target.squeeze()
         # print(target, target.shape)
         compressed_sensing = True
-        if compressed_sensing and onehot_size != n_input:
+        if compressed_sensing and onehot_size != self.n_input:
             SEED = 0
             torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, n_input).to(device)
+            cs_basis = torch.randn(onehot_size, self.n_input).to(device)
             inputs = torch.mm(
                 inputs.contiguous().view(-1, onehot_size), cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
-            inputs = inputs.view(batch_size, sequence_size, n_input)
+            inputs = inputs.view(self.batch_size, self.config.sequence_size, self.n_input)
         inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
@@ -140,7 +138,7 @@ def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_
         # actual_q = yq
         # actual_a = ya
 
-        out = model(inputs, yqs, target)
+        out = self.forward(inputs, yqs, target)
         loss = out['loss']
 
         if opt:
@@ -152,4 +150,3 @@ def get_loss_batch_basedkt(n_skills, onehot_size, n_input, batch_size, sequence_
         # hm_pred_ks = pred[-1].squeeze()
 
         return loss
-    return loss_batch_basedkt
