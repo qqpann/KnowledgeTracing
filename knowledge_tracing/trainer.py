@@ -6,7 +6,7 @@ from math import log, ceil
 
 from src.data import prepare_data, prepare_dataloader
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
-from model.basedkt import BaseDKT, get_loss_batch_basedkt
+from model.basedkt import BaseDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
@@ -15,7 +15,7 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger()
         self.device = self.get_device()
-        self.model, self.loss_batch, self.train_dl, self.eval_dl = self.get_model()
+        self.model, self.train_dl, self.eval_dl = self.get_model()
         self.opt = self.get_opt(self.model)
 
     def get_logger(self):
@@ -77,8 +77,6 @@ class Trainer(object):
                 self.config,
                 self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(self.device)
-            loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, self.config.sequence_size, self.device)
             train_dl, eval_dl = prepare_data(
                 self.config.source_data, 'base', n_skills, preserved_tokens='?',
                 min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0)
@@ -87,8 +85,6 @@ class Trainer(object):
                 self.config,
                 self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(self.device)
-            loss_batch = get_loss_batch_basedkt(
-                n_skills, onehot_size, n_input, batch_size, self.config.sequence_size, self.device)
             train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
@@ -102,7 +98,7 @@ class Trainer(object):
         self.logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
 
-        return model, loss_batch, train_dl, eval_dl
+        return model, train_dl, eval_dl
 
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
@@ -119,7 +115,8 @@ class Trainer(object):
 
             current_epoch_train_loss = []
             for xseq, yseq in self.train_dl:
-                loss = self.model.loss_batch(xseq, yseq, opt=self.opt)
+                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+                loss = out['loss']
                 current_epoch_train_loss.append(loss.item())
 
                 # stop at first batch if debug
@@ -141,8 +138,8 @@ class Trainer(object):
             val_actual = []
             current_eval_loss = []
             for args in self.eval_dl:
-                loss = self.loss_batch(
-                    self.model, *args, opt=None)
+                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+                loss = out['loss']
                 current_eval_loss.append(loss.item())
                 val_pred.append(pred)
                 val_actual.append(actu)
