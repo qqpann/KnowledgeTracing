@@ -84,7 +84,8 @@ class BaseDKT(nn.Module):
         loss = self._loss(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
 
         out_dic = {
-            'loss': loss
+            'loss': loss,
+            'prob': prob,
         }
         return out_dic
 
@@ -149,4 +150,4 @@ class BaseDKT(nn.Module):
 
         # hm_pred_ks = pred[-1].squeeze()
 
-        return loss
+        return out
