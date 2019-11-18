@@ -4,7 +4,7 @@ import logging
 import numpy as np
 from math import log, ceil
 
-from src.data import prepare_data
+from src.data import prepare_data, prepare_dataloader
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
 from model.basedkt import BaseDKT, get_loss_batch_basedkt
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
@@ -86,10 +86,8 @@ class Trainer(object):
                 self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(self.device)
             loss_batch = get_loss_batch_basedkt(
-                onehot_size, n_input, batch_size, self.config.sequence_size, self.device)
-            train_dl, eval_dl = prepare_data(
-                self.config.source_data, 'base', n_skills, preserved_tokens='?',
-                min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0)
+                n_skills, onehot_size, n_input, batch_size, self.config.sequence_size, self.device)
+            train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
         self.logger.info(
@@ -109,15 +107,12 @@ class Trainer(object):
         return opt
 
     def train_model(self):
+        self.logger.info('Starting train')
         train_loss_list = []
         bset_eval_auc = 0.
 
         # start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
-            print_train = epoch % 10 == 0
-            print_eval = epoch % 10 == 0
-            print_auc = epoch % 10 == 0
-
             self.model.train()
 
             current_epoch_train_loss = []
@@ -130,7 +125,7 @@ class Trainer(object):
                 if self.config.debug:
                     break
 
-            if print_train:
+            if epoch % 10 == 0:
                 loss_array = np.array(current_epoch_train_loss)
                 if epoch % 100 == 0:
                     self.logger.info('TRAIN Epoch: {} Loss: {}'.format(
@@ -141,14 +136,13 @@ class Trainer(object):
         with torch.no_grad():
             self.model.eval()
 
-            # ------------------ eval -----------------
             val_pred = []
             val_actual = []
             current_eval_loss = []
             for args in self.eval_dl:
-                loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = self.loss_batch(
-                    self.model, loss_func, *args, opt=None)
-                current_eval_loss.append(loss_item)
+                loss = self.loss_batch(
+                    self.model, *args, opt=None)
+                current_eval_loss.append(loss.item())
                 val_pred.append(pred)
                 val_actual.append(actu)
 
@@ -163,30 +157,28 @@ class Trainer(object):
             eval_loss_list.append(loss.mean())
 
             # AUC, Recall, F1
-            if print_auc:
-                # TODO: viewしない？　最後の1個で？
-                y = torch.cat(val_actual).view(-1).cpu()
-                pred = torch.cat(val_pred).view(-1).cpu()
-                # AUC
-                fpr, tpr, thresholds = metrics.roc_curve(
-                    y, pred, pos_label=1)
-                if epoch % 100 == 0:
-                    logger.log(logging.INFO,
-                               'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
-                auc = metrics.auc(fpr, tpr)
-                eval_auc_list.append(auc)
-                if epoch % 100 == 0:
-                    save_model(config, model, auc,epoch)
-                    save_log(
-                        config,
-                        (x, train_loss_list, train_auc_list,
-                         eval_loss_list, eval_auc_list),
-                        auc, epoch
-                    )
-                    if auc > bset_eval_auc:
-                        bset_eval_auc = auc
-                        report['best_eval_auc'] = bset_eval_auc
-                        report['best_eval_auc_epoch'] = epoch
+            # TODO: viewしない？　最後の1個で？
+            y = torch.cat(val_actual).view(-1).cpu()
+            pred = torch.cat(val_pred).view(-1).cpu()
+            # AUC
+            fpr, tpr, thresholds = metrics.roc_curve(
+                y, pred, pos_label=1)
+            logger.log(logging.INFO,
+                        'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
+            auc = metrics.auc(fpr, tpr)
+            eval_auc_list.append(auc)
+
+            save_model(config, model, auc,epoch)
+            save_log(
+                config,
+                (x, train_loss_list, train_auc_list,
+                    eval_loss_list, eval_auc_list),
+                auc, epoch
+            )
+            if auc > bset_eval_auc:
+                bset_eval_auc = auc
+                report['best_eval_auc'] = bset_eval_auc
+                report['best_eval_auc_epoch'] = epoch
 
     #       if epoch % 10 == 0:
     #           x.append(epoch)
