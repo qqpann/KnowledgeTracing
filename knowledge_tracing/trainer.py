@@ -74,6 +74,7 @@ class Trainer(object):
 
         elif self.config.model_name == 'basernn':
             model = BaseDKT(
+                self.config,
                 self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(self.device)
             loss_batch = get_loss_batch_basedkt(
@@ -83,6 +84,7 @@ class Trainer(object):
                 min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0)
         elif self.config.model_name == 'baselstm':
             model = BaseDKT(
+                self.config,
                 self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
             ).to(self.device)
             loss_batch = get_loss_batch_basedkt(
@@ -116,9 +118,8 @@ class Trainer(object):
             self.model.train()
 
             current_epoch_train_loss = []
-            for args in self.train_dl:
-                loss = self.loss_batch(
-                    self.model, *args, opt=self.opt)
+            for xseq, yseq in self.train_dl:
+                loss = self.model.loss_batch(xseq, yseq, opt=self.opt)
                 current_epoch_train_loss.append(loss.item())
 
                 # stop at first batch if debug
