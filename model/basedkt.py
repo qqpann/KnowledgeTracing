@@ -60,7 +60,7 @@ class BaseDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, inputs, yqs, target):
+    def forward(self, inputs):
         if self.model_name == 'basernn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(inputs, h0)
@@ -73,19 +73,21 @@ class BaseDKT(nn.Module):
         out = self.decoder(out)
         # decoded = self.sigmoid(decoded)
         # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
+        return out
 
-        pred = torch.sigmoid(out)  # [0, 1]区間にする
+    def forward_loss(self, inputs, yqs, target):
+        out = self.forward(inputs)
+        pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
         # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
-        prob = torch.max(pred * yqs, 2)[0]
-        # print(pred, pred.shape)  # (20, 100, 124)
-        # print(prob, prob.shape)  # (20, 100)
+        pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
-        loss = self._loss(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
+        loss = self._loss(pred_prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
 
         out_dic = {
             'loss': loss,
-            'prob': prob,
+            'pred_vect': pred_vect,  # (20, 100, 124)
+            'pred_prob': pred_prob,  # (20, 100)
         }
         return out_dic
 
@@ -139,7 +141,7 @@ class BaseDKT(nn.Module):
         # actual_q = yq
         # actual_a = ya
 
-        out = self.forward(inputs, yqs, target)
+        out = self.forward_loss(inputs, yqs, target)
         loss = out['loss']
 
         if opt:
