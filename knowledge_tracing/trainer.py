@@ -3,6 +3,7 @@ import torch
 import logging
 import numpy as np
 from math import log, ceil
+from sklearn import metrics
 
 from src.data import prepare_data, prepare_dataloader
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
@@ -104,7 +105,7 @@ class Trainer(object):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
-    def train_model(self):
+    def train_model(self, validate=True):
         self.logger.info('Starting train')
         train_loss_list = []
         bset_eval_auc = 0.
@@ -126,58 +127,35 @@ class Trainer(object):
             if epoch % 10 == 0:
                 loss_array = np.array(current_epoch_train_loss)
                 if epoch % 100 == 0:
-                    self.logger.info('TRAIN Epoch: {} Loss: {}'.format(
+                    self.logger.info('TRAIN Epoch: {} Loss: {:.4}'.format(
                         epoch, loss_array.mean()))
                 train_loss_list.append(loss.mean())
 
-    def valid_model(self):
-        with torch.no_grad():
-            self.model.eval()
-
-            val_pred = []
-            val_actual = []
-            current_eval_loss = []
-            for args in self.eval_dl:
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
-                loss = out['loss']
-                current_eval_loss.append(loss.item())
-                val_pred.append(pred)
-                val_actual.append(actu)
-
-                # stop at first batch if debug
-                if self.config.debug:
-                    break
-
-            loss = np.array(current_eval_loss)
-            if epoch % 100 == 0:
-                logger.log(logging.INFO,
-                           'EVAL  Epoch: {} Loss: {}'.format(epoch,  loss.mean()))
-            eval_loss_list.append(loss.mean())
-
-            # AUC, Recall, F1
-            # TODO: viewしない？　最後の1個で？
-            y = torch.cat(val_actual).view(-1).cpu()
-            pred = torch.cat(val_pred).view(-1).cpu()
-            # AUC
-            fpr, tpr, thresholds = metrics.roc_curve(
-                y, pred, pos_label=1)
-            logger.log(logging.INFO,
-                        'EVAL  Epoch: {} AUC: {}'.format(epoch, metrics.auc(fpr, tpr)))
-            auc = metrics.auc(fpr, tpr)
-            eval_auc_list.append(auc)
-
-            save_model(config, model, auc,epoch)
-            save_log(
-                config,
-                (x, train_loss_list, train_auc_list,
-                    eval_loss_list, eval_auc_list),
-                auc, epoch
-            )
-            if auc > bset_eval_auc:
-                bset_eval_auc = auc
-                report['best_eval_auc'] = bset_eval_auc
-                report['best_eval_auc_epoch'] = epoch
-
+            if validate:
+                v_loss, v_auc = self.eval_model()
+                if epoch % 100 == 0:
+                    self.logger.info('TRAIN Epoch: {} Valid Loss: {:.4}'.format(
+                        epoch, v_loss))
+                    self.logger.info('TRAIN Epoch: {} Valid AUC:  {:.4}'.format(
+                        epoch, v_auc))
+                # eval_loss_list.append(loss)
+                # eval_auc_list.append(auc)
+            # if epoch % 100 == 0:
+            #     logger.log(logging.INFO,
+            #                'EVAL  Epoch: {} Loss: {}'.format(epoch,  loss.mean()))
+            # logger.log(logging.INFO,
+            #             'EVAL  Epoch: {} AUC: {}'.format(epoch, auc))
+            # save_model(config, model, auc,epoch)
+            # save_log(
+            #     config,
+            #     (x, train_loss_list, train_auc_list,
+            #         eval_loss_list, eval_auc_list),
+            #     auc, epoch
+            # )
+            # if auc > bset_eval_auc:
+            #     bset_eval_auc = auc
+            #     report['best_eval_auc'] = bset_eval_auc
+            #     report['best_eval_auc_epoch'] = epoch
     #       if epoch % 10 == 0:
     #           x.append(epoch)
     #           if epoch % 100 == 0:
@@ -188,3 +166,34 @@ class Trainer(object):
     #       fname = model_fname
     #       save_learning_curve(x, train_loss_list, train_auc_list,
     #                           eval_loss_list, eval_auc_list, config)
+
+    def eval_model(self):
+        with torch.no_grad():
+            self.model.eval()
+
+            val_pred_list = []
+            val_actu_list = []
+            current_eval_loss = []
+            for xseq, yseq in self.eval_dl:
+                out = self.model.loss_batch(xseq, yseq, opt=None)
+                loss = out['loss']
+                current_eval_loss.append(loss.item())
+                val_pred_list.append(out['pred_prob'])
+                yseq_a = np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))  # -> (100, 20, 1)
+                val_actu_list.append(torch.Tensor(yseq_a))
+
+                # stop at first batch if debug
+                if self.config.debug:
+                    break
+
+            loss = np.array(current_eval_loss)
+
+            # AUC, Recall, F1
+            actu = torch.cat(val_pred_list).view(-1).cpu()
+            pred = torch.cat(val_actu_list).view(-1).cpu()
+            # AUC
+            fpr, tpr, thresholds = metrics.roc_curve(
+                pred, actu, pos_label=1)
+            auc = metrics.auc(fpr, tpr)
+
+            return loss.mean(), auc
