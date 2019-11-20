@@ -190,3 +190,85 @@ class Trainer(object):
             self.model.train()
             for i, (xseq, yseq) in enumerate(self.train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+
+    # # ========================
+    # # Load trained model
+    # # ========================
+    # if config.load_model:
+    #     model.load_state_dict(torch.load(config.load_model))
+    #     model = model.to(dev)
+
+    # # model is trained or loaded now.
+
+    # if config.plot_heatmap:
+    #     batch_size = 1
+    #     # TODO: don't repeat yourself
+    #     if config.load_model:
+    #         model.load_state_dict(torch.load(config.load_model))
+    #         model = model.to(dev)
+    #     heat_dl = prepare_heatmap_data(
+    #         config.source_data, config.model_name, n_skills, PRESERVED_TOKENS,
+    #         min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
+    #         params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
+    #     loss_func = nn.BCELoss()
+    #     opt = optim.SGD(model.parameters(), lr=config.lr)
+
+    #     with torch.no_grad():
+    #         model.eval()
+    #         all_out_prob = []
+    #         val_pred = []
+    #         val_actual = []
+    #         current_eval_loss = []
+    #         yticklabels = set()
+    #         xticklabels = []
+    #         for args in heat_dl:
+    #             loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
+    #                 model, loss_func, *args, opt=None)
+    #             # current_eval_loss.append(loss_item[-1])
+    #             # print(pred.shape, actu.shape)
+    #             # val_pred.append(pred[-1])
+    #             # val_actual.append(actu[-1])
+    #             yq = torch.max(actu_q.squeeze(), 0)[1].item()
+    #             ya = int(actu.item())
+    #             yticklabels.add(yq)
+    #             xticklabels.append((yq, ya))
+
+    #             # print(pred_ks.shape)
+    #             assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(
+    #                 pred_ks.shape)
+    #             assert pred_ks.shape[0] == n_skills
+    #             all_out_prob.append(pred_ks.unsqueeze(0))
+
+    #     _d = torch.cat(all_out_prob).transpose(0, 1)
+    #     _d = _d.cpu().numpy()
+    #     print(_d.shape)
+    #     print(len(yticklabels), len(xticklabels))
+    #     yticklabels = sorted(list(yticklabels))
+    #     related_d = np.matrix([_d[x, :] for x in yticklabels])
+
+    #     # Regular Heatmap
+    #     # fig, ax = plt.subplots(figsize=(20, 10))
+    #     # sns.heatmap(_d, ax=ax)
+
+    #     fig, ax = plt.subplots(figsize=(20, 7))
+    #     sns.heatmap(
+    #         related_d, vmin=0, vmax=1, ax=ax,
+    #         # cmap="Reds_r",
+    #         xticklabels=['{}'.format(y) for y in xticklabels],
+    #         yticklabels=['s{}'.format(x) for x in yticklabels],
+    #     )
+    #     xtick_dic = {s: i for i, s in enumerate(yticklabels)}
+    #     # 正解
+    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
+    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+    #              qa in enumerate(xticklabels) if qa[1] == 1]
+    #     ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
+    #     # 不正解
+    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
+    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+    #              qa in enumerate(xticklabels) if qa[1] == 0]
+    #     ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
+
+    #     save_hm_fig(config, fig)
+
+    # return report

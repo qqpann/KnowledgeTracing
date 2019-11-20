@@ -82,7 +82,8 @@ class BaseDKT(nn.Module):
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
-        loss = self._loss(pred_prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
+        # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
+        loss = self._loss(pred_prob, target)
 
         out_dic = {
             'loss': loss,
@@ -115,13 +116,16 @@ class BaseDKT(nn.Module):
         onehot_size = skill_n * 2 + 2
         device = self.dev
         # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
-        inputs = torch.LongTensor(np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        inputs = torch.LongTensor(
+            np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
         inputs = inputs.squeeze()
         inputs = F.one_hot(inputs, num_classes=onehot_size).float()
-        yqs = torch.LongTensor(np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = torch.LongTensor(
+            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
         yqs = yqs.squeeze()
         yqs = F.one_hot(yqs, num_classes=skill_n).float()
-        target = torch.Tensor(np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        target = torch.Tensor(
+            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
         target = target.squeeze()
         # print(target, target.shape)
         compressed_sensing = True
@@ -133,7 +137,8 @@ class BaseDKT(nn.Module):
                 inputs.contiguous().view(-1, onehot_size), cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
-            inputs = inputs.view(self.batch_size, self.config.sequence_size, self.n_input)
+            inputs = inputs.view(
+                self.batch_size, self.config.sequence_size, self.n_input)
         inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
