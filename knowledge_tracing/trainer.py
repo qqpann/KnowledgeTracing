@@ -124,41 +124,51 @@ class Trainer(object):
             'auc': 0.,
             'auc_epoch': 0,
         }
+        x_list = []
+        train_loss_list, train_auc_list = [], []
+        eval_loss_list, eval_auc_list = [], []
         start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
             t_loss, t_auc = self.exec_core(self.train_dl, self.opt)
 
+            if epoch % 10 == 0:
+                x_list.append(epoch)
+                train_loss_list.append(t_loss)
+                train_auc_list.append(t_auc)
             if epoch % 100 == 0:
                 self.logger.info('\tEpoch {}\tTrain Loss: {:.4}\tAUC: {:.4}'.format(
                     epoch, t_loss, t_auc))
 
-            if epoch % 100 == 0 and validate:
+            if epoch % 10 == 0 and validate:
                 with torch.no_grad():
                     self.model.eval()
                     v_loss, v_auc = self.exec_core(dl=self.eval_dl, opt=None)
+                eval_loss_list.append(v_loss)
+                eval_auc_list.append(v_auc)
+            if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.4}\tAUC: {:.4}'.format(
                     epoch, v_loss, v_auc))
-                # eval_loss_list.append(loss)
-                # eval_auc_list.append(auc)
                 if v_auc > best['auc']:
                     best['auc'] = v_auc
                     best['auc_epoch'] = epoch
                     # report['best_eval_auc'] = bset_eval_auc
                     # report['best_eval_auc_epoch'] = epoch
                     save_model(self.config, self.model, v_auc, epoch)
-                    self.logger.info(f'Best AUC {v_auc:.4} refreshed and saved!')
+                    self.logger.info(
+                        f'Best AUC {v_auc:.4} refreshed and saved!')
                 else:
-                    self.logger.info(f'Best AUC {best["auc"]:.4} at epoch {best["auc_epoch"]}')
+                    self.logger.info(
+                        f'Best AUC {best["auc"]:.4} at epoch {best["auc_epoch"]}')
 
             if epoch % 100 == 0:
-                self.logger.info(f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch} {epoch / self.config.epoch_size * 100})')
+                self.logger.info(
+                    f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch} {epoch / self.config.epoch_size * 100})')
 
-        # save_log(config, (x, train_loss_list, train_auc_list,
-        #                   eval_loss_list, eval_auc_list), auc, epoch)
-
-        # save_learning_curve(x, train_loss_list, train_auc_list,
-        #                     eval_loss_list, eval_auc_list, config)
+        # save_log(self.config, (x_list, train_loss_list, train_auc_list,
+        #                   eval_loss_list, eval_auc_list), v_auc, epoch)
+        save_learning_curve(x_list, train_loss_list, train_auc_list,
+                            eval_loss_list, eval_auc_list, self.config)
 
     def eval_model(self):
         with torch.no_grad():

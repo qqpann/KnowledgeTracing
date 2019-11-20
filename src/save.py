@@ -34,6 +34,7 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
         ax.plot(x, eval_loss_list, label='eval loss')
     ax.plot(x, eval_auc_list, label='eval auc')
     ax.legend()
-    print(len(train_loss_list), len(eval_loss_list), len(eval_auc_list))
+    ax.set_ylim(0., 1.)
     lcdir = config.resultsdir / 'learning_curve'
+    lcdir.mkdir(exist_ok=True)
     plt.savefig(lcdir / f'{config.model_name}.png')

@@ -34,7 +34,6 @@ def main(configpath: Path):
     cp = configparser.ConfigParser()
     cp.read(str(configpath))
     section_list = cp.sections()
-    pprint(section_list)
     common_opt = dict(cp['common']) if 'common' in section_list else dict()
     report_list = list()
     for section in section_list:
@@ -42,6 +41,7 @@ def main(configpath: Path):
             continue
         section_opt = dict(cp[section])
         default_dict = {
+            'config_name': configpath.stem,
             'common_name': '',
             'section_name': common_opt.get('common_name', '') + section,
 
@@ -65,7 +65,7 @@ def main(configpath: Path):
         config_dict = get_option_fallback(
             {**common_opt, **section_opt}, fallback=default_dict)
         projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
-        config = Config(config_dict, projectdir)
+        config = Config(config_dict, projectdir=projectdir)
         pprint(config.as_dict())
 
         report = run(config)
@@ -82,7 +82,10 @@ def run(config):
     report['model_fname'] = config.outfname
 
     trainer = Trainer(config)
-    trainer.train_model()
+    try:
+        trainer.train_model()
+    except KeyboardInterrupt as e:
+        print(e)
     return None
 
     # # ========================
