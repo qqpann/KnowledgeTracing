@@ -122,7 +122,9 @@ models/
 debug_*
 
 output/**/*.pickle
-output/results/checkpoints/*
+output/**/*.json
+output/**/*.png
+output/**/checkpoints/*
 output/results/*
 
 data/*/*.csv
