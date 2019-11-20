@@ -1,5 +1,6 @@
 import torch
 
+import time
 import logging
 import numpy as np
 from math import log, ceil
@@ -7,6 +8,7 @@ from sklearn import metrics
 
 from src.data import prepare_data, prepare_dataloader
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve
+from src.utils import sAsMinutes, timeSince
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
 from model.basedkt import BaseDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
@@ -118,8 +120,11 @@ class Trainer(object):
 
     def train_model(self, validate=True):
         self.logger.info('Starting train')
-        bset_eval_auc = 0.
-        # start_time = time.time()
+        best = {
+            'auc': 0.,
+            'auc_epoch': 0,
+        }
+        start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
             t_loss, t_auc = self.exec_core(self.train_dl, self.opt)
@@ -136,20 +141,24 @@ class Trainer(object):
                     epoch, v_loss, v_auc))
                 # eval_loss_list.append(loss)
                 # eval_auc_list.append(auc)
-                # if auc > bset_eval_auc:
-                #     bset_eval_auc = auc
-                #     report['best_eval_auc'] = bset_eval_auc
-                #     report['best_eval_auc_epoch'] = epoch
+                if v_auc > best['auc']:
+                    best['auc'] = v_auc
+                    best['auc_epoch'] = epoch
+                    # report['best_eval_auc'] = bset_eval_auc
+                    # report['best_eval_auc_epoch'] = epoch
+                    save_model(self.config, self.model, v_auc, epoch)
+                    self.logger.info(f'Best AUC {v_auc:.4} refreshed and saved!')
+                else:
+                    self.logger.info(f'Best AUC {best["auc"]:.4} at epoch {best["auc_epoch"]}')
 
-            # save_model(config, model, auc, epoch)
+            if epoch % 100 == 0:
+                self.logger.info(f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch} {epoch / self.config.epoch_size * 100})')
 
-            # save_log(config, (x, train_loss_list, train_auc_list,
-            #                   eval_loss_list, eval_auc_list), auc, epoch)
+        # save_log(config, (x, train_loss_list, train_auc_list,
+        #                   eval_loss_list, eval_auc_list), auc, epoch)
 
-            # save_learning_curve(x, train_loss_list, train_auc_list,
-            #                     eval_loss_list, eval_auc_list, config)
-
-            # logger.info(f'{timeSince(start_time, epoch / config.epoch_size)} ({epoch} {epoch / config.epoch_size * 100})')
+        # save_learning_curve(x, train_loss_list, train_auc_list,
+        #                     eval_loss_list, eval_auc_list, config)
 
     def eval_model(self):
         with torch.no_grad():
