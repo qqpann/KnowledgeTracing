@@ -14,7 +14,8 @@ def get_option_fallback(options: Dict, fallback: Dict):
         try:
             fallback[key]
         except KeyError:
-            raise KeyError('key `{}` found, but is not in fallback.'.format(key))
+            raise KeyError(
+                'key `{}` found, but is not in fallback.'.format(key))
         if type(fallback[key]) == type:
             # a required option
             fallback_type = fallback[key]
@@ -54,20 +55,20 @@ class Config(BaseConfig):
     '''
     Specific functionalities.
     '''
+
     def __init__(self, options: Dict, projectdir: Path):
         super().__init__(options)
         self.projectpdir = projectdir
-        self.outdir = projectdir / 'output' / 'results'
-        self.outdir.mkdir(parents=True, exist_ok=True)
+        self.outdir = projectdir / 'output'
+        self.outdir.mkdir(exist_ok=True)
         self.starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
 
-    def _get_stem_name(self):
-        debug_prefix = 'debug' if self.debug else ''
-        return '_'.join([debug_prefix, self.starttime, self.section_name, self.model_name])
+    def _get_experiment_name(self):
+        return '_'.join([self.starttime, self.section_name, self.model_name])
 
     @property
     def resultsdir(self):
-        resultdir = self.outdir / self._get_stem_name()
+        resultdir = self.outdir / self.config_name / self._get_experiment_name()
         resultdir.mkdir(parents=True, exist_ok=True)
         return resultdir
 
