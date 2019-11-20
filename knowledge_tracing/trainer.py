@@ -110,14 +110,6 @@ class Trainer(object):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
-    def train_model_simple(self):
-        '''最小構成を見て基本を思い出す'''
-        for epoch in range(1, self.config.epoch_size + 1):
-            self.model.train()
-            for i, (xseq, yseq) in enumerate(self.train_dl):
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
-                loss = out['loss']
-
     def train_model(self, validate=True):
         self.logger.info('Starting train')
         best = {
@@ -170,30 +162,31 @@ class Trainer(object):
         save_learning_curve(x_list, train_loss_list, train_auc_list,
                             eval_loss_list, eval_auc_list, self.config)
 
-    def eval_model(self):
-        with torch.no_grad():
-            self.model.eval()
-            return self.exec_core(dl=self.eval_dl, opt=None)
-
     def exec_core(self, dl, opt):
         arr_len = len(dl) if not self.config.debug else 1
-        val_pred_arr = np.zeros(
+        pred_mx = np.zeros(
             [arr_len, self.config.batch_size * self.config.sequence_size])
-        val_actu_arr = np.zeros(
+        actu_mx = np.zeros(
             [arr_len, self.config.batch_size * self.config.sequence_size])
-        current_eval_loss = np.zeros(arr_len)
+        loss_ar = np.zeros(arr_len)
         for i, (xseq, yseq) in enumerate(dl):
             out = self.model.loss_batch(xseq, yseq, opt=opt)
-            current_eval_loss[i] = out['loss'].item()
-            val_pred_arr[i] = out['pred_prob'].detach().view(-1).cpu()
-            val_actu_arr[i] = yseq[:, :, 1].view(-1).cpu()
+            loss_ar[i] = out['loss'].item()
+            pred_mx[i] = out['pred_prob'].detach().view(-1).cpu()
+            actu_mx[i] = yseq[:, :, 1].view(-1).cpu()
 
             if self.config.debug:
                 break
         # AUC
-        pred = val_pred_arr.reshape(-1)
-        actu = val_actu_arr.reshape(-1)
-        fpr, tpr, thresholds = metrics.roc_curve(actu, pred, pos_label=1)
+        fpr, tpr, _thresholds = metrics.roc_curve(
+            actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
 
-        return current_eval_loss.mean(), auc
+        return loss_ar.mean(), auc
+
+    def _train_model_simple(self):
+        '''最小構成を見て基本を思い出す'''
+        for epoch in range(1, self.config.epoch_size + 1):
+            self.model.train()
+            for i, (xseq, yseq) in enumerate(self.train_dl):
+                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
