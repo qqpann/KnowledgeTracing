@@ -4,31 +4,26 @@ from pathlib import Path
 import datetime
 
 
-def get_option_fallback(options: Dict, fallback: Dict):
+def get_option_fallback(options: Dict, fallback: Dict, hard=False, depth=0):
     '''
     Returns a merged dict with fallback as default values.
+
+    >>> flb = {'a': 1, 'b': 2, 'c': {'e': 4, 'f': 5}}
+    >>> opt = {'a': 2, 'd': 3, 'c': {'e': 6, 'g': 7}}
+    >>> get_option_fallback(opt, flb)
+    {'a': 2, 'b': 2, 'c': {'e': 6, 'f': 5, 'g': 7}, 'd': 3}
     '''
+    if depth > 2:
+        raise 'Nest is too deep.'
     # Thx: https://thispointer.com/how-to-merge-two-or-more-dictionaries-in-python/
     updated = {**fallback, **options}
-    for key in updated.keys():
-        try:
-            fallback[key]
-        except KeyError:
-            raise KeyError(
-                'key `{}` found, but is not in fallback.'.format(key))
-        if type(fallback[key]) == type:
-            # a required option
-            fallback_type = fallback[key]
-            try:
-                # it must be specified in options, not in fallback
-                value = fallback_type(options[key])
-            except KeyError:
-                raise KeyError('key `{}` is required'.format(key))
-        else:
-            fallback_type = type(fallback[key])
-            # an option with default
-            value = fallback_type(updated[key])
-        updated[key] = value
+    for k, v in fallback.items():
+        if isinstance(v, dict):
+            _v = get_option_fallback(
+                options.get(k, {}), fallback[k], depth=depth+1)
+            updated[k] = _v
+        if isinstance(v, list):
+            raise 'Found {}: {} list, which is not supported'.format(k, v)
     return updated
 
 
@@ -42,6 +37,7 @@ class BaseConfig(object):
     '''
 
     def __init__(self, options: Dict):
+        self.options = options
         self._attr_list = list()
         for attr, value in options.items():
             setattr(self, attr, value)
@@ -49,6 +45,9 @@ class BaseConfig(object):
 
     def as_dict(self):
         return {k: getattr(self, k) for k in self._attr_list}
+
+    def get(self, *attr, **pattr):
+        return self.options.get(*attr, **pattr)
 
 
 class Config(BaseConfig):
@@ -79,3 +78,9 @@ class Config(BaseConfig):
         outfname += f'ef{self.extend_forward}' if self.extend_forward else ''
         outfname += f'ks' if self.ks_loss else ''
         return outfname
+
+
+if __name__ == "__main__":
+    import doctest
+    failure_count, test_count = doctest.testmod()
+    print('{} tests run / {} failures'.format(test_count, failure_count))

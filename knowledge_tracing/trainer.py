@@ -76,15 +76,6 @@ class Trainer(object):
                 self.config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
                 min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0,
                 params={'extend_backward': self.config.extend_backward, 'extend_forward': self.config.extend_forward})
-
-        elif self.config.model_name == 'basernn':
-            model = BaseDKT(
-                self.config,
-                self.device, self.config.model_name, n_input, n_hidden, n_output, n_layers, batch_size
-            ).to(self.device)
-            train_dl, eval_dl = prepare_data(
-                self.config.source_data, 'base', n_skills, preserved_tokens='?',
-                min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0)
         elif self.config.model_name == 'baselstm':
             model = BaseDKT(
                 self.config,
