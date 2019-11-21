@@ -9,7 +9,6 @@ import time
 import datetime
 import logging
 from pprint import pprint
-import configparser
 import json
 import pickle
 from pathlib import Path
@@ -31,55 +30,31 @@ logger.setLevel(logging.INFO)
 
 
 def main(configpath: Path):
-    cp = configparser.ConfigParser()
-    cp.read(str(configpath))
-    section_list = cp.sections()
-    common_opt = dict(cp['common']) if 'common' in section_list else dict()
-    report_list = list()
-    for section in section_list:
-        if section == 'common':
-            continue
-        section_opt = dict(cp[section])
-        default_dict = {
-            'config_name': configpath.stem,
-            'common_name': '',
-            'section_name': common_opt.get('common_name', '') + section,
-
-            'debug': False,
-            'model_name': str,
-            'load_model': '',
-            'plot_heatmap': False,
-            'plot_lc': False,
-            'source_data': 'original_ASSISTmentsSkillBuilder0910',  # SOURCE_ASSIST0910_ORIG,
-            'ks_loss': False,
-            'extend_backward': 0,
-            'extend_forward': 0,
-            'epoch_size': 200,
-            'sequence_size': 20,
-            'lr': 0.05,
-            'n_skills': 124,
-            'cuda': True,
-
-            'batch_size': 100,
-        }
-        config_dict = get_option_fallback(
-            {**common_opt, **section_opt}, fallback=default_dict)
-        projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
+    with open(configpath, 'r') as f:
+        cfg = json.load(f)
+    with open(configpath.parent / 'fallback.json', 'r') as f:
+        default_cfg = json.load(f)
+    default_cfg['config_name'] = configpath.stem
+    projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
+    experiments = cfg['experiments']
+    cmn_dict = cfg.get('common', dict())
+    cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
+    for exp_dict in experiments:
+        config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
         config = Config(config_dict, projectdir=projectdir)
         pprint(config.as_dict())
 
         report = run(config)
-        report_list.append(report)
-    print(report)
-    if report is not None:
-        with open(projectdir / 'output' / 'reports' / '{}result.json'.format(config._get_stem_name()), 'w') as f:
-            json.dump(report_list, f)
+    # print(report)
+    # if report is not None:
+    #     with open(projectdir / 'output' / 'reports' / '{}result.json'.format(config._get_stem_name()), 'w') as f:
+    #         json.dump(report_list, f)
 
 
 def run(config):
     assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
-    report = dict()
-    report['model_fname'] = config.outfname
+    # report = dict()
+    # report['model_fname'] = config.outfname
 
     trainer = Trainer(config)
     try:
