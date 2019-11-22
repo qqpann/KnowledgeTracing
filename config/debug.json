@@ -1,0 +1,10 @@
+{
+  "experiments": [
+    {
+      "debug": true,
+      "section_name": "debug",
+      "model_name": "dkt",
+      "epoch_size": 100
+    }
+  ]
+}

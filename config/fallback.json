@@ -1,0 +1,29 @@
+{
+  "debug": false,
+  "cuda": true,
+  "model_name": null,
+  "load_model": "",
+  "source_data": "original_ASSISTmentsSkillBuilder0910",
+  "n_skills": 124,
+  "sequence_size": 20,
+  "epoch_size": 200,
+  "batch_size": 100,
+  "lr": 0.05,
+  "eddkt": {
+    "ks_loss": false,
+    "extend_backward": 0,
+    "extend_forward": 0,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  },
+  "dkt": {
+    "batch_size": 100,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
+}

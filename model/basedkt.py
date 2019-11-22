@@ -28,121 +28,126 @@ from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF,
 from src.utils import sAsMinutes, timeSince
 
 
-
-# =========================
-# Model
-# =========================
 class BaseDKT(nn.Module):
     ''' オリジナルのDKT '''
-    def __init__(self, dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size, dropout=0.6, bidirectional=False):
+
+    def __init__(self, config, device, bidirectional=False):
         super().__init__()
-        self.dev = dev
-        self.model_name = model_name
-        self.n_input = n_input
-        self.n_hidden = n_hidden
-        self.n_output = n_output
-        self.n_layers = n_layers
-        self.batch_size = batch_size
-        
-        self.bidirectional = bidirectional
+        self.config = config
+        self.device = device
+
+        self.model_name = config.model_name
+        self.input_size = ceil(log(2 * config.n_skills))
+        self.hidden_size = config.dkt['hidden_size']
+        self.output_size = config.n_skills
+        self.n_layers = config.dkt['n_layers']
+        self.batch_size = config.batch_size
+        self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
-        
+
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
-        if model_name == 'basernn':
-            self.rnn = nn.RNN(n_input, n_hidden, n_layers,
+        if self.model_name == 'basernn':
+            self.rnn = nn.RNN(input_size, n_hidden, n_layers,
                               nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
-        elif model_name == 'baselstm':
-            self.lstm = nn.LSTM(n_input, n_hidden, n_layers, dropout=dropout, bidirectional=self.bidirectional)
+        elif self.model_name == 'dkt':
+            self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
+                                dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
-        self.decoder = nn.Linear(n_hidden * self.directions, n_output)
+        self.decoder = nn.Linear(self.hidden_size * self.directions, self.output_size)
         # self.sigmoid = nn.Sigmoid()
 
-    def forward(self, input):
+        self._loss = nn.BCELoss()
+
+    def forward(self, inputs):
         if self.model_name == 'basernn':
             h0 = self.initHidden0()
-            out, _hn = self.rnn(input, h0)
-        elif self.model_name == 'baselstm':
+            out, _hn = self.rnn(inputs, h0)
+        elif self.model_name == 'dkt':
             h0 = self.initHidden0()
             c0 = self.initC0()
-            out, (_hn, _cn) = self.lstm(input, (h0, c0))
+            out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
         # top_n, top_i = out.topk(1)
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
         out = self.decoder(out)
         # decoded = self.sigmoid(decoded)
-
+        # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
         return out
-    
+
+    def forward_loss(self, inputs, yqs, target):
+        out = self.forward(inputs)
+        pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
+        # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
+        # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
+        pred_prob = torch.max(pred_vect * yqs, 2)[0]
+        # print(target, target.shape)  # (20, 100)
+        # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
+        loss = self._loss(pred_prob, target)
+
+        out_dic = {
+            'loss': loss,
+            'pred_vect': pred_vect,  # (20, 100, 124)
+            'pred_prob': pred_prob,  # (20, 100)
+        }
+        return out_dic
+
     def initHidden0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
+        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
 
     def initC0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
+        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
 
-
-# 
-def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev):
-    def loss_batch_basedkt(model, loss_func, *args, opt=None):
+    def loss_batch(self, xseq, yseq, opt=None):
         '''
+        DataLoaderの１イテレーションから，
+        適宜back propagationし，
+        lossを返す．
+
         xs: shapeは[100, 20, 654]
         yq: qのonehot配列からなる配列
         ya: aの0,1 intからなる配列
         '''
-        # Unpack data from DataLoader
-        xs, yq, ya, yqs, yas = args
-        # print(xs)
-        # print(xs.shape)
         # print(yq.shape) => [100, 124] = [batch_size, skill_size]
-        # raise
-        input = xs
+        # print(xseq.shape, yseq.shape) => [100, 20, 2], [100, 20, 2]
+        # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
+        # https://pytorch.org/docs/master/nn.functional.html#one-hot
+        skill_n = self.config.n_skills
+        onehot_size = skill_n * 2 + 2
+        device = self.device
+        # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
+        inputs = torch.LongTensor(
+            np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        inputs = inputs.squeeze()
+        inputs = F.one_hot(inputs, num_classes=onehot_size).float()
+        yqs = torch.LongTensor(
+            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = yqs.squeeze()
+        yqs = F.one_hot(yqs, num_classes=skill_n).float()
+        target = torch.Tensor(
+            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        target = target.squeeze()
+        # print(target, target.shape)
         compressed_sensing = True
-        if compressed_sensing and onehot_size != n_input:
+        if compressed_sensing and onehot_size != self.input_size:
             SEED = 0
             torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, n_input).to(dev)
-            input = torch.mm(
-                input.contiguous().view(-1, onehot_size), cs_basis)
+            cs_basis = torch.randn(onehot_size, self.input_size).to(device)
+            inputs = torch.mm(
+                inputs.contiguous().view(-1, onehot_size), cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
-            input = input.view(batch_size, sequence_size, n_input)
-        input = input.permute(1, 0, 2)
+            inputs = inputs.view(
+                self.batch_size, self.config.sequence_size, self.input_size)
+        inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
-        target = yas.permute(1, 0)
-        actual_q = yq
-        actual_a = ya
+        target = target.permute(1, 0)
+        # actual_q = yq
+        # actual_a = ya
 
-        out = model(input)
-        # print(out.shape) => [20, 100, 124]
-        # [sequence_len, batch_size, skill_size]
-        # print(out[-1].shape) => [100, 124]
-        # [batch_size, skill_size]
-
-        pred = torch.sigmoid(out)  # [0, 1]区間にする
-        prob = torch.max(pred * yqs, 2)[0]
-        # print(pred.shape, yqs.shape)
-        # print(prob.shape, target.shape)
-
-        predicted = torch.max(torch.sigmoid(out[-1]) * yq, 1)[0]
-        # If only last y: print(pred.shape, yq.shape) => [100, 124], [100, 124]
-        # If only last y: print(prob.shape, target.shape) => [100], [100]
-        loss = loss_func(prob, target)  # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
-
-        # print(pred.shape)
-        hm_pred_ks = pred[-1].squeeze()
-
-
-        # assert tuple(pred.shape) == (20, 100, 124), "Unexpected shape {}".format(pred.shape)
-        # waviness_norm_l1 = torch.abs(pred[1:, :, :] - pred[:-1, :, :])
-        # waviness_l1 = torch.sum(waviness_norm_l1) / ((pred.shape[0] - 1) * pred.shape[1] * pred.shape[2])
-        # lambda_l1 = 0.1
-        # loss += lambda_l1 * waviness_l1
-        
-        # waviness_norm_l2 = torch.pow(pred[1:, :, :] - pred[:-1, :, :], 2)
-        # waviness_l2 = torch.sum(waviness_norm_l2) / ((pred.shape[0] - 1) * pred.shape[1] * pred.shape[2])
-        # lambda_l2 = 0.1
-        # loss += lambda_l2 * waviness_l2
+        out = self.forward_loss(inputs, yqs, target)
+        loss = out['loss']
 
         if opt:
             # バックプロバゲーション
@@ -150,5 +155,6 @@ def get_loss_batch_basedkt(onehot_size, n_input, batch_size, sequence_size, dev)
             loss.backward()
             opt.step()
 
-        return loss.item(), len(ya), predicted, actual_q, actual_a, hm_pred_ks, None, None
-    return loss_batch_basedkt
+        # hm_pred_ks = pred[-1].squeeze()
+
+        return out

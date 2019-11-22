@@ -19,13 +19,7 @@ PAD = 0
 SOS = 1
 
 
-SEED = 0
-random.seed(SEED)
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-
-
-def load_source(source) -> List[Tuple[int]]:
+def load_source(source) -> List[List[Tuple[int]]]:
     if source == SOURCE_ASSIST0910_SELF:
         filename = os.path.join(dirname, 'input/skill_builder_data_corrected.pickle')
         with open(filename, 'rb') as f:
@@ -244,7 +238,21 @@ def slice_d(d: List, x_seq_size:int, type:str='base', sliding_window:int=0, reve
         result.append(d[prefix + i * seq_size : prefix + i * seq_size + seq_size])
     return result 
         
-    
+
+def slice_data_list(d: List, seq_size: int):
+    '''
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    >>> list(slice_data_list(d, x_seq_size=2))
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> list(slice_data_list(d, x_seq_size=2))
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    '''
+    result = []
+    max_iter = len(d) // seq_size
+    for i in range(0, max_iter):
+        yield d[i * seq_size : i * seq_size + seq_size]
+
 
 def split_encdec(xsty_seq:List, extend_backward=0, extend_forward=0) -> (List, List, List):
     '''
@@ -267,11 +275,47 @@ def split_encdec(xsty_seq:List, extend_backward=0, extend_forward=0) -> (List, L
     y = xsty_seq[-1 - extend_backward - extend_forward:]
     return x_src, x_trg, y
     
-    
 
-# ==============================================================================
-#       Merge other prepare_?_data into prepare_data
-# ==============================================================================
+def prepare_dataloader(config, device):
+    '''
+    '''
+    data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+
+    M = config.n_skills
+    sequence_size = config.sequence_size
+    N = ceil(log(2 * M))
+    
+    qa_emb = QandAEmbedder(M, sequence_size)
+
+    train_num = int(len(data) * .8)
+    train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
+
+    def get_ds(data):
+        x_values = []
+        y_values = []
+        for d in data:
+            if len(d) < sequence_size + 1:
+                continue
+            # x and y seqsize is sequence_size + 1
+            for xy_seq in slice_data_list(d, seq_size=sequence_size + 1):
+                x_values.append(xy_seq[:-1])
+                y_values.append(xy_seq[1:])
+
+        all_ds = TensorDataset(
+            torch.LongTensor(x_values).to(device), 
+            torch.LongTensor(y_values).to(device), 
+        )
+        return all_ds
+    
+    train_ds = get_ds(train_data)
+    eval_ds = get_ds(eval_data)
+
+    # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
+    train_dl = DataLoader(train_ds, batch_size=config.batch_size, drop_last=True)
+    eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
+    return train_dl, eval_dl
+
+
 def prepare_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_size, device, sliding_window:int=1, params={}): #TODO: fix sw
     assert type in {'base', 'encdec'}
     data = load_source(source)
@@ -334,10 +378,10 @@ def prepare_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_s
                 for xy_seq in slice_d(d, x_seq_size=sequence_size, type=type, sliding_window=sliding_window, reverse=True):
                     # Because it is not generative...
                     # y is the last one
-                    x_values.append(xy_seq[:-1])
-                    y_values.append(xy_seq[-1])
+                    # x_values.append(xy_seq[:-1])
+                    # y_values.append(xy_seq[-1])
                     x_onehot.append(qa_emb.sequenceToOnehot(xy_seq[:-1]))
-                    y_onehot.append(qa_emb.qaToOnehot(xy_seq[-1]))
+                    # y_onehot.append(qa_emb.qaToOnehot(xy_seq[-1]))
                     delta_q, a = qa_emb.qaToDeltaQandA(xy_seq[-1])
                     delta_q_s, a_s = qa_emb.sequenceToDeltaQandA(xy_seq[1:])
                     y_onehot_q.append(delta_q)
