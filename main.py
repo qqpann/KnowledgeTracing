@@ -52,7 +52,6 @@ def main(configpath: Path):
 
 
 def run(config):
-    assert config.model_name in {'encdec', 'basernn', 'baselstm', 'seq2seq'}
     # report = dict()
     # report['model_fname'] = config.outfname
 
