@@ -31,31 +31,31 @@ from src.utils import sAsMinutes, timeSince
 class BaseDKT(nn.Module):
     ''' オリジナルのDKT '''
 
-    def __init__(self, config, dev, model_name, n_input, n_hidden, n_output, n_layers, batch_size, dropout=0.6, bidirectional=False):
+    def __init__(self, config, device, bidirectional=False):
         super().__init__()
         self.config = config
-        self.dev = dev
-        self.model_name = model_name
-        self.n_input = n_input
-        self.n_hidden = n_hidden
-        self.n_output = n_output
-        self.n_layers = n_layers
-        self.batch_size = batch_size
+        self.device = device
 
-        self.bidirectional = bidirectional
+        self.model_name = config.model_name
+        self.input_size = ceil(log(2 * config.n_skills))
+        self.hidden_size = config.dkt['hidden_size']
+        self.output_size = config.n_skills
+        self.n_layers = config.dkt['n_layers']
+        self.batch_size = config.batch_size
+        self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
 
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
-        if model_name == 'basernn':
-            self.rnn = nn.RNN(n_input, n_hidden, n_layers,
+        if self.model_name == 'basernn':
+            self.rnn = nn.RNN(input_size, n_hidden, n_layers,
                               nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
-        elif model_name == 'baselstm':
-            self.lstm = nn.LSTM(n_input, n_hidden, n_layers,
-                                dropout=dropout, bidirectional=self.bidirectional)
+        elif self.model_name == 'dkt':
+            self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
+                                dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
-        self.decoder = nn.Linear(n_hidden * self.directions, n_output)
+        self.decoder = nn.Linear(self.hidden_size * self.directions, self.output_size)
         # self.sigmoid = nn.Sigmoid()
 
         self._loss = nn.BCELoss()
@@ -64,7 +64,7 @@ class BaseDKT(nn.Module):
         if self.model_name == 'basernn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(inputs, h0)
-        elif self.model_name == 'baselstm':
+        elif self.model_name == 'dkt':
             h0 = self.initHidden0()
             c0 = self.initC0()
             out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
@@ -93,10 +93,10 @@ class BaseDKT(nn.Module):
         return out_dic
 
     def initHidden0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
+        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
 
     def initC0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.n_hidden).to(self.dev)
+        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
 
     def loss_batch(self, xseq, yseq, opt=None):
         '''
@@ -114,7 +114,7 @@ class BaseDKT(nn.Module):
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
         skill_n = self.config.n_skills
         onehot_size = skill_n * 2 + 2
-        device = self.dev
+        device = self.device
         # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
         inputs = torch.LongTensor(
             np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
@@ -129,16 +129,16 @@ class BaseDKT(nn.Module):
         target = target.squeeze()
         # print(target, target.shape)
         compressed_sensing = True
-        if compressed_sensing and onehot_size != self.n_input:
+        if compressed_sensing and onehot_size != self.input_size:
             SEED = 0
             torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, self.n_input).to(device)
+            cs_basis = torch.randn(onehot_size, self.input_size).to(device)
             inputs = torch.mm(
                 inputs.contiguous().view(-1, onehot_size), cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
             inputs = inputs.view(
-                self.batch_size, self.config.sequence_size, self.n_input)
+                self.batch_size, self.config.sequence_size, self.input_size)
         inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
