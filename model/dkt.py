@@ -28,7 +28,7 @@ from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF,
 from src.utils import sAsMinutes, timeSince
 
 
-class BaseDKT(nn.Module):
+class DKT(nn.Module):
     ''' オリジナルのDKT '''
 
     def __init__(self, config, device, bidirectional=False):
@@ -47,7 +47,7 @@ class BaseDKT(nn.Module):
 
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
-        if self.model_name == 'basernn':
+        if self.model_name == 'dkt:rnn':
             self.rnn = nn.RNN(input_size, n_hidden, n_layers,
                               nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
         elif self.model_name == 'dkt':
@@ -61,7 +61,7 @@ class BaseDKT(nn.Module):
         self._loss = nn.BCELoss()
 
     def forward(self, inputs):
-        if self.model_name == 'basernn':
+        if self.model_name == 'dkt:rnn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(inputs, h0)
         elif self.model_name == 'dkt':
