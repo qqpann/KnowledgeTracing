@@ -10,7 +10,7 @@ from src.data import prepare_data, prepare_dataloader
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve
 from src.utils import sAsMinutes, timeSince
 from model.eddkt import EncDecDKT, get_loss_batch_encdec
-from model.basedkt import BaseDKT
+from model.dkt import DKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
@@ -77,7 +77,7 @@ class Trainer(object):
                 min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0,
                 params={'extend_backward': self.config.extend_backward, 'extend_forward': self.config.extend_forward})
         elif self.config.model_name == 'dkt':
-            model = BaseDKT(self.config, self.device).to(self.device)
+            model = DKT(self.config, self.device).to(self.device)
             train_dl, eval_dl = prepare_dataloader(
                 self.config, device=self.device)
         else:
