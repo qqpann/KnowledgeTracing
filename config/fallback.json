@@ -22,6 +22,7 @@
     "batch_size": 100,
     "hidden_size": 200,
     "n_layers": 2,
+    "bidirectional": false,
     "preserved_tokens": 2,
     "dropout_rate": 0.6
   }
