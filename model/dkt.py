@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, Dataset, DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_packed_sequence, pad_sequence
 
 import os
@@ -11,7 +11,6 @@ import sys
 import time
 import pickle
 import logging
-import random
 import math
 from math import log, ceil
 from pathlib import Path
@@ -81,6 +80,8 @@ class DKT(nn.Module):
     def forward_loss(self, inputs, yqs, target):
         out = self.forward(inputs)
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
+        assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
+            "Unexpected shape {}".format(pred_vect.shape)
         # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
@@ -93,6 +94,25 @@ class DKT(nn.Module):
             'pred_vect': pred_vect,  # (20, 100, 124)
             'pred_prob': pred_prob,  # (20, 100)
         }
+
+        if self.config.dkt['waviness_l1'] == True:
+            waviness_norm_l1 = torch.abs(
+                pred_vect[1:, :, :] - pred_vect[:-1, :, :])
+            waviness_l1 = torch.sum(
+                waviness_norm_l1) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
+            lambda_l1 = self.config.dkt.get('lambda_l1', 0.)
+            out_dic['loss'] += lambda_l1 * waviness_l1
+            out_dic['waviness_l1'] = waviness_l1
+
+        if self.config.dkt['waviness_l2'] == True:
+            waviness_norm_l2 = torch.pow(
+                pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
+            waviness_l2 = torch.sum(
+                waviness_norm_l2) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
+            lambda_l2 = self.config.dkt.get('lambda_l2', 0.)
+            out_dic['loss'] += lambda_l2 * waviness_l2
+            out_dic['waviness_l2'] = waviness_l2
+
         return out_dic
 
     def initHidden0(self):
