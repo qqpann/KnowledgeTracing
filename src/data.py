@@ -1,6 +1,5 @@
 import os
 import pickle
-import random
 from math import log, ceil
 from typing import List, Tuple, Set, Dict
 
@@ -288,9 +287,8 @@ def prepare_dataloader(config, device):
     
     qa_emb = QandAEmbedder(M, sequence_size)
 
-    SEED = 42
     train_num = int(len(data) * .8)
-    train_data, eval_data = train_test_split(data, train_size=train_num, random_state=SEED)
+    train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
 
     def get_ds(data):
         x_values = []

@@ -45,17 +45,20 @@ class DKT(nn.Module):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
 
+        self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
+
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
         if self.model_name == 'dkt:rnn':
-            self.rnn = nn.RNN(input_size, n_hidden, n_layers,
-                              nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
+            self.rnn = nn.RNN(self.input_size, self.hidden_size, self.n_layers,
+                              nonlinearity=nonlinearity, dropout=self.dkt['dropout_rate'], bidirectional=self.bidirectional)
         elif self.model_name == 'dkt':
             self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
                                 dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
-        self.decoder = nn.Linear(self.hidden_size * self.directions, self.output_size)
+        self.decoder = nn.Linear(
+            self.hidden_size * self.directions, self.output_size)
         # self.sigmoid = nn.Sigmoid()
 
         self._loss = nn.BCELoss()
@@ -130,11 +133,8 @@ class DKT(nn.Module):
         # print(target, target.shape)
         compressed_sensing = True
         if compressed_sensing and onehot_size != self.input_size:
-            SEED = 0
-            torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, self.input_size).to(device)
             inputs = torch.mm(
-                inputs.contiguous().view(-1, onehot_size), cs_basis)
+                inputs.contiguous().view(-1, onehot_size), self.cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
             inputs = inputs.view(
