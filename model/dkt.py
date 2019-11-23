@@ -95,23 +95,23 @@ class DKT(nn.Module):
             'pred_prob': pred_prob,  # (20, 100)
         }
 
-        if self.config.dkt['waviness_l1'] == True:
+        if self.config.waviness_l1 == True:
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
                 waviness_norm_l1) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
-            lambda_l1 = self.config.dkt.get('lambda_l1', 0.)
+            lambda_l1 = self.config.lambda_l1
             out_dic['loss'] += lambda_l1 * waviness_l1
-            out_dic['waviness_l1'] = waviness_l1
+            out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.dkt['waviness_l2'] == True:
+        if self.config.waviness_l2 == True:
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(
                 waviness_norm_l2) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
-            lambda_l2 = self.config.dkt.get('lambda_l2', 0.)
+            lambda_l2 = self.config.lambda_l2
             out_dic['loss'] += lambda_l2 * waviness_l2
-            out_dic['waviness_l2'] = waviness_l2
+            out_dic['waviness_l2'] = waviness_l2.item()
 
         return out_dic
 
