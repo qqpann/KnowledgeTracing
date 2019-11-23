@@ -153,15 +153,15 @@ class Trainer(object):
     def exec_core(self, dl, opt):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.sequence_size])
+            [arr_len, self.config.batch_size ])
         actu_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.sequence_size])
+            [arr_len, self.config.batch_size ])
         loss_ar = np.zeros(arr_len)
         for i, (xseq, yseq) in enumerate(dl):
             out = self.model.loss_batch(xseq, yseq, opt=opt)
             loss_ar[i] = out['loss'].item()
-            pred_mx[i] = out['pred_prob'].detach().view(-1).cpu()
-            actu_mx[i] = yseq[:, :, 1].view(-1).cpu()
+            pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
 
             if self.config.debug:
                 break
