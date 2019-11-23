@@ -117,7 +117,7 @@ class Trainer(object):
                 train_loss_list.append(t_loss)
                 train_auc_list.append(t_auc)
             if epoch % 100 == 0:
-                self.logger.info('\tEpoch {}\tTrain Loss: {:.4}\tAUC: {:.4}'.format(
+                self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, t_loss, t_auc))
 
             if epoch % 10 == 0 and validate:
@@ -127,7 +127,7 @@ class Trainer(object):
                 eval_loss_list.append(v_loss)
                 eval_auc_list.append(v_auc)
             if epoch % 100 == 0 and validate:
-                self.logger.info('\tEpoch {}\tValid Loss: {:.4}\tAUC: {:.4}'.format(
+                self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
                 if v_auc > best['auc']:
                     best['auc'] = v_auc
@@ -136,10 +136,10 @@ class Trainer(object):
                     # report['best_eval_auc_epoch'] = epoch
                     save_model(self.config, self.model, v_auc, epoch)
                     self.logger.info(
-                        f'Best AUC {v_auc:.4} refreshed and saved!')
+                        f'Best AUC {v_auc:.6} refreshed and saved!')
                 else:
                     self.logger.info(
-                        f'Best AUC {best["auc"]:.4} at epoch {best["auc_epoch"]}')
+                        f'Best AUC {best["auc"]:.6} at epoch {best["auc_epoch"]}')
 
             if epoch % 100 == 0:
                 self.logger.info(

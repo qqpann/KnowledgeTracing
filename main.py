@@ -52,6 +52,12 @@ def main(configpath: Path):
 
 
 def run(config):
+    SEED = 42
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     # report = dict()
     # report['model_fname'] = config.outfname
 
@@ -64,13 +70,6 @@ def run(config):
 
 
 if __name__ == '__main__':
-    SEED = 0
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
-
     config = sys.argv[1]
     config = Path(config)
     assert config.exists(), config

@@ -63,7 +63,7 @@ class Config(BaseConfig):
         self.starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
 
     def _get_experiment_name(self):
-        return '_'.join([self.starttime, self.section_name, self.model_name])
+        return '_'.join([self.starttime, self.get('exp_name', ''), self.model_name])
 
     @property
     def resultsdir(self):
