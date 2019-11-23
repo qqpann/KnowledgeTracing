@@ -3,6 +3,25 @@ EDDKT - Encoder-Decoder Deep Knowledge Tracing
 ~~~~~
 Author: Qiushi Pan (@qqhann)
 '''
+from src.utils import sAsMinutes, timeSince
+from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn import metrics
+import pandas as pd
+import numpy as np
+from typing import List, Tuple, Set, Dict
+from pathlib import Path
+from math import log, ceil
+import math
+import random
+import logging
+import pickle
+import time
+import sys
+import os
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,34 +32,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_packed_s
 SEED = 0
 torch.manual_seed(SEED)
 
-import os
-import sys
-import time
-import pickle
-import logging
-import random
-import math
-from math import log, ceil
-from pathlib import Path
-from typing import List, Tuple, Set, Dict
 
-import numpy as np
-import pandas as pd
-from sklearn import metrics
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
-from src.utils import sAsMinutes, timeSince
-
-
-
-
-
-# =========================
-# Model
-# =========================
 class Encoder(nn.Module):
     def __init__(self, num_embeddings, emb_dim, hid_dim, n_layers, dropout):
         super().__init__()
@@ -75,7 +67,8 @@ class Decoder(nn.Module):
         # Layers
         self.embedding = nn.Embedding(output_dim, emb_dim)  # 250->6
 
-        self.rnn = nn.LSTM(emb_dim, hid_dim, n_layers, dropout=dropout)  # 6, 100, 1
+        self.rnn = nn.LSTM(emb_dim, hid_dim, n_layers,
+                           dropout=dropout)  # 6, 100, 1
 
         self.out = nn.Linear(hid_dim, output_dim)  # 100, 250
 
@@ -86,7 +79,6 @@ class Decoder(nn.Module):
         output, (hidden, cell) = self.rnn(embedded, (hidden, cell))
         prediction = self.out(output)
         return prediction, hidden, cell
-
 
 
 class EncDecDKT(nn.Module):
@@ -120,8 +112,8 @@ class EncDecDKT(nn.Module):
 
         output, hidden, cell = self.decoder(input_trg, hidden, cell)
         # Knowledge State
-        o_wro = torch.sigmoid(output[:,:, 2:2+self.N_SKILLS])
-        o_cor = torch.sigmoid(output[:,:, 2+self.N_SKILLS:])
+        o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
+        o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
         outputs_prob = (o_cor / (o_cor + o_wro))
         # print(output.shape) => [len(trg), batch_size, 2M+PAD]
         # print(outputs_prob.shape) => [len(trg), batch_size, M]
@@ -150,14 +142,14 @@ def get_loss_batch_encdec(extend_forward=0, ks_loss=False):
         prob = torch.max(out_prob * yq, 2)[0]
         # print(prob.shape) => [100, 11] = (batch_size, len(y)=ef+1)
         # print(ya.shape) => [100, 11] = (batch_size, len(y))
-        predicted = prob[:,-1]
-        actual_q = yq[:,-1]
-        actual_a = ya[:,-1]
+        predicted = prob[:, -1]
+        actual_q = yq[:, -1]
+        actual_a = ya[:, -1]
         # ---
 
         # Knowledge State
         # TODO: using predicted_ks for both ks-vector learning and heatmap is causing problem. Fix it.
-        predicted_ks = out_prob[:,-1,:].unsqueeze(1)
+        predicted_ks = out_prob[:, -1, :].unsqueeze(1)
         hm_pred_ks = out_prob[:, -1, :].squeeze()
         # print(out_prob.shape)
         # print(out_prob.squeeze().shape)
@@ -180,56 +172,3 @@ def get_loss_batch_encdec(extend_forward=0, ks_loss=False):
         return loss.item(), len(ys), predicted, actual_q, actual_a, hm_pred_ks, None, None
 
     return loss_batch_encdec
-
-
-
-
-
-
-# EOF
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# It is important to leave some room. That is how life is, isn't it?
