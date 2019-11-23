@@ -6,6 +6,7 @@ from typing import List, Tuple, Set, Dict
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 import torch
 from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
@@ -287,8 +288,9 @@ def prepare_dataloader(config, device):
     
     qa_emb = QandAEmbedder(M, sequence_size)
 
+    SEED = 42
     train_num = int(len(data) * .8)
-    train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
+    train_data, eval_data = train_test_split(data, train_size=train_num, random_state=SEED)
 
     def get_ds(data):
         x_values = []
