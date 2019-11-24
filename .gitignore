@@ -122,6 +122,7 @@ models/
 debug_*
 
 output/**/*.pickle
+output/**/*.pkl
 output/**/*.json
 output/**/*.png
 output/**/checkpoints/*
