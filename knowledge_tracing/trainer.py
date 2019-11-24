@@ -3,11 +3,13 @@ import torch
 import time
 import logging
 import numpy as np
+from pathlib import Path
 from math import log, ceil
 from sklearn import metrics
+from collections import defaultdict
 
 from src.data import prepare_data, prepare_dataloader
-from src.save import save_model, save_log, save_hm_fig, save_learning_curve
+from src.save import save_model, save_log, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from model.eddkt import EDDKT
 from model.dkt import DKT
@@ -20,7 +22,13 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger()
         self.device = self.get_device()
-        self.model, self.train_dl, self.eval_dl = self.get_model()
+        self.train_dl, self.eval_dl = self.get_dataloader()
+        model = self.get_model()
+        if config.load_model:
+            assert Path(config.load_model).exists()
+            model.load_state_dict(torch.load(config.load_model))
+            model = model.to(self.device)
+        self.model = model
         self.opt = self.get_opt(self.model)
 
     def get_logger(self):
@@ -39,35 +47,23 @@ class Trainer(object):
     def get_model(self):
         if self.config.model_name == 'eddkt':
             model = EDDKT(self.config, self.device).to(self.device)
-            train_dl, eval_dl = prepare_dataloader(
-                self.config, device=self.device)
-        elif self.config.model_name == 'seq2seq':
-            model = get_Seq2Seq(
-                onehot_size, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT,
-                OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT, self.device)
-            loss_batch = get_loss_batch_seq2seq(
-                self.config.extend_forward, ks_loss=self.config.ks_loss)
-            train_dl, eval_dl = prepare_data(
-                self.config.source_data, 'encdec', n_skills, PRESERVED_TOKENS,
-                min_n=3, max_n=self.config.sequence_size, batch_size=batch_size, device=self.device, sliding_window=0,
-                params={'extend_backward': self.config.extend_backward, 'extend_forward': self.config.extend_forward})
         elif self.config.model_name == 'dkt':
             model = DKT(self.config, self.device).to(self.device)
-            train_dl, eval_dl = prepare_dataloader(
-                self.config, device=self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
-        self.logger.info(
-            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-        self.logger.info(
-            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
-
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
         self.logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
+        return model
 
-        return model, train_dl, eval_dl
+    def get_dataloader(self):
+        train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
+        self.logger.info(
+            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+        self.logger.info(
+            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
+        return train_dl, eval_dl
 
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
@@ -130,15 +126,17 @@ class Trainer(object):
         save_learning_curve(x_list, train_loss_list, train_auc_list,
                             eval_loss_list, eval_auc_list, self.config)
 
-    def exec_core(self, dl, opt):
+    def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
-        pred_mx = np.zeros(
-            [arr_len, self.config.batch_size ])
-        actu_mx = np.zeros(
-            [arr_len, self.config.batch_size ])
+        pred_mx = np.zeros([arr_len, self.config.batch_size])
+        actu_mx = np.zeros([arr_len, self.config.batch_size])
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
+        if only_eval:
+            q_all_count = defaultdict(int)
+            q_cor_count = defaultdict(int)
+            q_pred_list = defaultdict(list)
         for i, (xseq, yseq) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
             out = self.model.loss_batch(xseq, yseq, opt=opt)
@@ -148,9 +146,15 @@ class Trainer(object):
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+            if only_eval:
+                for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
+                    q_all_count[q.item()] += 1
+                    q_cor_count[q.item()] += int(a)
+                    q_pred_list[q.item()].append(p)
 
             if self.config.debug:
                 break
+
         # AUC
         fpr, tpr, _thresholds = metrics.roc_curve(
             actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
@@ -162,6 +166,8 @@ class Trainer(object):
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
         }
+        if only_eval:
+            indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
     def _train_model_simple(self):
@@ -171,14 +177,33 @@ class Trainer(object):
             for i, (xseq, yseq) in enumerate(self.train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    # # ========================
-    # # Load trained model
-    # # ========================
-    # if config.load_model:
-    #     model.load_state_dict(torch.load(config.load_model))
-    #     model = model.to(dev)
+    def evaluate_model(self):
+        self.logger.info('Starting evaluation')
+        start_time = time.time()
+        with torch.no_grad():
+            self.model.eval()
+            indicators = self.exec_core(
+                dl=self.eval_dl, opt=None, only_eval=True)
+            v_loss, v_auc = indicators['loss'], indicators['auc']
 
-    # # model is trained or loaded now.
+            self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
+                v_loss, v_auc))
+            if self.config.waviness_l1 or self.config.waviness_l2:
+                self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
+                    indicators['waviness_l1'], indicators['waviness_l2']))
+
+            # Pred & Accu Relation
+            q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
+            pa_scat_x = list()
+            pa_scat_y = list()
+            for q, l in q_pred_list.items():
+                all_acc = q_cor_count[q] / q_all_count[q]
+                for p in l:
+                    pa_scat_x.append(p)
+                    pa_scat_y.append(all_acc)
+            save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
+
+        self.logger.info(f'{timeSince(start_time, 1)}')
 
     # if config.plot_heatmap:
     #     batch_size = 1

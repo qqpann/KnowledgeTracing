@@ -121,16 +121,19 @@ models/
 
 debug_*
 
+output/_archive_models/
 output/**/*.pickle
+output/**/*.pkl
 output/**/*.json
 output/**/*.png
 output/**/checkpoints/*
 output/results/*
 
+!output/1124_eddkt_vs_dkt/20191124-1603_eddkt_ef15_eddkt/checkpoints/eddkt_auc0.8528_e1000.model
+!output/1124_eddkt_vs_dkt/20191124-1810_dkt_dkt/checkpoints/dkt_auc0.8480_e400.model
+
 data/*/*.csv
 data/**/*.pickle
 data/*/*.txt
-
-output/_archive_models/
 
 nohup.out
