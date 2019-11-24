@@ -105,7 +105,7 @@ class GEDDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, src, trg, teacher_forcing_ratio=0.5):
+    def forward(self, src, trg, yqs):
         max_len = trg.shape[0]  # should be 1
         batch_size = trg.shape[1]
         trg_vocab_size = self.decoder.output_dim
@@ -114,21 +114,44 @@ class GEDDKT(nn.Module):
 
         input_trg = trg
 
-        output, hidden, cell = self.decoder(input_trg, hidden, cell)
-        # Knowledge State
-        o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
-        o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
-        outputs_prob = (o_cor / (o_cor + o_wro))
-        # print(output.shape) => [len(trg), batch_size, 2M+PAD]
-        # print(outputs_prob.shape) => [len(trg), batch_size, M]
+        teacher_forcing_ratio = .5
+        use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+        if use_teacher_forcing:
+            input_trg_ = input_trg[0, :].unsqueeze(0)
+            outputs_prob_list = []
+            for di in range(input_trg.shape[0]):
+                # print(input_trg_, input_trg_.shape)
+                output, hidden, cell = self.decoder(input_trg_, hidden, cell)
+                o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
+                o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
+                outputs_prob = (o_cor / (o_cor + o_wro))
+                outputs_prob_list.append(outputs_prob)
+                # print(outputs_prob, outputs_prob.shape) #=> [16, 100, 124]
+                # print(yqs, yqs.shape, 'yqs') #=> [16, 100, 124]
+                a = 1 * (torch.max(outputs_prob * yqs[di:di+1,:,:], 2)[0] < 0.5)
+                q = torch.max(yqs[di:di+1,:,:], 2)[1]
+                input_trg_ = self.N_SKILLS * a + q
+                # print(input_trg_[0], input_trg_[0].shape)
+                # print(input_trg_[1], input_trg_[1].shape)
+            outputs_prob = torch.cat(outputs_prob_list)
+        else:
+            # print(input_trg.shape, hidden.shape, cell.shape) # => (16, 100), (2, 100, 200), (2, 100, 200)
+            output, hidden, cell = self.decoder(input_trg, hidden, cell)
+            # print(output.shape) # => (16, 100, 250)
+            # Knowledge State
+            o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
+            o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
+            outputs_prob = (o_cor / (o_cor + o_wro))
+            # print(output.shape) => [len(trg), batch_size, 2M+PAD]
+            # print(outputs_prob.shape) => [len(trg), batch_size, M]
 
         return outputs_prob
 
     def forward_loss(self, input_src, input_trg, yqs, target):
         # print(input_src.shape, input_trg.shape)
-        out = self.forward(input_src, input_trg)
+        out = self.forward(input_src, input_trg, yqs)
         # print(out, out.shape)
-        pred_vect = out #.permute(1, 0, 2)
+        pred_vect = out  # .permute(1, 0, 2)
         # assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
         #     "Unexpected shape {}".format(pred_vect.shape)
 
@@ -182,7 +205,7 @@ class GEDDKT(nn.Module):
 
         xseq_src = xseq[:-1-self.config.eddkt['extend_forward']]
         xseq_trg = xseq[-1-self.config.eddkt['extend_forward'] -
-                         self.config.eddkt['extend_backward']:]
+                        self.config.eddkt['extend_backward']:]
         yseq = yseq[-1-self.config.eddkt['extend_forward'] -
                     self.config.eddkt['extend_backward']:]
         # print(xseq_src.shape, xseq_trg.shape, yseq.shape)
