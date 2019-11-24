@@ -8,8 +8,6 @@
     {
       "model_name": "geddkt",
       "exp_name": "debug_ef15",
-      "waviness_l1": false,
-      "waviness_l2": false,
       "eddkt": {
         "extend_forward": 15
       }
