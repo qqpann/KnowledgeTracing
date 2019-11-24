@@ -3,6 +3,7 @@ import torch
 import time
 import logging
 import numpy as np
+from pathlib import Path
 from math import log, ceil
 from sklearn import metrics
 from collections import defaultdict
@@ -21,7 +22,13 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger()
         self.device = self.get_device()
-        self.model, self.train_dl, self.eval_dl = self.get_model()
+        self.train_dl, self.eval_dl = self.get_dataloader()
+        model = self.get_model()
+        if config.load_model:
+            assert Path(config.load_model).exists()
+            model.load_state_dict(torch.load(config.load_model))
+            model = model.to(self.device)
+        self.model = model
         self.opt = self.get_opt(self.model)
 
     def get_logger(self):
@@ -40,25 +47,23 @@ class Trainer(object):
     def get_model(self):
         if self.config.model_name == 'eddkt':
             model = EDDKT(self.config, self.device).to(self.device)
-            train_dl, eval_dl = prepare_dataloader(
-                self.config, device=self.device)
         elif self.config.model_name == 'dkt':
             model = DKT(self.config, self.device).to(self.device)
-            train_dl, eval_dl = prepare_dataloader(
-                self.config, device=self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
-        self.logger.info(
-            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-        self.logger.info(
-            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
-
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
         self.logger.info(
             f'The model has {count_parameters(model):,} trainable parameters')
+        return model
 
-        return model, train_dl, eval_dl
+    def get_dataloader(self):
+        train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
+        self.logger.info(
+            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+        self.logger.info(
+            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
+        return train_dl, eval_dl
 
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
@@ -189,7 +194,8 @@ class Trainer(object):
         start_time = time.time()
         with torch.no_grad():
             self.model.eval()
-            indicators = self.exec_core(dl=self.eval_dl, opt=None, last_epoch=True)
+            indicators = self.exec_core(
+                dl=self.eval_dl, opt=None, last_epoch=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
             self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
@@ -210,15 +216,6 @@ class Trainer(object):
             save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
 
         self.logger.info(f'{timeSince(start_time, 1)}')
-
-    # # ========================
-    # # Load trained model
-    # # ========================
-    # if config.load_model:
-    #     model.load_state_dict(torch.load(config.load_model))
-    #     model = model.to(dev)
-
-    # # model is trained or loaded now.
 
     # if config.plot_heatmap:
     #     batch_size = 1
