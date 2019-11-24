@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
+from torch.utils.data import TensorDataset, Dataset, DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_packed_sequence, pad_sequence
 
 import os
@@ -11,7 +11,6 @@ import sys
 import time
 import pickle
 import logging
-import random
 import math
 from math import log, ceil
 from pathlib import Path
@@ -45,17 +44,20 @@ class DKT(nn.Module):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
 
+        self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
+
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
         if self.model_name == 'dkt:rnn':
-            self.rnn = nn.RNN(input_size, n_hidden, n_layers,
-                              nonlinearity=nonlinearity, dropout=dropout, bidirectional=self.bidirectional)
+            self.rnn = nn.RNN(self.input_size, self.hidden_size, self.n_layers,
+                              nonlinearity=nonlinearity, dropout=self.dkt['dropout_rate'], bidirectional=self.bidirectional)
         elif self.model_name == 'dkt':
             self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
                                 dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
-        self.decoder = nn.Linear(self.hidden_size * self.directions, self.output_size)
+        self.decoder = nn.Linear(
+            self.hidden_size * self.directions, self.output_size)
         # self.sigmoid = nn.Sigmoid()
 
         self._loss = nn.BCELoss()
@@ -78,18 +80,40 @@ class DKT(nn.Module):
     def forward_loss(self, inputs, yqs, target):
         out = self.forward(inputs)
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
+        assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
+            "Unexpected shape {}".format(pred_vect.shape)
         # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
         # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
         loss = self._loss(pred_prob, target)
+        # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
             'loss': loss,
             'pred_vect': pred_vect,  # (20, 100, 124)
             'pred_prob': pred_prob,  # (20, 100)
         }
+
+        if self.config.waviness_l1 == True:
+            waviness_norm_l1 = torch.abs(
+                pred_vect[1:, :, :] - pred_vect[:-1, :, :])
+            waviness_l1 = torch.sum(
+                waviness_norm_l1) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
+            lambda_l1 = self.config.lambda_l1
+            out_dic['loss'] += lambda_l1 * waviness_l1
+            out_dic['waviness_l1'] = waviness_l1.item()
+
+        if self.config.waviness_l2 == True:
+            waviness_norm_l2 = torch.pow(
+                pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
+            waviness_l2 = torch.sum(
+                waviness_norm_l2) / ((pred_vect.shape[0] - 1) * pred_vect.shape[1] * pred_vect.shape[2])
+            lambda_l2 = self.config.lambda_l2
+            out_dic['loss'] += lambda_l2 * waviness_l2
+            out_dic['waviness_l2'] = waviness_l2.item()
+
         return out_dic
 
     def initHidden0(self):
@@ -130,11 +154,8 @@ class DKT(nn.Module):
         # print(target, target.shape)
         compressed_sensing = True
         if compressed_sensing and onehot_size != self.input_size:
-            SEED = 0
-            torch.manual_seed(SEED)
-            cs_basis = torch.randn(onehot_size, self.input_size).to(device)
             inputs = torch.mm(
-                inputs.contiguous().view(-1, onehot_size), cs_basis)
+                inputs.contiguous().view(-1, onehot_size), self.cs_basis)
             # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
             # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
             inputs = inputs.view(

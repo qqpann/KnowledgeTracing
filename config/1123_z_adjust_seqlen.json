@@ -1,0 +1,42 @@
+{
+  "common": {
+    "model_name": "dkt",
+    "source_data": "Asteria_Eng_ver5_sorted7",
+    "n_skills": 326,
+    "epoch_size": 1000,
+    "batch_size": 100,
+    "lr": 0.1,
+    "waviness_l1": false,
+    "waviness_l2": false
+  },
+  "experiments": [
+    {
+      "exp_name": "seq9",
+      "sequence_size": 9
+    },
+    {
+      "exp_name": "seq11",
+      "sequence_size": 11
+    },
+    {
+      "exp_name": "seq13",
+      "sequence_size": 13
+    },
+    {
+      "exp_name": "seq15",
+      "sequence_size": 15
+    },
+    {
+      "exp_name": "seq17",
+      "sequence_size": 17
+    },
+    {
+      "exp_name": "seq19",
+      "sequence_size": 19
+    },
+    {
+      "exp_name": "seq21",
+      "sequence_size": 21
+    }
+  ]
+}
