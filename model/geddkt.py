@@ -118,22 +118,23 @@ class GEDDKT(nn.Module):
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
         if use_teacher_forcing:
             input_trg_ = input_trg[0, :].unsqueeze(0)
-            outputs_prob = []
+            outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
+                                       dtype=torch.float32, device=self.device)
             for di in range(input_trg.shape[0]):
                 # print(input_trg_, input_trg_.shape)
                 output, hidden, cell = self.decoder(input_trg_, hidden, cell)
                 o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
                 o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
                 outputs_prob_ = (o_cor / (o_cor + o_wro))
-                outputs_prob.append(outputs_prob_)
+                outputs_prob[di] = outputs_prob_
                 # print(outputs_prob, outputs_prob.shape) #=> [16, 100, 124]
                 # print(yqs, yqs.shape, 'yqs') #=> [16, 100, 124]
-                a = 1 * (torch.max(outputs_prob_ * yqs[di:di+1,:,:], 2)[0] < 0.5)
-                q = torch.max(yqs[di:di+1,:,:], 2)[1]
+                a = 1 * (torch.max(outputs_prob_ *
+                                   yqs[di:di+1, :, :], 2)[0] < 0.5)
+                q = torch.max(yqs[di:di+1, :, :], 2)[1]
                 input_trg_ = self.N_SKILLS * a + q
                 # print(input_trg_[0], input_trg_[0].shape)
                 # print(input_trg_[1], input_trg_[1].shape)
-            outputs_prob = torch.cat(outputs_prob)
         else:
             # print(input_trg.shape, hidden.shape, cell.shape) # => (16, 100), (2, 100, 200), (2, 100, 200)
             output, hidden, cell = self.decoder(input_trg, hidden, cell)
