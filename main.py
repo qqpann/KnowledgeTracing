@@ -62,10 +62,14 @@ def run(config):
     # report['model_fname'] = config.outfname
 
     trainer = Trainer(config)
-    try:
-        trainer.train_model()
-    except KeyboardInterrupt as e:
-        print(e)
+    if not config.load_model:
+        try:
+            trainer.train_model()
+        except KeyboardInterrupt as e:
+            print(e)
+
+    trainer.evaluate_model()
+
     return None
 
 
