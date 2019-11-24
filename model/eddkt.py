@@ -145,8 +145,8 @@ class EDDKT(nn.Module):
         #     loss = loss_func(predicted_ks, yp.float())
 
         # Olsfashion  # DeltaQ-A Loss learning (Piech et al. style)
-        # print(pred_prob.shape, target.shape)
         loss = self._loss(pred_prob, target)
+        # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
             'loss': loss,
@@ -155,6 +155,7 @@ class EDDKT(nn.Module):
         }
 
         if self.config.waviness_l1 == True:
+            assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
@@ -164,6 +165,7 @@ class EDDKT(nn.Module):
             out_dic['waviness_l1'] = waviness_l1.item()
 
         if self.config.waviness_l2 == True:
+            assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(

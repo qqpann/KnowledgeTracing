@@ -88,6 +88,7 @@ class DKT(nn.Module):
         # print(target, target.shape)  # (20, 100)
         # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
         loss = self._loss(pred_prob, target)
+        # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
             'loss': loss,
