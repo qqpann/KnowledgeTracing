@@ -113,18 +113,6 @@ class Trainer(object):
                     save_model(self.config, self.model, v_auc, epoch)
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
-
-                    # Pred & Accu Relation
-                    q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
-                    pa_scat_x = list()
-                    pa_scat_y = list()
-                    for q, l in q_pred_list.items():
-                        all_acc = q_cor_count[q] / q_all_count[q]
-                        for p in l:
-                            pa_scat_x.append(p)
-                            pa_scat_y.append(all_acc)
-                    save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
-
                 else:
                     self.logger.info(
                         f'Best AUC {best["auc"]:.6} at epoch {best["auc_epoch"]}')
@@ -138,14 +126,14 @@ class Trainer(object):
         save_learning_curve(x_list, train_loss_list, train_auc_list,
                             eval_loss_list, eval_auc_list, self.config)
 
-    def exec_core(self, dl, opt, last_epoch=False):
+    def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
-        if last_epoch:
+        if only_eval:
             q_all_count = defaultdict(int)
             q_cor_count = defaultdict(int)
             q_pred_list = defaultdict(list)
@@ -158,7 +146,7 @@ class Trainer(object):
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
-            if last_epoch:
+            if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
                     q_all_count[q.item()] += 1
                     q_cor_count[q.item()] += int(a)
@@ -178,7 +166,7 @@ class Trainer(object):
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
         }
-        if last_epoch:
+        if only_eval:
             indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
@@ -195,7 +183,7 @@ class Trainer(object):
         with torch.no_grad():
             self.model.eval()
             indicators = self.exec_core(
-                dl=self.eval_dl, opt=None, last_epoch=True)
+                dl=self.eval_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
             self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(

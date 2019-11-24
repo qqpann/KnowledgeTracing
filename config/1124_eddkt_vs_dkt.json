@@ -14,7 +14,6 @@
       }
     },
     {
-      "load_model": "output/1124_eddkt_vs_dkt/20191124-1616_dkt_dkt/checkpoints/dkt_auc0.8171_e500.model",
       "exp_name": "dkt",
       "model_name": "dkt"
     }

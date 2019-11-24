@@ -44,7 +44,8 @@ class DKT(nn.Module):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
 
-        self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
+        # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
+        self.embedding = nn.Embedding(config.n_skills * 2 + 2, self.input_size).to(device)
 
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
@@ -63,6 +64,7 @@ class DKT(nn.Module):
         self._loss = nn.BCELoss()
 
     def forward(self, inputs):
+        inputs = self.embedding(inputs).squeeze(2)
         if self.model_name == 'dkt:rnn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(inputs, h0)
@@ -142,8 +144,8 @@ class DKT(nn.Module):
         # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
         inputs = torch.LongTensor(
             np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
-        inputs = inputs.squeeze()
-        inputs = F.one_hot(inputs, num_classes=onehot_size).float()
+        # inputs = inputs.squeeze()
+        # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
         yqs = torch.LongTensor(
             np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
         yqs = yqs.squeeze()
@@ -152,14 +154,14 @@ class DKT(nn.Module):
             np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
         target = target.squeeze()
         # print(target, target.shape)
-        compressed_sensing = True
-        if compressed_sensing and onehot_size != self.input_size:
-            inputs = torch.mm(
-                inputs.contiguous().view(-1, onehot_size), self.cs_basis)
-            # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
-            # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
-            inputs = inputs.view(
-                self.batch_size, self.config.sequence_size, self.input_size)
+        # compressed_sensing = True
+        # if compressed_sensing and onehot_size != self.input_size:
+        #     inputs = torch.mm(
+        #         inputs.contiguous().view(-1, onehot_size), self.cs_basis)
+        #     # https://pytorch.org/docs/stable/nn.html?highlight=rnn#rnn
+        #     # inputの説明を見ると、input of shape (seq_len, batch, input_size)　とある
+        #     inputs = inputs.view(
+        #         self.batch_size, self.config.sequence_size, self.input_size)
         inputs = inputs.permute(1, 0, 2)
 
         yqs = yqs.permute(1, 0, 2)
