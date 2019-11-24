@@ -1,0 +1,17 @@
+{
+  "common": {
+    "epoch_size": 100,
+    "sequence_size": 20,
+    "lr": 0.1
+  },
+  "experiments": [
+    {
+      "debug": true,
+      "model_name": "geddkt",
+      "exp_name": "debug_ef15",
+      "eddkt": {
+        "extend_forward": 15
+      }
+    }
+  ]
+}
