@@ -50,6 +50,6 @@ def save_pred_accu_relation(config, x, y):
         pickle.dump((x,y), f)
 
     fig, ax = plt.subplots()
-    ax.set_aspect('equal', adjustable="datalim")
+    ax.set_aspect('equal')
     sns.scatterplot(x, y)
     fig.savefig(pardir / f'{config.model_name}_scatter.png')
