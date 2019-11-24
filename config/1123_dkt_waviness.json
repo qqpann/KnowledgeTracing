@@ -1,0 +1,17 @@
+{
+  "common": {
+    "model_name": "dkt",
+    "epoch_size": 700,
+    "lr": 0.1
+  }, 
+  "experiments": [
+    {
+      "exp_name": "with_waviness",
+      "lambda_l1": 0.1,
+      "lambda_l2": 0.1
+    },
+    {
+      "exp_name": "without_waviness"
+    }
+  ]
+}
