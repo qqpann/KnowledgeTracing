@@ -2,6 +2,8 @@ import torch
 
 import pickle
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 def save_model(config, model, auc, epoch):
     checkpointsdir = config.resultsdir / 'checkpoints'
@@ -38,3 +40,16 @@ def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval
     lcdir = config.resultsdir / 'learning_curve'
     lcdir.mkdir(exist_ok=True)
     plt.savefig(lcdir / f'{config.model_name}.png')
+
+
+def save_pred_accu_relation(config, x, y):
+    pardir = config.resultsdir / 'pa_relation'
+    pardir.mkdir(exist_ok=True)
+
+    with open(pardir / f'{config.model_name}_xy.pkl', 'wb') as f:
+        pickle.dump((x,y), f)
+
+    fig, ax = plt.subplots()
+    ax.set_aspect('equal', adjustable="datalim")
+    sns.scatterplot(x, y)
+    fig.savefig(pardir / f'{config.model_name}_scatter.png')
