@@ -9,6 +9,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_packed_s
 import os
 import sys
 import time
+import random
 import pickle
 import logging
 import math
@@ -80,11 +81,19 @@ class KSDKT(nn.Module):
         yqs = F.one_hot(yqs, num_classes=skill_n).float()
         target = torch.Tensor(
             np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
-        target = target.squeeze()
-        inputs = inputs.permute(1, 0, 2)
+        # target = target.squeeze()
 
+        inputs = inputs.permute(1, 0, 2)
         yqs = yqs.permute(1, 0, 2)
-        target = target.permute(1, 0)
+        target = target.permute(1, 0, 2)
+
+        # print(yqs.shape, target.shape)
+        dqa = yqs * target
+        # print(dqa, dqa.shape)
+        Sdqa = torch.cumsum(dqa, dim=0)
+        # print(Sdqa, Sdqa.shape)
+        Sdq = torch.cumsum(yqs, dim=0)
+        # print(Sdq, Sdq.shape)
 
         inputs = self.embedding(inputs).squeeze(2)
         if self.model_name == 'dkt:rnn':
@@ -108,9 +117,9 @@ class KSDKT(nn.Module):
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
         # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
-        use_ksvect = False
+        use_ksvect = random.random() < .5
         if use_ksvect:
-            loss = self._loss(pred_vect, )
+            loss = self._loss(torch.sigmoid(Sdq * pred_vect), torch.sigmoid(Sdqa))
         else:
             loss = self._loss(pred_prob, target)
         # print(loss, loss.shape) #=> scalar, []

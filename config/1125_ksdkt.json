@@ -6,7 +6,6 @@
   },
   "experiments": [
     {
-      "debug": true,
       "model_name": "ksdkt",
       "exp_name": "ks"
     }
