@@ -121,7 +121,8 @@ class KSDKT(nn.Module):
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
-            ksvector_l1 = self._loss(torch.sigmoid(Sdq * pred_vect), torch.sigmoid(Sdqa))
+            ksvector_l1 = torch.sum(torch.abs(torch.sigmoid(Sdq * pred_vect) - torch.sigmoid(Sdqa))) \
+                / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             out_dic['loss'] += 0.5 * ksvector_l1
             out_dic['ksvector_l1'] = ksvector_l1.item()
 
