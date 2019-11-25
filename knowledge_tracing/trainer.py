@@ -118,6 +118,10 @@ class Trainer(object):
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
                 self.report('eval_loss', v_loss)
                 self.report('eval_auc', v_auc)
+                self.report('ksvector_l1', v_idc['ksvector_l1'])
+                if self.config.waviness_l1 or self.config.waviness_l2:
+                    self.report('waviness_l1', v_idc['waviness_l1'])
+                    self.report('waviness_l2', v_idc['waviness_l2'])
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
