@@ -9,7 +9,7 @@ from sklearn import metrics
 from collections import defaultdict
 
 from src.data import prepare_data, prepare_dataloader
-from src.save import save_model, save_log, save_hm_fig, save_learning_curve, save_pred_accu_relation
+from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
@@ -32,6 +32,11 @@ class Trainer(object):
             model = model.to(self.device)
         self.model = model
         self.opt = self.get_opt(self.model)
+
+        self.report = {'config': config.as_dict()}
+
+    def dump_report(self):
+        save_report(self.config, self.report)
 
     def get_logger(self):
         logging.basicConfig()
