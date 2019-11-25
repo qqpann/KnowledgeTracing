@@ -45,7 +45,8 @@ class KSDKT(nn.Module):
         self.directions = 2 if self.bidirectional else 1
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
-        self.embedding = nn.Embedding(config.n_skills * 2 + 2, self.input_size).to(device)
+        self.embedding = nn.Embedding(
+            config.n_skills * 2 + 2, self.input_size).to(device)
 
         nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
@@ -63,7 +64,28 @@ class KSDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, inputs):
+    def forward(self, xseq, yseq):
+        # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
+        # https://pytorch.org/docs/master/nn.functional.html#one-hot
+        skill_n = self.config.n_skills
+        onehot_size = skill_n * 2 + 2
+        device = self.device
+        inputs = torch.LongTensor(
+            np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        # inputs = inputs.squeeze()
+        # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
+        yqs = torch.LongTensor(
+            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = yqs.squeeze()
+        yqs = F.one_hot(yqs, num_classes=skill_n).float()
+        target = torch.Tensor(
+            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        target = target.squeeze()
+        inputs = inputs.permute(1, 0, 2)
+
+        yqs = yqs.permute(1, 0, 2)
+        target = target.permute(1, 0)
+
         inputs = self.embedding(inputs).squeeze(2)
         if self.model_name == 'dkt:rnn':
             h0 = self.initHidden0()
@@ -77,10 +99,7 @@ class KSDKT(nn.Module):
         out = self.decoder(out)
         # decoded = self.sigmoid(decoded)
         # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
-        return out
 
-    def forward_loss(self, inputs, yqs, target):
-        out = self.forward(inputs)
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
         assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
             "Unexpected shape {}".format(pred_vect.shape)
@@ -89,7 +108,11 @@ class KSDKT(nn.Module):
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
         # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
-        loss = self._loss(pred_prob, target)
+        use_ksvect = False
+        if use_ksvect:
+            loss = self._loss(pred_vect, )
+        else:
+            loss = self._loss(pred_prob, target)
         # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
@@ -134,34 +157,7 @@ class KSDKT(nn.Module):
         yq: qのonehot配列からなる配列
         ya: aの0,1 intからなる配列
         '''
-        # print(yq.shape) => [100, 124] = [batch_size, skill_size]
-        # print(xseq.shape, yseq.shape) => [100, 20, 2], [100, 20, 2]
-        # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
-        # https://pytorch.org/docs/master/nn.functional.html#one-hot
-        skill_n = self.config.n_skills
-        onehot_size = skill_n * 2 + 2
-        device = self.device
-        # inputs = torch.dot(xseq, torch.as_tensor([[1], [skill_n]]))
-        inputs = torch.LongTensor(
-            np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
-        # inputs = inputs.squeeze()
-        # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
-        yqs = torch.LongTensor(
-            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
-        yqs = yqs.squeeze()
-        yqs = F.one_hot(yqs, num_classes=skill_n).float()
-        target = torch.Tensor(
-            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
-        target = target.squeeze()
-        # print(target, target.shape)
-        inputs = inputs.permute(1, 0, 2)
-
-        yqs = yqs.permute(1, 0, 2)
-        target = target.permute(1, 0)
-        # actual_q = yq
-        # actual_a = ya
-
-        out = self.forward_loss(inputs, yqs, target)
+        out = self.forward(xseq, yseq)
         loss = out['loss']
 
         if opt:
