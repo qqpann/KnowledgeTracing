@@ -1,16 +1,16 @@
 {
   "experiments": [
     {
-      "debug": false,
+      "debug": true,
       "exp_name": "debug",
       "model_name": "dkt",
-      "epoch_size": 100
+      "epoch_size": 200
     },
     {
-      "debug": false,
+      "debug": true,
       "exp_name": "debug",
       "model_name": "dkt",
-      "epoch_size": 100
+      "epoch_size": 200
     }
   ]
 }
