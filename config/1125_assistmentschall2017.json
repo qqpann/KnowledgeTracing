@@ -1,7 +1,7 @@
 {
   "common": {
-    "source_data": "2015_100_skill_builders_main_problems",
-    "n_skills": 100,
+    "source_data": "2017_AssistmentChallenge_anonymized_full_release_competition_dataset",
+    "n_skills": 268,
     "epoch_size": 1000,
     "sequence_size": 20,
     "lr": 0.1
