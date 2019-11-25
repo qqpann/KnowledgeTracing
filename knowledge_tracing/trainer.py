@@ -45,9 +45,6 @@ class Trainer(object):
     def report(self, key, val):
         self._report['indicator'][key].append(val)
 
-    def report_get(self, key):
-        return self._report['indicator'][key]
-
     def get_logger(self):
         logging.basicConfig()
         logger = logging.getLogger(self.config.model_name)
@@ -148,8 +145,11 @@ class Trainer(object):
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
-        save_learning_curve(self.report_get('epoch'), self.report_get('train_loss'), self.report_get('train_auc'),
-                            self.report_get('eval_loss'), self.report_get('eval_auc'), self.config)
+        save_learning_curve(
+            {k: self._report['indicator'][k] for k in
+             ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
+              'ksvector_l1', 'waviness_l1', 'waviness_l2']},
+            self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1

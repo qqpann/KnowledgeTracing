@@ -33,21 +33,27 @@ def save_hm_fig(config, sns_fig):
     sns_fig.savefig(hmdir / f'{config.model_name}.png')
 
 
-def save_learning_curve(x, train_loss_list, train_auc_list, eval_loss_list, eval_auc_list, config):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if train_loss_list:
-        ax.plot(x, train_loss_list, label='train loss')
-    if train_auc_list:
-        ax.plot(x, train_auc_list, label='train auc')
-    if eval_loss_list:
-        ax.plot(x, eval_loss_list, label='eval loss')
-    ax.plot(x, eval_auc_list, label='eval auc')
-    ax.legend()
-    ax.set_ylim(0., 1.)
+def save_learning_curve(idclist_dic, config):
     lcdir = config.resultsdir / 'learning_curve'
     lcdir.mkdir(exist_ok=True)
-    plt.savefig(lcdir / f'{config.model_name}.png')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    x = idclist_dic['epoch']
+    for k in ['train_loss', 'train_auc', 'eval_loss', 'eval_auc']:
+        ax.plot(x, idclist_dic[k], label=k.replace('_', ' '))
+    ax.legend()
+    ax.set_ylim(0., 1.)
+    plt.savefig(lcdir / f'{config.model_name}_lc.png')
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    x = idclist_dic['epoch']
+    for k in ['ksvector_l1', 'waviness_l1', 'waviness_l2']:
+        ax.plot(x, idclist_dic[k], label=k)
+    ax.legend()
+    # ax.set_ylim(.0, .1)
+    plt.savefig(lcdir / f'{config.model_name}_loss.png')
 
 
 def save_pred_accu_relation(config, x, y):
