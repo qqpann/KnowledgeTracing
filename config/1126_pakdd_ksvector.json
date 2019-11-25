@@ -8,7 +8,7 @@
     {
       "model_name": "ksdkt",
       "exp_name": "ks05",
-      "ksvector_l1": 0.5
+      "ksvector_l1": 2.0
     },
     {
       "model_name": "ksdkt",
