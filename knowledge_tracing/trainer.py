@@ -11,6 +11,7 @@ from collections import defaultdict
 from src.data import prepare_data, prepare_dataloader
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
+from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
 from model.dkt import DKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
@@ -47,6 +48,8 @@ class Trainer(object):
     def get_model(self):
         if self.config.model_name == 'eddkt':
             model = EDDKT(self.config, self.device).to(self.device)
+        elif self.config.model_name == 'geddkt':
+            model = GEDDKT(self.config, self.device).to(self.device)
         elif self.config.model_name == 'dkt':
             model = DKT(self.config, self.device).to(self.device)
         else:
