@@ -125,6 +125,7 @@ output/_archive_models/
 output/**/*.pickle
 output/**/*.pkl
 output/**/*.json
+output/**/*.txt
 output/**/*.png
 output/**/checkpoints/*
 output/results/*
@@ -135,5 +136,7 @@ output/results/*
 data/*/*.csv
 data/**/*.pickle
 data/*/*.txt
+
+notebook/data/*
 
 nohup.out
