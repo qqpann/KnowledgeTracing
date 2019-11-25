@@ -115,8 +115,21 @@ class GEDDKT(nn.Module):
         input_trg = trg
 
         teacher_forcing_ratio = .5
-        use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
+        use_teacher_forcing = random.random() < teacher_forcing_ratio
         if use_teacher_forcing:
+            input_trg_ = input_trg[0, :].unsqueeze(0)
+            outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
+                                       dtype=torch.float32, device=self.device)
+            for di in range(input_trg.shape[0]):
+                output, hidden, cell = self.decoder(input_trg_, hidden, cell)
+                o_all = torch.sigmoid(output[:, :, 2:])
+                o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
+                o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
+                outputs_prob_ = (o_cor / (o_cor + o_wro))
+                outputs_prob[di] = outputs_prob_
+                input_trg_ = torch.max(o_all, 2)[1]
+                # print(input_trg_, input_trg_.shape) #=> [1,100] [1, batch_size]
+        elif False:
             input_trg_ = input_trg[0, :].unsqueeze(0)
             outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
                                        dtype=torch.float32, device=self.device)
