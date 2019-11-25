@@ -1,5 +1,6 @@
 import torch
 
+import json
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -17,6 +18,13 @@ def save_log(config, data, auc, epoch):
     lc_datadir.mkdir(exist_ok=True)
     with open(lc_datadir / f'{config.model_name}_auc{auc:.4f}_e{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
+
+
+def save_report(config, report):
+    lc_datadir = config.resultsdir / 'report'
+    lc_datadir.mkdir(exist_ok=True)
+    with open(lc_datadir / f'{config.model_name}.json', 'w') as f:
+        json.dump(report, f, indent=2)
 
 
 def save_hm_fig(config, sns_fig):
@@ -47,7 +55,7 @@ def save_pred_accu_relation(config, x, y):
     pardir.mkdir(exist_ok=True)
 
     with open(pardir / f'{config.model_name}_xy.pkl', 'wb') as f:
-        pickle.dump((x,y), f)
+        pickle.dump((x, y), f)
 
     fig, ax = plt.subplots()
     ax.set_aspect('equal')
