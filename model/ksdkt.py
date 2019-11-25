@@ -52,7 +52,7 @@ class KSDKT(nn.Module):
         if self.model_name == 'dkt:rnn':
             self.rnn = nn.RNN(self.input_size, self.hidden_size, self.n_layers,
                               nonlinearity=nonlinearity, dropout=self.dkt['dropout_rate'], bidirectional=self.bidirectional)
-        elif self.model_name == 'dkt':
+        elif self.model_name == 'ksdkt':
             self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
                                 dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
@@ -68,7 +68,7 @@ class KSDKT(nn.Module):
         if self.model_name == 'dkt:rnn':
             h0 = self.initHidden0()
             out, _hn = self.rnn(inputs, h0)
-        elif self.model_name == 'dkt':
+        elif self.model_name == 'ksdkt':
             h0 = self.initHidden0()
             c0 = self.initC0()
             out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
