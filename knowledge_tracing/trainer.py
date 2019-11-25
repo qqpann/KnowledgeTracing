@@ -14,6 +14,7 @@ from src.utils import sAsMinutes, timeSince
 from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
 from model.dkt import DKT
+from model.ksdkt import KSDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
@@ -52,8 +53,11 @@ class Trainer(object):
             model = GEDDKT(self.config, self.device).to(self.device)
         elif self.config.model_name == 'dkt':
             model = DKT(self.config, self.device).to(self.device)
+        elif self.config.model_name == 'ksdkt':
+            model = KSDKT(self.config, self.device).to(self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
+
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
         self.logger.info(
