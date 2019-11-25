@@ -87,14 +87,6 @@ class KSDKT(nn.Module):
         yqs = yqs.permute(1, 0, 2)
         target = target.permute(1, 0, 2)
 
-        # print(yqs.shape, target.shape)
-        dqa = yqs * target
-        # print(dqa, dqa.shape)
-        Sdqa = torch.cumsum(dqa, dim=0)
-        # print(Sdqa, Sdqa.shape)
-        Sdq = torch.cumsum(yqs, dim=0)
-        # print(Sdq, Sdq.shape)
-
         inputs = self.embedding(inputs).squeeze(2)
         if self.model_name == 'dkt:rnn':
             h0 = self.initHidden0()
@@ -116,12 +108,7 @@ class KSDKT(nn.Module):
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
-        # TODO: 最後の1個だけじゃなくて、その他も損失関数に利用したら？
-        use_ksvect = random.random() < .5
-        if use_ksvect:
-            loss = self._loss(torch.sigmoid(Sdq * pred_vect), torch.sigmoid(Sdqa))
-        else:
-            loss = self._loss(pred_prob, target)
+        loss = self._loss(pred_prob, target)
         # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
@@ -129,6 +116,14 @@ class KSDKT(nn.Module):
             'pred_vect': pred_vect,  # (20, 100, 124)
             'pred_prob': pred_prob,  # (20, 100)
         }
+
+        if True:
+            dqa = yqs * target
+            Sdqa = torch.cumsum(dqa, dim=0)
+            Sdq = torch.cumsum(yqs, dim=0)
+            ksvector_l1 = self._loss(torch.sigmoid(Sdq * pred_vect), torch.sigmoid(Sdqa))
+            out_dic['loss'] += 0.5 * ksvector_l1
+            out_dic['ksvector_l1'] = ksvector_l1.item()
 
         if self.config.waviness_l1 == True:
             waviness_norm_l1 = torch.abs(
