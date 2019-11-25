@@ -1,0 +1,19 @@
+{
+  "common": {
+    "epoch_size": 1000,
+    "sequence_size": 20,
+    "lr": 0.1
+  },
+  "experiments": [
+    {
+      "model_name": "ksdkt",
+      "exp_name": "ks05",
+      "ksvector_l1": 0.5
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "ks00",
+      "ksvector_l1": 0.0
+    }
+  ]
+}
