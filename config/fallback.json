@@ -13,6 +13,7 @@
   "waviness_l2": true,
   "lambda_l1": 0.0,
   "lambda_l2": 0.0,
+  "ksvector_l1": 0.0,
   "eddkt": {
     "ks_loss": false,
     "extend_backward": 0,
