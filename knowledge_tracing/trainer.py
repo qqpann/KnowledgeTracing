@@ -33,10 +33,20 @@ class Trainer(object):
         self.model = model
         self.opt = self.get_opt(self.model)
 
-        self.report = {'config': config.as_dict()}
+        self._report = {
+            'config': config.as_dict(),
+            'indicator': defaultdict(list)
+        }
 
     def dump_report(self):
-        save_report(self.config, self.report)
+        # self._report['indicator'] = dict(self._report['indicator'])
+        save_report(self.config, self._report)
+
+    def report(self, key, val):
+        self._report['indicator'][key].append(val)
+
+    def report_get(self, key):
+        return self._report['indicator'][key]
 
     def get_logger(self):
         logging.basicConfig()
@@ -87,9 +97,6 @@ class Trainer(object):
             'auc': 0.,
             'auc_epoch': 0,
         }
-        x_list = []
-        train_loss_list, train_auc_list = [], []
-        eval_loss_list, eval_auc_list = [], []
         start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
@@ -97,9 +104,9 @@ class Trainer(object):
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
-                x_list.append(epoch)
-                train_loss_list.append(t_loss)
-                train_auc_list.append(t_auc)
+                self.report('epoch', epoch)
+                self.report('train_loss', t_loss)
+                self.report('train_auc', t_auc)
             if epoch % 100 == 0:
                 self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, t_loss, t_auc))
@@ -109,8 +116,8 @@ class Trainer(object):
                     self.model.eval()
                     v_idc = self.exec_core(dl=self.eval_dl, opt=None)
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
-                eval_loss_list.append(v_loss)
-                eval_auc_list.append(v_auc)
+                self.report('eval_loss', v_loss)
+                self.report('eval_auc', v_auc)
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -137,8 +144,8 @@ class Trainer(object):
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
-        save_learning_curve(x_list, train_loss_list, train_auc_list,
-                            eval_loss_list, eval_auc_list, self.config)
+        save_learning_curve(self.report_get('epoch'), self.report_get('train_loss'), self.report_get('train_auc'),
+                            self.report_get('eval_loss'), self.report_get('eval_auc'), self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
