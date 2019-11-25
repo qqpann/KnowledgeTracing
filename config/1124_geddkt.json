@@ -1,13 +1,39 @@
 {
   "common": {
-    "epoch_size": 1000,
+    "epoch_size": 2000,
     "sequence_size": 20,
     "lr": 0.1
   },
   "experiments": [
     {
+      "load_model": "output/1124_geddkt/20191125-0159_ef5_geddkt/checkpoints/geddkt_auc0.8106_e500.model",
       "model_name": "geddkt",
-      "exp_name": "debug_ef15",
+      "exp_name": "ef5",
+      "eddkt": {
+        "extend_forward": 5
+      }
+    },
+    {
+      "load_model": "output/1124_geddkt/20191125-0239_ef10_geddkt/checkpoints/geddkt_auc0.8018_e1100.model",
+      "model_name": "geddkt",
+      "exp_name": "ef10",
+      "eddkt": {
+        "extend_forward": 10
+      }
+    },
+    {
+      "load_model": "output/1124_geddkt/20191125-0335_ef15_geddkt/checkpoints/geddkt_auc0.8075_e1100.model",
+      "model_name": "geddkt",
+      "exp_name": "ef15",
+      "eddkt": {
+        "extend_forward": 15
+      }
+    },
+    {
+      "model_name": "geddkt",
+      "exp_name": "ef15_w1w2",
+      "lambda_l1": 0.1,
+      "lambda_l2": 0.1,
       "eddkt": {
         "extend_forward": 15
       }
