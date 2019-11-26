@@ -9,17 +9,22 @@
     {
       "exp_name": "dkt",
       "model_name": "dkt",
-      "sequence_size": 15
+      "sequence_size": 35
     },
     {
       "exp_name": "dkt",
       "model_name": "dkt",
-      "sequence_size": 20
+      "sequence_size": 40
     },
     {
       "exp_name": "dkt",
       "model_name": "dkt",
-      "sequence_size": 25
+      "sequence_size": 45
+    },
+    {
+      "exp_name": "dkt",
+      "model_name": "dkt",
+      "sequence_size": 50
     }
   ]
 }
