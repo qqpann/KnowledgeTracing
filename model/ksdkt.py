@@ -29,7 +29,7 @@ from src.utils import sAsMinutes, timeSince
 
 
 class KSDKT(nn.Module):
-    ''' オリジナルのDKT '''
+    ''' Expansion of original DKT '''
 
     def __init__(self, config, device, bidirectional=False):
         super().__init__()
