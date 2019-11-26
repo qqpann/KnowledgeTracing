@@ -1,0 +1,22 @@
+{
+  "common": {
+    "source_data": "2017_AssistmentChallenge_anonymized_full_release_competition_dataset",
+    "n_skills": 268,
+    "epoch_size": 1000,
+    "sequence_size": 20,
+    "lr": 0.1
+  },
+  "experiments": [
+    {
+      "exp_name": "eddkt_ef15",
+      "model_name": "eddkt",
+      "eddkt": {
+        "extend_forward": 15
+      }
+    },
+    {
+      "exp_name": "dkt",
+      "model_name": "dkt"
+    }
+  ]
+}

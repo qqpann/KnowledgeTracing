@@ -44,11 +44,7 @@ def main(configpath: Path):
         config = Config(config_dict, projectdir=projectdir)
         pprint(config.as_dict())
 
-        report = run(config)
-    # print(report)
-    # if report is not None:
-    #     with open(projectdir / 'output' / 'reports' / '{}result.json'.format(config._get_stem_name()), 'w') as f:
-    #         json.dump(report_list, f)
+        run(config)
 
 
 def run(config):
@@ -58,8 +54,6 @@ def run(config):
     torch.manual_seed(SEED)
     # torch.backends.cudnn.deterministic = True
     # torch.backends.cudnn.benchmark = False
-    # report = dict()
-    # report['model_fname'] = config.outfname
 
     trainer = Trainer(config)
     if not config.load_model:
@@ -67,10 +61,10 @@ def run(config):
             trainer.train_model()
         except KeyboardInterrupt as e:
             print(e)
+        finally:
+            trainer.dump_report()
 
     trainer.evaluate_model()
-
-    return None
 
 
 if __name__ == '__main__':

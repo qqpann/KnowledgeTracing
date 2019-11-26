@@ -9,10 +9,12 @@ from sklearn import metrics
 from collections import defaultdict
 
 from src.data import prepare_data, prepare_dataloader
-from src.save import save_model, save_log, save_hm_fig, save_learning_curve, save_pred_accu_relation
+from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
+from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
 from model.dkt import DKT
+from model.ksdkt import KSDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
 
 
@@ -31,6 +33,18 @@ class Trainer(object):
         self.model = model
         self.opt = self.get_opt(self.model)
 
+        self._report = {
+            'config': config.as_dict(),
+            'indicator': defaultdict(list)
+        }
+
+    def dump_report(self):
+        # self._report['indicator'] = dict(self._report['indicator'])
+        save_report(self.config, self._report)
+
+    def report(self, key, val):
+        self._report['indicator'][key].append(val)
+
     def get_logger(self):
         logging.basicConfig()
         logger = logging.getLogger(self.config.model_name)
@@ -47,10 +61,15 @@ class Trainer(object):
     def get_model(self):
         if self.config.model_name == 'eddkt':
             model = EDDKT(self.config, self.device).to(self.device)
+        elif self.config.model_name == 'geddkt':
+            model = GEDDKT(self.config, self.device).to(self.device)
         elif self.config.model_name == 'dkt':
             model = DKT(self.config, self.device).to(self.device)
+        elif self.config.model_name == 'ksdkt':
+            model = KSDKT(self.config, self.device).to(self.device)
         else:
             raise ValueError(f'model_name {self.config.model_name} is wrong')
+
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
         self.logger.info(
@@ -75,19 +94,16 @@ class Trainer(object):
             'auc': 0.,
             'auc_epoch': 0,
         }
-        x_list = []
-        train_loss_list, train_auc_list = [], []
-        eval_loss_list, eval_auc_list = [], []
         start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            indicators = self.exec_core(self.train_dl, self.opt)
-            t_loss, t_auc = indicators['loss'], indicators['auc']
+            t_idc = self.exec_core(self.train_dl, self.opt)
+            t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
-                x_list.append(epoch)
-                train_loss_list.append(t_loss)
-                train_auc_list.append(t_auc)
+                self.report('epoch', epoch)
+                self.report('train_loss', t_loss)
+                self.report('train_auc', t_auc)
             if epoch % 100 == 0:
                 self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, t_loss, t_auc))
@@ -95,16 +111,22 @@ class Trainer(object):
             if epoch % 10 == 0 and validate:
                 with torch.no_grad():
                     self.model.eval()
-                    indicators = self.exec_core(dl=self.eval_dl, opt=None)
-                    v_loss, v_auc = indicators['loss'], indicators['auc']
-                eval_loss_list.append(v_loss)
-                eval_auc_list.append(v_auc)
+                    v_idc = self.exec_core(dl=self.eval_dl, opt=None)
+                    v_loss, v_auc = v_idc['loss'], v_idc['auc']
+                self.report('eval_loss', v_loss)
+                self.report('eval_auc', v_auc)
+                self.report('ksvector_l1', v_idc['ksvector_l1'])
+                if self.config.waviness_l1 or self.config.waviness_l2:
+                    self.report('waviness_l1', v_idc['waviness_l1'])
+                    self.report('waviness_l2', v_idc['waviness_l2'])
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
+                self.logger.info('\tEpoch {}\tKSVectorLoss: {:.6}'.format(
+                    epoch, v_idc['ksvector_l1']))
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
-                        epoch, indicators['waviness_l1'], indicators['waviness_l2']))
+                        epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
                 if v_auc > best['auc']:
                     best['auc'] = v_auc
                     best['auc_epoch'] = epoch
@@ -123,8 +145,11 @@ class Trainer(object):
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
-        save_learning_curve(x_list, train_loss_list, train_auc_list,
-                            eval_loss_list, eval_auc_list, self.config)
+        save_learning_curve(
+            {k: self._report['indicator'][k] for k in
+             ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
+              'ksvector_l1', 'waviness_l1', 'waviness_l2']},
+            self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
@@ -133,6 +158,7 @@ class Trainer(object):
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
+        ksv1_ar = np.zeros(arr_len)
         if only_eval:
             q_all_count = defaultdict(int)
             q_cor_count = defaultdict(int)
@@ -143,6 +169,7 @@ class Trainer(object):
             loss_ar[i] = out['loss'].item()
             wvn1_ar[i] = out.get('waviness_l1')
             wvn2_ar[i] = out.get('waviness_l2')
+            ksv1_ar[i] = out.get('ksvector_l1')
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
@@ -165,6 +192,7 @@ class Trainer(object):
             'auc': auc,
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
+            'ksvector_l1': ksv1_ar.mean(),
         }
         if only_eval:
             indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
