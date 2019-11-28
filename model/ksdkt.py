@@ -77,7 +77,7 @@ class KSDKT(nn.Module):
         # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
         yqs = torch.LongTensor(
             np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
-        yqs = yqs.squeeze()
+        yqs = yqs.squeeze(2)
         yqs = F.one_hot(yqs, num_classes=skill_n).float()
         target = torch.Tensor(
             np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
