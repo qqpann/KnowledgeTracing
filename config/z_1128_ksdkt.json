@@ -1,0 +1,34 @@
+{
+  "common": {
+    "model_name": "ksdkt",
+    "source_data": "Asteria_Eng_ver5_sorted7",
+    "n_skills": 326,
+    "epoch_size": 1000,
+    "batch_size": 100,
+    "lr": 0.1,
+    "waviness_l1": true,
+    "waviness_l2": true
+  },
+  "experiments": [
+    {
+      "exp_name": "seq20ks00",
+      "ksvector_l1": 0.0,
+      "sequence_size": 20
+    },
+    {
+      "exp_name": "seq20ks05",
+      "ksvector_l1": 0.5,
+      "sequence_size": 20
+    },
+    {
+      "exp_name": "seq11ks00",
+      "ksvector_l1": 0.0,
+      "sequence_size": 11
+    },
+    {
+      "exp_name": "seq11ks05",
+      "ksvector_l1": 0.5,
+      "sequence_size": 11
+    }
+  ]
+}
