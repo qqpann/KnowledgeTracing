@@ -29,6 +29,7 @@
       "sequence_size": 3
     },
     {
+      "load_model": "output/z_1204_adjust_seqlen/20191205-1138_seq20ks_ksdkt/checkpoints/ksdkt_auc0.6521_e1000.model",
       "model_name": "ksdkt",
       "exp_name": "seq20ks",
       "ksvector_l1": 0.5,
