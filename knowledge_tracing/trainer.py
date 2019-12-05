@@ -231,7 +231,31 @@ class Trainer(object):
                     pa_scat_y.append(all_acc)
             save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
 
-        self.logger.info(f'{timeSince(start_time, 1)}')
+            self.logger.info(f'{timeSince(start_time, 1)}')
+
+            bad = 0
+            good = 0
+            self.model.batch_size = 1
+            self.model.config.batch_size = 1
+            dummy_len = self.config.sequence_size
+            for v in range(self.config.n_skills):
+                # wrong
+                wro = self.model.loss_batch(
+                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
+                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
+                    opt=None)
+                wro = wro['pred_prob']
+                # correct
+                cor = self.model.loss_batch(
+                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0), 
+                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
+                    opt=None)
+                cor = cor['pred_prob']
+                if (cor - wro)[-1].item() < 0:
+                    bad += 1
+                else:
+                    good += 1
+            self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
 
     # if config.plot_heatmap:
     #     batch_size = 1
