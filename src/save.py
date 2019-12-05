@@ -50,7 +50,8 @@ def save_learning_curve(idclist_dic, config):
     ax = fig.add_subplot(111)
     x = idclist_dic['epoch']
     for k in ['ksvector_l1', 'waviness_l1', 'waviness_l2']:
-        ax.plot(x, idclist_dic[k], label=k)
+        if len(x) == len(idclist_dic[k]):
+            ax.plot(x, idclist_dic[k], label=k)
     ax.legend()
     # ax.set_ylim(.0, .1)
     plt.savefig(lcdir / f'{config.model_name}_loss.png')
