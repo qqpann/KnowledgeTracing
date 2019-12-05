@@ -1,0 +1,38 @@
+{
+  "common": {
+    "source_data": "Asteria_Eng_ver5_sorted7",
+    "n_skills": 326,
+    "epoch_size": 1000,
+    "batch_size": 100,
+    "lr": 0.05,
+    "waviness_l1": false,
+    "waviness_l2": false
+  },
+  "experiments": [
+    {
+      "load_model": "output/z_1204_adjust_seqlen/20191204-2144_seq3_dkt/checkpoints/dkt_auc0.6490_e800.model",
+      "model_name": "dkt",
+      "exp_name": "seq3",
+      "sequence_size": 3
+    },
+    {
+      "load_model": "output/z_1204_adjust_seqlen/20191204-2250_seq20_dkt/checkpoints/dkt_auc0.6527_e1000.model",
+      "model_name": "dkt",
+      "exp_name": "seq20",
+      "sequence_size": 20
+    },
+    {
+      "load_model": "output/z_1204_adjust_seqlen/20191204-2346_seq3ks_ksdkt/checkpoints/ksdkt_auc0.6491_e800.model",
+      "model_name": "ksdkt",
+      "exp_name": "seq3ks",
+      "ksvector_l1": 0.5,
+      "sequence_size": 3
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "seq20ks",
+      "ksvector_l1": 0.5,
+      "sequence_size": 20
+    }
+  ]
+}
