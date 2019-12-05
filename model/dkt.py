@@ -83,7 +83,7 @@ class DKT(nn.Module):
         out = self.forward(inputs)
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
         assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
-            "Unexpected shape {}".format(pred_vect.shape)
+            "Expected shape {}, but got {}".format((self.config.sequence_size, self.config.batch_size, self.config.n_skills), pred_vect.shape)
         # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
@@ -148,11 +148,11 @@ class DKT(nn.Module):
         # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
         yqs = torch.LongTensor(
             np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
-        yqs = yqs.squeeze()
+        yqs = yqs.squeeze(2)
         yqs = F.one_hot(yqs, num_classes=skill_n).float()
         target = torch.Tensor(
             np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
-        target = target.squeeze()
+        target = target.squeeze(2)
         # print(target, target.shape)
         # compressed_sensing = True
         # if compressed_sensing and onehot_size != self.input_size:
