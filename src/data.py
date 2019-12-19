@@ -316,96 +316,31 @@ def prepare_dataloader(config, device):
     return train_dl, eval_dl
 
 
-def prepare_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_size, device, sliding_window:int=1, params={}): #TODO: fix sw
-    assert type in {'base', 'encdec'}
-    data = load_source(source)
-        
-    M = n_skills
-    sequence_size = max_n
-    N = ceil(log(2 * M))
-    
-    qa_emb = QandAEmbedder(M, sequence_size)
+def prepare_dummy_dataloader(config, seq_size, batch_size, device):
+    # TODO: do not load_source twice just for dummy
+    data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+    knowledge_concepts_set = set()
+    for seq in data:
+        for q, a in seq:
+            knowledge_concepts_set.add(q)
+    assert config.n_skills == len(knowledge_concepts_set), 'KC size asserted to be {}, got {}'.format(
+        config.n_skills, len(knowledge_concepts_set))
 
-    train_num = int(len(data) * .8)
-    train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
-    
-    if type == 'encdec':
-        def get_ds(data):
-            x_src_indexed = []
-            x_trg_indexed = []
-            y_indexed = []
-            y_delta_q = []
-            y_a = []
-            y_prob_qa = []
-            for d in data:
-                if len(d) < sequence_size + 1 + params.get('extend_forward', 0):
-                    continue
-                for xsty_seq in slice_d(d, x_seq_size=sequence_size, type=type, sliding_window=sliding_window, reverse=True, **params):
-                    # Because it is not generative...
-                    # y is the last one
-                    x_src, x_trg, y = split_encdec(xsty_seq, **params)
-                    x_src_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_src])
-                    x_trg_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_trg])
-                    y_indexed.append([qa_emb.qaToIdxNum(qa) for qa in y]) # コメント時効？→embedding済みは学習対象にしても仕方がない（か？）
-                    y_delta_q.append([qa_emb.qaToDeltaQ(qa) for qa in y])
-                    y_a.append([qa[1] for qa in y])
-                    # yで必要なのは確率分布124と、delta q, aのパターン
-                    # delta qから確率分布124を作成する
-                    y_prob_qa.append(qa_emb.sequenceToProbSeq(y))
-
-            all_ds = TensorDataset(
-                torch.LongTensor(x_src_indexed).to(device), 
-                torch.LongTensor(x_trg_indexed).to(device), 
-                torch.LongTensor(y_indexed).to(device), 
-                torch.Tensor(y_delta_q).to(device), 
-                torch.Tensor(y_a).to(device), 
-                torch.tensor(y_prob_qa).to(device),
-            )
-            return all_ds
-    else:
-        def get_ds(data):
-            x_values = []
-            y_values = []
-            x_onehot = []
-            y_onehot = []
-            y_onehot_q = []
-            y_onehot_q_s = []
-            y_onehot_a = []
-            y_onehot_a_s = []
-            for d in data:
-                if len(d) < sequence_size + 1 + params.get('extend_forward', 0):
-                    continue
-                for xy_seq in slice_d(d, x_seq_size=sequence_size, type=type, sliding_window=sliding_window, reverse=True):
-                    # Because it is not generative...
-                    # y is the last one
-                    # x_values.append(xy_seq[:-1])
-                    # y_values.append(xy_seq[-1])
-                    x_onehot.append(qa_emb.sequenceToOnehot(xy_seq[:-1]))
-                    # y_onehot.append(qa_emb.qaToOnehot(xy_seq[-1]))
-                    delta_q, a = qa_emb.qaToDeltaQandA(xy_seq[-1])
-                    delta_q_s, a_s = qa_emb.sequenceToDeltaQandA(xy_seq[1:])
-                    y_onehot_q.append(delta_q)
-                    y_onehot_a.append(a)
-                    y_onehot_q_s.append(delta_q_s)
-                    y_onehot_a_s.append(a_s)
-
-            all_ds = TensorDataset(
-                torch.Tensor(x_onehot).to(device), 
-                torch.Tensor(y_onehot_q).to(device), 
-                torch.Tensor(y_onehot_a).to(device),
-                torch.Tensor(y_onehot_q_s).to(device),
-                torch.Tensor(y_onehot_a_s).to(device)
-            )
-            return all_ds
-    
-    train_ds = get_ds(train_data)
-    eval_ds = get_ds(eval_data)
-
-    # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
-    train_dl = DataLoader(train_ds, batch_size=batch_size, drop_last=True)
-    eval_dl = DataLoader(eval_ds, batch_size=batch_size, drop_last=True)
-    return train_dl, eval_dl
-
+    x_values = []
+    y_values = []
+    for v in knowledge_concepts_set:
+        # wrong
+        x_values.append([(v, 0) for _ in range(seq_size)])
+        y_values.append([(v, 0) for _ in range(seq_size)])
+        # correct
+        x_values.append([(v, 1) for _ in range(seq_size)])
+        y_values.append([(v, 1) for _ in range(seq_size)])
+    dummy_ds = TensorDataset(
+        torch.LongTensor(x_values).to(device), 
+        torch.LongTensor(y_values).to(device), 
+    )
+    dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
+    return dummy_dl
 
 
 def slide_d(d: List, x_seq_size:int, type:str='base') -> Tuple[List]:
