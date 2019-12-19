@@ -8,7 +8,7 @@ from math import log, ceil
 from sklearn import metrics
 from collections import defaultdict
 
-from src.data import prepare_data, prepare_dataloader
+from src.data import prepare_dataloader, prepare_dummy_dataloader
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from model.geddkt import GEDDKT
@@ -25,6 +25,7 @@ class Trainer(object):
         self.logger = self.get_logger()
         self.device = self.get_device()
         self.train_dl, self.eval_dl = self.get_dataloader()
+        self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
         model = self.get_model()
         if config.load_model:
             assert Path(config.load_model).exists()
@@ -84,9 +85,26 @@ class Trainer(object):
             'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
         return train_dl, eval_dl
 
+    def get_dummy_dataloader(self, config, device):
+        return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
+
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
+
+    def pre_train_model(self):
+        epoch_size = self.config.pre_dummy_epoch_size
+        if epoch_size == 0:
+            return
+        real_batch_size = self.model.batch_size
+        self.model.batch_size = 1
+        self.model.config.batch_size = 1
+        for epoch in range(1, epoch_size + 1):
+            self.model.train()
+            for i, (xseq, yseq) in enumerate(self.dummy_dl):
+                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+        self.model.batch_size = real_batch_size
+        self.model.config.batch_size = real_batch_size
 
     def train_model(self, validate=True):
         self.logger.info('Starting train')
@@ -155,8 +173,10 @@ class Trainer(object):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
-        pred_v_mx = np.zeros([arr_len, self.config.batch_size * self.config.n_skills])
-        actu_v_mx = np.zeros([arr_len, self.config.batch_size * self.config.n_skills])
+        pred_v_mx = np.zeros(
+            [arr_len, self.config.batch_size * self.config.n_skills])
+        actu_v_mx = np.zeros(
+            [arr_len, self.config.batch_size * self.config.n_skills])
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
@@ -177,7 +197,8 @@ class Trainer(object):
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
-            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :].detach().view(-1).cpu()
+            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1,
+                                                           :, :].detach().view(-1).cpu()
             actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
             if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
@@ -254,14 +275,18 @@ class Trainer(object):
             for v in range(self.config.n_skills):
                 # wrong
                 wro = self.model.loss_batch(
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
+                    torch.Tensor([(v, 0)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 0)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
                 cor = self.model.loss_batch(
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0), 
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 1)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 1)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
