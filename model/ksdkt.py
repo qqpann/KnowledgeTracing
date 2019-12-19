@@ -125,6 +125,8 @@ class KSDKT(nn.Module):
                 / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             out_dic['loss'] += self.config.ksvector_l1 * ksvector_l1
             out_dic['ksvector_l1'] = ksvector_l1.item()
+            out_dic['Sdqa'] = Sdqa
+            out_dic['Sdq'] = Sdq
 
         if self.config.waviness_l1 == True:
             waviness_norm_l1 = torch.abs(
