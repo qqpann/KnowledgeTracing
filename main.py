@@ -58,6 +58,7 @@ def run(config):
     trainer = Trainer(config)
     if not config.load_model:
         try:
+            trainer.pre_train_model()
             trainer.train_model()
         except KeyboardInterrupt as e:
             print(e)

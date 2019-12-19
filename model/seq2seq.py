@@ -24,7 +24,7 @@ from sklearn import metrics
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+from src.data import prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 from src.utils import sAsMinutes, timeSince
 
 
