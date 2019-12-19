@@ -155,6 +155,8 @@ class Trainer(object):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
+        pred_v_mx = np.zeros([arr_len, self.config.batch_size * self.config.n_skills])
+        actu_v_mx = np.zeros([arr_len, self.config.batch_size * self.config.n_skills])
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
@@ -173,6 +175,10 @@ class Trainer(object):
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+            # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
+            #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
+            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :].detach().view(-1).cpu()
+            actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
             if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
                     q_all_count[q.item()] += 1
@@ -186,10 +192,15 @@ class Trainer(object):
         fpr, tpr, _thresholds = metrics.roc_curve(
             actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        # KSVector AUC
+        fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
+            actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
+        auc_v = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': loss_ar.mean(),
             'auc': auc,
+            'ksv_auc': auc_v,
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
@@ -216,6 +227,8 @@ class Trainer(object):
 
             self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                 v_loss, v_auc))
+            self.logger.info('\tValid KSV AUC: {:.6}'.format(
+                indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
