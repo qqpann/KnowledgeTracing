@@ -11,13 +11,13 @@
   "experiments": [
     {
       "load_model": "output/z_1204_adjust_seqlen/20191204-2144_seq3_dkt/checkpoints/dkt_auc0.6490_e800.model",
-      "model_name": "dkt",
+      "model_name": "ksdkt",
       "exp_name": "seq3",
       "sequence_size": 3
     },
     {
       "load_model": "output/z_1204_adjust_seqlen/20191204-2250_seq20_dkt/checkpoints/dkt_auc0.6527_e1000.model",
-      "model_name": "dkt",
+      "model_name": "ksdkt",
       "exp_name": "seq20",
       "sequence_size": 20
     },
