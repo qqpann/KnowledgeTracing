@@ -7,7 +7,7 @@
   "n_skills": 124,
   "sequence_size": 20,
   "epoch_size": 200,
-  "pre_dummy_epoch_size": 10,
+  "pre_dummy_epoch_size": 0,
   "batch_size": 100,
   "lr": 0.05,
   "waviness_l1": true,
