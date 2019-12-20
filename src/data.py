@@ -323,8 +323,9 @@ def prepare_dummy_dataloader(config, seq_size, batch_size, device):
     for seq in data:
         for q, a in seq:
             knowledge_concepts_set.add(q)
-    assert config.n_skills == len(knowledge_concepts_set), 'KC size asserted to be {}, got {}'.format(
-        config.n_skills, len(knowledge_concepts_set))
+    # assert config.n_skills == len(knowledge_concepts_set), 'KC size asserted to be {}, got {}'.format(
+    #     config.n_skills, len(knowledge_concepts_set))
+    # TODO: change to warn?
 
     x_values = []
     y_values = []
