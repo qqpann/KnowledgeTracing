@@ -90,6 +90,7 @@ class GEDDKT(nn.Module):
         INPUT_DIM, ENC_EMB_DIM, ENC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         HID_DIM, N_LAYERS = config.eddkt['hidden_size'], config.eddkt['n_layers']
+        self.teacher_forcing_ratio = config.eddkt['teacher_forcing_ratio']
 
         self.N_SKILLS = config.n_skills
 
@@ -114,8 +115,8 @@ class GEDDKT(nn.Module):
 
         input_trg = trg
 
-        teacher_forcing_ratio = .5
-        use_teacher_forcing = random.random() < teacher_forcing_ratio
+        # random.random() returns real number in the range[0.0, 1.0)
+        use_teacher_forcing = random.random() < self.teacher_forcing_ratio
         if use_teacher_forcing:
             input_trg_ = input_trg[0:1, :]
             outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
@@ -132,38 +133,6 @@ class GEDDKT(nn.Module):
                 else:
                     input_trg_ = input_trg[di+1:di+2, :]
                 # print(input_trg_, input_trg_.shape) #=> [1,100] [1, batch_size]
-        elif False:
-            input_trg_ = input_trg[0, :].unsqueeze(0)
-            outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
-                                       dtype=torch.float32, device=self.device)
-            for di in range(input_trg.shape[0]):
-                output, hidden, cell = self.decoder(input_trg_, hidden, cell)
-                o_all = torch.sigmoid(output[:, :, 2:])
-                o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
-                o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
-                outputs_prob_ = (o_cor / (o_cor + o_wro))
-                outputs_prob[di] = outputs_prob_
-                input_trg_ = torch.max(o_all, 2)[1]
-                # print(input_trg_, input_trg_.shape) #=> [1,100] [1, batch_size]
-        elif False:
-            input_trg_ = input_trg[0, :].unsqueeze(0)
-            outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
-                                       dtype=torch.float32, device=self.device)
-            for di in range(input_trg.shape[0]):
-                # print(input_trg_, input_trg_.shape)
-                output, hidden, cell = self.decoder(input_trg_, hidden, cell)
-                o_wro = torch.sigmoid(output[:, :, 2:2+self.N_SKILLS])
-                o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
-                outputs_prob_ = (o_cor / (o_cor + o_wro))
-                outputs_prob[di] = outputs_prob_
-                # print(outputs_prob, outputs_prob.shape) #=> [16, 100, 124]
-                # print(yqs, yqs.shape, 'yqs') #=> [16, 100, 124]
-                a = 1 * (torch.max(outputs_prob_ *
-                                   yqs[di:di+1, :, :], 2)[0] < 0.5)
-                q = torch.max(yqs[di:di+1, :, :], 2)[1]
-                input_trg_ = self.N_SKILLS * a + q
-                # print(input_trg_[0], input_trg_[0].shape)
-                # print(input_trg_[1], input_trg_[1].shape)
         else:
             # print(input_trg.shape, hidden.shape, cell.shape) # => (16, 100), (2, 100, 200), (2, 100, 200)
             output, hidden, cell = self.decoder(input_trg, hidden, cell)
@@ -177,9 +146,45 @@ class GEDDKT(nn.Module):
 
         return outputs_prob
 
-    def forward_loss(self, input_src, input_trg, yqs, target):
+    def forward_loss(self, xseq, yseq):
+        assert xseq.shape == (
+            self.config.batch_size, self.config.sequence_size, 2)
+        assert yseq.shape == (
+            self.config.batch_size, self.config.sequence_size, 2)
+        # extend_forward=0; ks_loss=False
+        # print(xseq.shape, yseq.shape)
+        xseq = xseq.permute(1, 0, 2)
+        yseq = yseq.permute(1, 0, 2)
+
+        xseq_enc = xseq[:-1-self.config.eddkt['extend_forward']]
+        xseq_dec = xseq[-1-self.config.eddkt['extend_forward'] -
+                        self.config.eddkt['extend_backward']:]
+        yseq = yseq[-1-self.config.eddkt['extend_forward'] -
+                    self.config.eddkt['extend_backward']:]
+        # print(xseq_src.shape, xseq_trg.shape, yseq.shape)
+        # TODO: use only torch to simplify
+        skill_n = self.config.n_skills
+        onehot_size = skill_n * 2 + 2
+        device = self.device
+        input_enc = torch.LongTensor(
+            np.dot(xseq_enc.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        input_enc = input_enc.squeeze(2)
+        # input_src = F.one_hot(input_src, num_classes=onehot_size).float()
+        input_dec = torch.LongTensor(
+            np.dot(xseq_dec.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        input_dec = input_dec.squeeze(2)
+        # input_trg = F.one_hot(input_trg, num_classes=onehot_size).float()
+        yqs = torch.LongTensor(
+            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = yqs.squeeze(2)
+        yqs = F.one_hot(yqs, num_classes=skill_n).float()
+        target = torch.Tensor(
+            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        # target = target.squeeze(2)
+        # print(input_src.shape, input_trg.shape, yqs.shape, target.shape)
+
         # print(input_src.shape, input_trg.shape)
-        out = self.forward(input_src, input_trg, yqs)
+        out = self.forward(input_enc, input_dec, yqs)
         # print(out, out.shape)
         pred_vect = out  # .permute(1, 0, 2)
         # assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
@@ -205,6 +210,25 @@ class GEDDKT(nn.Module):
             'pred_prob': pred_prob
         }
 
+        if True:
+            assert yqs.shape == (
+                self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills), \
+                'Expected {}, got {}'.format(
+                    (self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills), yqs.shape)
+            assert target.shape == (
+                self.config.eddkt['extend_forward']+1, self.config.batch_size, 1), \
+                'Expected {}, got {}'.format(
+                    (self.config.eddkt['extend_forward']+1, self.config.batch_size, 1), target.shape)
+            dqa = yqs * target
+            Sdqa = torch.cumsum(dqa, dim=0)
+            Sdq = torch.cumsum(yqs, dim=0)
+            ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
+                / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
+            out_dic['loss'] += self.config.ksvector_l1 * ksvector_l1
+            out_dic['ksvector_l1'] = ksvector_l1.item()
+            out_dic['Sdqa'] = Sdqa
+            out_dic['Sdq'] = Sdq
+
         if self.config.waviness_l1 == True:
             assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l1 = torch.abs(
@@ -228,39 +252,7 @@ class GEDDKT(nn.Module):
         return out_dic
 
     def loss_batch(self, xseq, yseq, opt=None):
-        # extend_forward=0; ks_loss=False
-        # print(xseq.shape, yseq.shape)
-        xseq = xseq.permute(1, 0, 2)
-        yseq = yseq.permute(1, 0, 2)
-
-        xseq_src = xseq[:-1-self.config.eddkt['extend_forward']]
-        xseq_trg = xseq[-1-self.config.eddkt['extend_forward'] -
-                        self.config.eddkt['extend_backward']:]
-        yseq = yseq[-1-self.config.eddkt['extend_forward'] -
-                    self.config.eddkt['extend_backward']:]
-        # print(xseq_src.shape, xseq_trg.shape, yseq.shape)
-        # TODO: use only torch to simplify
-        skill_n = self.config.n_skills
-        onehot_size = skill_n * 2 + 2
-        device = self.device
-        input_src = torch.LongTensor(
-            np.dot(xseq_src.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
-        input_src = input_src.squeeze(2)
-        # input_src = F.one_hot(input_src, num_classes=onehot_size).float()
-        input_trg = torch.LongTensor(
-            np.dot(xseq_trg.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
-        input_trg = input_trg.squeeze(2)
-        # input_trg = F.one_hot(input_trg, num_classes=onehot_size).float()
-        yqs = torch.LongTensor(
-            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
-        yqs = yqs.squeeze(2)
-        yqs = F.one_hot(yqs, num_classes=skill_n).float()
-        target = torch.Tensor(
-            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
-        target = target.squeeze(2)
-        # print(input_src.shape, input_trg.shape, yqs.shape, target.shape)
-
-        out = self.forward_loss(input_src, input_trg, yqs, target)
+        out = self.forward_loss(xseq, yseq)
         loss = out['loss']
 
         if opt:
