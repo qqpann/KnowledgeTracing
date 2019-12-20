@@ -28,8 +28,7 @@ class Trainer(object):
         self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
         model = self.get_model()
         if config.load_model:
-            assert Path(config.load_model).exists()
-            model.load_state_dict(torch.load(config.load_model))
+            model.load_state_dict(torch.load(str(config.load_model_path)))
             model = model.to(self.device)
         self.model = model
         self.opt = self.get_opt(self.model)
