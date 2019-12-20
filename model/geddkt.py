@@ -116,7 +116,7 @@ class GEDDKT(nn.Module):
         input_trg = trg
 
         # random.random() returns real number in the range[0.0, 1.0)
-        use_teacher_forcing = random.random() < self.teacher_forcing_ratio
+        use_teacher_forcing = random.random() > self.teacher_forcing_ratio
         if use_teacher_forcing:
             input_trg_ = input_trg[0:1, :]
             outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
