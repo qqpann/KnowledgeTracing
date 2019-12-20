@@ -23,7 +23,7 @@
     "n_layers": 2,
     "preserved_tokens": 2,
     "dropout_rate": 0.6,
-    "teacher_forcing_ratio": 0.0
+    "teacher_forcing_ratio": 1.0
   },
   "dkt": {
     "batch_size": 100,
