@@ -42,7 +42,7 @@ def main(configpath: Path):
     for exp_dict in experiments:
         config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
         config = Config(config_dict, projectdir=projectdir)
-        pprint(config.as_dict())
+        logger.info('\nStarting {}\n--- * --- * ---'.format(config.exp_name))
 
         run(config)
 
