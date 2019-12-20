@@ -66,6 +66,10 @@ class KSDKT(nn.Module):
         self._loss = nn.BCELoss()
 
     def forward(self, xseq, yseq):
+        assert xseq.shape == (
+            self.config.batch_size, self.config.sequence_size, 2)
+        assert yseq.shape == (
+            self.config.batch_size, self.config.sequence_size, 2)
         # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
         skill_n = self.config.n_skills
@@ -118,6 +122,14 @@ class KSDKT(nn.Module):
         }
 
         if True:
+            assert yqs.shape == (
+                self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
+                'Expected {}, got {}'.format(
+                    (self.config.sequence_size, self.config.batch_size, self.config.n_skills), yqs.shape)
+            assert target.shape == (
+                self.config.sequence_size, self.config.batch_size, 1), \
+                'Expected {}, got {}'.format(
+                    (self.config.sequence_size, self.config.batch_size, 1), target.shape)
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
