@@ -1,0 +1,27 @@
+{
+  "common": {
+    "source_data": "asteria_learn_with_dummy2",
+    "n_skills": 326,
+    "model_name": "ksdkt",
+    "epoch_size": 200,
+    "pre_dummy_epoch_size": 0,
+    "batch_size": 100,
+    "lr": 0.05,
+    "waviness_l1": false,
+    "waviness_l2": false
+  },
+  "experiments": [
+    {
+      "exp_name": "seq3",
+      "sequence_size": 3
+    },
+    {
+      "exp_name": "seq11",
+      "sequence_size": 11
+    },
+    {
+      "exp_name": "seq20",
+      "sequence_size": 20
+    }
+  ]
+}
