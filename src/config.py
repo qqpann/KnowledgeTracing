@@ -69,6 +69,14 @@ class Config(BaseConfig):
         return resultdir
 
     @property
+    def load_model_path(self):
+        if not self.load_model:
+            return None
+        load_model_path = self.projectpdir / self.load_model
+        assert load_model_path.exists(), '{} not found'.format(load_model_path)
+        return load_model_path
+
+    @property
     def outfname(self):
         outfname = self.model_name
         outfname += f'eb{self.extend_backward}' if self.extend_backward else ''
