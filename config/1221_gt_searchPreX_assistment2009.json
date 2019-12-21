@@ -1,0 +1,64 @@
+{
+  "common": {
+    "source_data": "original_ASSISTmentsSkillBuilder0910",
+    "n_skills": 124,
+    "lr": 0.05,
+    "epoch_size": 1500,
+    "batch_size": 100,
+    "eddkt": {
+      "extend_forward": 15
+    },
+    "waviness_l1": true,
+    "waviness_l2": true,
+    "pre_dummy_epoch_size": 0,
+    "ksvector_l1": 0.0,
+    "lambda_l1": 0.0,
+    "lambda_l2": 0.0
+  },
+  "experiments": [
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt"
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre5",
+      "pre_dummy_epoch_size": 5
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre10",
+      "pre_dummy_epoch_size": 10
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre15",
+      "pre_dummy_epoch_size": 15
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre20",
+      "pre_dummy_epoch_size": 20
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre30",
+      "pre_dummy_epoch_size": 30
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre40",
+      "pre_dummy_epoch_size": 40
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre50",
+      "pre_dummy_epoch_size": 50
+    },
+    {
+      "model_name": "ksdkt",
+      "exp_name": "dkt_pre100",
+      "pre_dummy_epoch_size": 100
+    }
+  ]
+}
