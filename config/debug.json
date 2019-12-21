@@ -1,14 +1,32 @@
 {
+  "common": {
+    "debug": true
+  },
   "experiments": [
     {
-      "debug": true,
       "exp_name": "debug",
       "model_name": "ksdkt",
+      "epoch_size": 100
     },
     {
-      "debug": true,
+      "exp_name": "debug_geddkt",
+      "model_name": "geddkt",
+      "waviness_l1": false,
+      "waviness_l2": false,
+      "epoch_size": 100,
+      "eddkt": {
+        "extend_forward": 15
+      }
+    },
+    {
       "exp_name": "debug",
       "model_name": "ksdkt",
+      "epoch_size": 100
+    },
+    {
+      "exp_name": "debug",
+      "model_name": "ksdkt",
+      "epoch_size": 100
     }
   ]
 }
