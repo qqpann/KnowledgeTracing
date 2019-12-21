@@ -95,8 +95,13 @@ class Trainer(object):
         epoch_size = self.config.pre_dummy_epoch_size
         if epoch_size == 0:
             return
-        real_batch_size = self.model.batch_size
-        self.model.batch_size = 1
+        real_batch_size = self.model.config.batch_size
+        try:
+            self.model.batch_size = 1
+        except AttributeError as e:
+            self.logger.warning('{}'.format(e))
+        except Exception as e:
+            self.logger.error('{}'.format(e))
         self.model.config.batch_size = 1
         for epoch in range(1, epoch_size + 1):
             self.model.train()
