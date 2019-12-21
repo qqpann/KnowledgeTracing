@@ -45,6 +45,7 @@ def main(configpath: Path):
         logger.info('\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
 
         run(config)
+    logger.info('All experiments done!')
 
 
 def run(config):
