@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from src.utils import sAsMinutes, timeSince
 from src.config import get_option_fallback, Config
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve
+from src.slack import slack_message
 from knowledge_tracing.trainer import Trainer
 
 logging.basicConfig()
@@ -46,6 +47,7 @@ def main(configpath: Path):
 
         run(config)
     logger.info('All experiments done!')
+    slack_message('All experiments done for {}'.format(configpath.stem))
 
 
 def run(config):
