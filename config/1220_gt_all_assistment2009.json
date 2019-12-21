@@ -42,21 +42,25 @@
     },
 
     {
+      "load_model": "output/1220_gt_all_assistment2009/ef15/checkpoints/20191221-0010/geddkt_auc0.8458_e1000.model",
       "model_name": "geddkt",
       "exp_name": "ef15"
     },
     {
+      "load_model": "output/1220_gt_all_assistment2009/ef15_w1w2/checkpoints/20191221-0026/geddkt_auc0.8428_e1000.model",
       "model_name": "geddkt",
       "exp_name": "ef15_w1w2",
       "lambda_l1": 0.003,
       "lambda_l2": 3.0
     },
     {
+      "load_model": "output/1220_gt_all_assistment2009/ef15_ks05/checkpoints/20191221-0042/geddkt_auc0.8464_e1000.model",
       "model_name": "geddkt",
       "exp_name": "ef15_ks05",
       "ksvector_l1": 0.5
     },
     {
+      "load_model": "output/1220_gt_all_assistment2009/ef15_pre10/checkpoints/20191221-0357/geddkt_auc0.8437_e1000.model",
       "model_name": "geddkt",
       "exp_name": "ef15_pre10",
       "pre_dummy_epoch_size": 10
@@ -66,7 +70,7 @@
       "model_name": "geddkt",
       "exp_name": "ef15_generative",
       "eddkt": {
-        "teacher_forcing_rate": 0.5
+        "teacher_forcing_ratio": 0.5
       }
     }
   ]
