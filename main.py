@@ -38,6 +38,7 @@ def main(configpath: Path):
     default_cfg['config_name'] = configpath.stem
     projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
     experiments = cfg['experiments']
+    assert len(experiments) == len(set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
     cmn_dict = cfg.get('common', dict())
     cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
     for exp_dict in experiments:
