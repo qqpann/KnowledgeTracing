@@ -106,14 +106,14 @@ class GEDDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, src, trg, yqs):
-        max_len = trg.shape[0]  # should be 1
-        batch_size = trg.shape[1]
+    def forward(self, input_enc, input_dec, yqs):
+        max_len = input_dec.shape[0]  # should be 1
+        batch_size = input_dec.shape[1]
         trg_vocab_size = self.decoder.output_dim
 
-        hidden, cell = self.encoder(src)
+        hidden, cell = self.encoder(input_enc)
 
-        input_trg = trg
+        input_trg = input_dec
 
         # random.random() returns real number in the range[0.0, 1.0)
         use_teacher_forcing = random.random() > self.teacher_forcing_ratio
