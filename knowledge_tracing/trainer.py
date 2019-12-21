@@ -22,19 +22,19 @@ class Trainer(object):
 
     def __init__(self, config):
         self.config = config
-        self.logger = self.get_logger()
-        self.device = self.get_device()
-        self.train_dl, self.eval_dl = self.get_dataloader()
+        self.logger = self.get_logger(self.config)
+        self.device = self.get_device(self.config)
+        self.train_dl, self.eval_dl = self.get_dataloader(self.config, self.device)
         self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
-        model = self.get_model()
-        if config.load_model:
-            model.load_state_dict(torch.load(str(config.load_model_path)))
+        model = self.get_model(self.config, self.device)
+        if self.config.load_model:
+            model.load_state_dict(torch.load(str(self.config.load_model_path)))
             model = model.to(self.device)
         self.model = model
         self.opt = self.get_opt(self.model)
 
         self._report = {
-            'config': config.as_dict(),
+            'config': self.config.as_dict(),
             'indicator': defaultdict(list)
         }
 
@@ -45,30 +45,30 @@ class Trainer(object):
     def report(self, key, val):
         self._report['indicator'][key].append(val)
 
-    def get_logger(self):
+    def get_logger(self, config):
         logging.basicConfig()
-        logger = logging.getLogger(self.config.model_name)
+        logger = logging.getLogger('{}/{}'.format(config.model_name, config.exp_name))
         logger.setLevel(logging.INFO)
         return logger
 
-    def get_device(self):
+    def get_device(self, config):
         self.logger.info('PyTorch: {}'.format(torch.__version__))
         device = torch.device(
-            'cuda' if self.config.cuda and torch.cuda.is_available() else 'cpu')
+            'cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
         self.logger.info('Using Device: {}'.format(device))
         return device
 
-    def get_model(self):
-        if self.config.model_name == 'eddkt':
-            model = EDDKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'geddkt':
-            model = GEDDKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'dkt':
-            model = DKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'ksdkt':
-            model = KSDKT(self.config, self.device).to(self.device)
+    def get_model(self, config, device):
+        if config.model_name == 'eddkt':
+            model = EDDKT(config, device).to(device)
+        elif config.model_name == 'geddkt':
+            model = GEDDKT(config, device).to(device)
+        elif config.model_name == 'dkt':
+            model = DKT(config, device).to(device)
+        elif config.model_name == 'ksdkt':
+            model = KSDKT(config, device).to(device)
         else:
-            raise ValueError(f'model_name {self.config.model_name} is wrong')
+            raise ValueError(f'model_name {config.model_name} is wrong')
 
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -76,8 +76,8 @@ class Trainer(object):
             f'The model has {count_parameters(model):,} trainable parameters')
         return model
 
-    def get_dataloader(self):
-        train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
+    def get_dataloader(self, config, device):
+        train_dl, eval_dl = prepare_dataloader(config, device=device)
         self.logger.info(
             'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
         self.logger.info(
