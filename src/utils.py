@@ -1,4 +1,5 @@
 import time
+import datetime as dt
 import math
 
 
@@ -7,8 +8,11 @@ def sAsMinutes(s):
 
 
 def timeSince(since, percent):
+    dt_now = dt.datetime.now()
+    now_str = dt_now.strftime('%H:%M')
     now = time.time()
     s = now - since
     es = s / (percent)
     rs = es - s
-    return f'{sAsMinutes(s)} ( - {sAsMinutes(rs)})'
+    fin_str = (dt_now + dt.timedelta(rs)).strftime('%H:%M')
+    return f'At {now_str} {sAsMinutes(s)} passed ( - {sAsMinutes(rs)} til {fin_str})'
