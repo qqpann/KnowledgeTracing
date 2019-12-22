@@ -242,13 +242,12 @@ def slice_d(d: List, x_seq_size:int, type:str='base', sliding_window:int=0, reve
 def slice_data_list(d: List, seq_size: int):
     '''
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    >>> list(slice_data_list(d, x_seq_size=2))
+    >>> list(slice_data_list(d, seq_size=3))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    >>> list(slice_data_list(d, x_seq_size=2))
+    >>> list(slice_data_list(d, seq_size=3))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
     '''
-    result = []
     max_iter = len(d) // seq_size
     for i in range(0, max_iter):
         yield d[i * seq_size : i * seq_size + seq_size]
@@ -344,37 +343,15 @@ def prepare_dummy_dataloader(config, seq_size, batch_size, device):
     return dummy_dl
 
 
-def slide_d(d: List, x_seq_size:int, type:str='base') -> Tuple[List]:
+def slide_d(d: List, seq_size:int) -> List[List]:
     '''
-    Params
-    ------
-    d:
-        list. data sequence.
-        
-    x_seq_size:
-        int.
-    
-    Example
-    -------
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    >>> slide_d(d, x_seq_size=2, type='encdec')
+    >>> list(slide_d(d, seq_size=4))
     [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
     '''
-    result = []
-    if type[:4] == 'base':
-        seq_size = x_seq_size + 1
-    elif type == 'generative':
-        seq_size = x_seq_size + x_seq_size
-    elif type in {'encdec', 'seq2seq'}:
-        seq_size = x_seq_size + 2
-    else:
-        raise ValueError('unexpected model type')
     max_iter = len(d) - seq_size + 1
-    prefix = 0
-    direction = 1
-    for i in range(0, direction * max_iter, direction * 1):
-        result.append(d[prefix + i : prefix + i + seq_size])
-    return result 
+    for i in range(0, max_iter):
+        yield d[i : i + seq_size]
 
 
 # ==============================================================================
