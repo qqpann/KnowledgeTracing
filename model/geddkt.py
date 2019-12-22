@@ -147,41 +147,44 @@ class GEDDKT(nn.Module):
         return outputs_prob
 
     def forward_loss(self, xseq, yseq):
-        assert xseq.shape == (
-            self.config.batch_size, self.config.sequence_size, 2)
-        assert yseq.shape == (
-            self.config.batch_size, self.config.sequence_size, 2)
+        i_batch = self.config.batch_size
+        i_skill = self.config.n_skills
+        i_seqen = self.config.sequence_size
+        i_extfw = self.config.eddkt['extend_forward']
+        i_extbw = self.config.eddkt['extend_backward']
+        assert xseq.shape == (i_batch, i_seqen, 2)
+        assert yseq.shape == (i_batch, i_seqen, 2)
+        onehot_size = i_skill * 2 + 2
+        device = self.device
         # extend_forward=0; ks_loss=False
-        # print(xseq.shape, yseq.shape)
         xseq = xseq.permute(1, 0, 2)
         yseq = yseq.permute(1, 0, 2)
 
-        xseq_enc = xseq[:-1-self.config.eddkt['extend_forward']]
-        xseq_dec = xseq[-1-self.config.eddkt['extend_forward'] -
-                        self.config.eddkt['extend_backward']:]
-        yseq = yseq[-1-self.config.eddkt['extend_forward'] -
-                    self.config.eddkt['extend_backward']:]
+        xseq_enc = xseq[:-1-i_extfw]
+        xseq_dec = xseq[-1-i_extfw - i_extbw:]
+        yseq = yseq[-1-i_extfw - i_extbw:]
         # print(xseq_src.shape, xseq_trg.shape, yseq.shape)
         # TODO: use only torch to simplify
-        skill_n = self.config.n_skills
-        onehot_size = skill_n * 2 + 2
-        device = self.device
-        input_enc = torch.LongTensor(
-            np.dot(xseq_enc.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        input_enc = torch.matmul(xseq_enc.float().to(device), torch.Tensor(
+            [[1], [i_skill]]).to(device)).long().to(device)
+        assert input_enc.shape == (
+            i_seqen-1-i_extfw, i_batch, 1), input_enc.shape
         input_enc = input_enc.squeeze(2)
         # input_src = F.one_hot(input_src, num_classes=onehot_size).float()
-        input_dec = torch.LongTensor(
-            np.dot(xseq_dec.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        input_dec = torch.matmul(xseq_dec.float().to(device), torch.Tensor(
+            [[1], [i_skill]]).to(device)).long().to(device)
+        assert input_dec.shape == (1+i_extfw, i_batch, 1), input_dec.shape
         input_dec = input_dec.squeeze(2)
         # input_trg = F.one_hot(input_trg, num_classes=onehot_size).float()
-        yqs = torch.LongTensor(
-            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = torch.matmul(yseq.float().to(device), torch.Tensor(
+            [[1], [0]]).to(device)).long().to(device)
+        assert yqs.shape == (1+i_extfw, i_batch, 1), yqs.shape
         yqs = yqs.squeeze(2)
-        yqs = F.one_hot(yqs, num_classes=skill_n).float()
-        target = torch.Tensor(
-            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
+        yqs = F.one_hot(yqs, num_classes=i_skill).float()
+        target = torch.matmul(yseq.float().to(
+            device), torch.Tensor([[0], [1]]).to(device)).to(device)
+        assert target.shape == (1+i_extfw, i_batch, 1)
         # target = target.squeeze(2)
-        # print(input_src.shape, input_trg.shape, yqs.shape, target.shape)
 
         # print(input_src.shape, input_trg.shape)
         out = self.forward(input_enc, input_dec, yqs)
@@ -211,14 +214,12 @@ class GEDDKT(nn.Module):
         }
 
         if True:
-            assert yqs.shape == (
-                self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills), \
+            assert yqs.shape == (i_extfw+1, i_batch, i_skill), \
                 'Expected {}, got {}'.format(
-                    (self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills), yqs.shape)
-            assert target.shape == (
-                self.config.eddkt['extend_forward']+1, self.config.batch_size, 1), \
+                    (i_extfw+1, i_batch, i_skill), yqs.shape)
+            assert target.shape == (i_extfw+1, i_batch, 1), \
                 'Expected {}, got {}'.format(
-                    (self.config.eddkt['extend_forward']+1, self.config.batch_size, 1), target.shape)
+                    (i_extfw+1, i_batch, 1), target.shape)
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
