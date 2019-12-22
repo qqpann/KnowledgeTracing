@@ -302,8 +302,9 @@ class Trainer(object):
             self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
 
     def evaluate_model_heatmap(self):
-        heat_dl = prepare_heatmap_dataloader(
+        uid, heat_dl = prepare_heatmap_dataloader(
             self.config, self.config.sequence_size, 1, self.device)
+        self.logger.info("Heatmap data's user id is {}".format(uid))
         self.plot_heatmap(self.config, heat_dl)
 
     def plot_heatmap(self, config, heat_dl=None):

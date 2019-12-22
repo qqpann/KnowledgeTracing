@@ -4,7 +4,7 @@ GEDDKT - Generative Encoder-Decoder Deep Knowledge Tracing
 Author: Qiushi Pan (@qqhann)
 '''
 from src.utils import sAsMinutes, timeSince
-from src.data import prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+from src.data import SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 
 import matplotlib.pyplot as plt
 import seaborn as sns
