@@ -70,6 +70,7 @@ def run(config):
             trainer.dump_report()
 
     trainer.evaluate_model()
+    trainer.evaluate_model_heatmap()
 
 
 if __name__ == '__main__':
