@@ -354,9 +354,42 @@ def slide_d(d: List, seq_size:int) -> List[List]:
         yield d[i : i + seq_size]
 
 
-# ==============================================================================
-#       Merge prepare_heatmap_rnn_data into prepare_heatmap_data
-# ==============================================================================
+def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
+    data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+
+    M = config.n_skills
+    sequence_size = config.sequence_size
+    N = ceil(log(2 * M))
+    
+    qa_emb = QandAEmbedder(M, sequence_size)
+
+    train_num = int(len(data) * .8)
+    train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
+
+    def get_ds(data):
+        x_values = []
+        y_values = []
+        for d in data:
+            if len(d) < sequence_size + 1 or len(d) < 100:
+                continue
+            # x and y seqsize is sequence_size + 1
+            # NOTE: for heatmap, use SLIDE_d to get continuous result.
+            for xy_seq in slide_d(d, seq_size=sequence_size + 1):
+                x_values.append(xy_seq[:-1])
+                y_values.append(xy_seq[1:])
+            break
+
+        all_ds = TensorDataset(
+            torch.LongTensor(x_values).to(device), 
+            torch.LongTensor(y_values).to(device), 
+        )
+        return all_ds
+    
+    eval_ds = get_ds(eval_data)
+
+    eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
+    return eval_dl
+
 def prepare_heatmap_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_size, device, sliding_window:int=1, params={}): #TODO: fix sw
     assert type in {'base', 'encdec', 'baselstm', 'basernn', 'seq2seq'}
     data = load_source(source)
