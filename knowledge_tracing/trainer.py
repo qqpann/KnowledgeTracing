@@ -327,7 +327,10 @@ class Trainer(object):
                 # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
                 out = self.model.loss_batch(xseq, yseq, opt=None)
 
-                pred_ks = out['pred_vect'][:-1].squeeze()
+                assert out['pred_vect'].shape == (
+                    self.config.sequence_size if self.config.model_name in {'ksdkt', 'dkt'} else self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills)
+                pred_ks = out['pred_vect'][-1, :, :].squeeze()
+                # print(pred_ks.shape)
 
                 yq = int(yseq[-1, -1, 0].item())
                 ya = int(yseq[-1, -1, 1].item())
@@ -335,10 +338,10 @@ class Trainer(object):
                 xticklabels.append((yq, ya))
                 all_out_prob.append(pred_ks)
 
-        _d = torch.cat(all_out_prob).transpose(0, 1)
+        _d = torch.stack(all_out_prob).transpose(0, 1)
         _d = _d.cpu().numpy()
-        print(_d.shape)
-        print(len(yticklabels), len(xticklabels))
+        # print(_d.shape)
+        # print(len(yticklabels), len(xticklabels))
         yticklabels = sorted(list(yticklabels))
         related_d = np.matrix([_d[x, :] for x in yticklabels])
 
