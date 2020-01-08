@@ -375,7 +375,7 @@ def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
     x_values = []
     y_values = []
     for uid, d in enumerate(eval_data):
-        if len(d) < sequence_size + 1 or len(d) < 100:
+        if len(d) < sequence_size + 1 or len(d) < 80 or uid < 100:
             continue
         # x and y seqsize is sequence_size + 1
         # NOTE: for heatmap, use SLIDE_d to get continuous result.
