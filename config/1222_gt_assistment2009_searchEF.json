@@ -1,0 +1,91 @@
+{
+  "common": {
+    "model_name": "geddkt",
+    "source_data": "original_ASSISTmentsSkillBuilder0910",
+    "n_skills": 124,
+    "lr": 0.05,
+    "epoch_size": 1500,
+    "batch_size": 100,
+    "eddkt": {
+      "extend_forward": 15
+    },
+    "waviness_l1": true,
+    "waviness_l2": true,
+    "pre_dummy_epoch_size": 0,
+    "ksvector_l1": 0.0,
+    "lambda_l1": 0.0,
+    "lambda_l2": 0.0
+  },
+  "experiments": [
+    {
+      "load_model": "",
+      "exp_name": "ef1",
+      "eddkt": {
+        "extend_forward": 1
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef2",
+      "eddkt": {
+        "extend_forward": 2
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef3",
+      "eddkt": {
+        "extend_forward": 3
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef4",
+      "eddkt": {
+        "extend_forward": 4
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef5",
+      "eddkt": {
+        "extend_forward": 5
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef10",
+      "eddkt": {
+        "extend_forward": 10
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef15",
+      "eddkt": {
+        "extend_forward": 15
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef16",
+      "eddkt": {
+        "extend_forward": 16
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef17",
+      "eddkt": {
+        "extend_forward": 17
+      }
+    },
+    {
+      "load_model": "",
+      "exp_name": "ef18",
+      "eddkt": {
+        "extend_forward": 18
+      }
+    }
+  ]
+}
