@@ -61,10 +61,12 @@ def run(file, csid, cusr, cans, sort_by, outfile_name=''):
         sid = row[csid]
         usr = row[cusr]
         ans = row[cans]
+        ans = int(ans)
+        assert ans in {0, 1}, 'ans {} not in 0, 1'.format(ans)
         # processed[row.user_id].append((problems[row.problem_id], row.correct))
         processed[usr].append((problems[sid], ans))
 
-    print('Problems:', len(problems))
+    print('Knowledge Concepts:', len(problems))
     print('Students:', len(processed))
 
     # Save processed data

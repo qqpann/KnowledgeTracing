@@ -1,0 +1,86 @@
+{
+  "common": {
+    "source_data": "Asteria_Eng_ver5_sorted7",
+    "n_skills": 326,
+    "model_name": "ksdkt",
+    "epoch_size": 200,
+    "batch_size": 100,
+    "lr": 0.05,
+    "waviness_l1": false,
+    "waviness_l2": false
+  },
+  "experiments": [
+    {
+      "exp_name": "seq3",
+      "sequence_size": 3
+    },
+    {
+      "exp_name": "seq4",
+      "sequence_size": 4
+    },
+    {
+      "exp_name": "seq5",
+      "sequence_size": 5
+    },
+    {
+      "exp_name": "seq6",
+      "sequence_size": 6
+    },
+    {
+      "exp_name": "seq7",
+      "sequence_size": 7
+    },
+    {
+      "exp_name": "seq8",
+      "sequence_size": 8
+    },
+    {
+      "exp_name": "seq9",
+      "sequence_size": 9
+    },
+    {
+      "exp_name": "seq10",
+      "sequence_size": 10
+    },
+    {
+      "exp_name": "seq11",
+      "sequence_size": 11
+    },
+    {
+      "exp_name": "seq12",
+      "sequence_size": 12
+    },
+    {
+      "exp_name": "seq13",
+      "sequence_size": 13
+    },
+    {
+      "exp_name": "seq14",
+      "sequence_size": 14
+    },
+    {
+      "exp_name": "seq15",
+      "sequence_size": 15
+    },
+    {
+      "exp_name": "seq16",
+      "sequence_size": 16
+    },
+    {
+      "exp_name": "seq17",
+      "sequence_size": 17
+    },
+    {
+      "exp_name": "seq18",
+      "sequence_size": 18
+    },
+    {
+      "exp_name": "seq19",
+      "sequence_size": 19
+    },
+    {
+      "exp_name": "seq20",
+      "sequence_size": 20
+    }
+  ]
+}

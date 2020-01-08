@@ -242,13 +242,12 @@ def slice_d(d: List, x_seq_size:int, type:str='base', sliding_window:int=0, reve
 def slice_data_list(d: List, seq_size: int):
     '''
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    >>> list(slice_data_list(d, x_seq_size=2))
+    >>> list(slice_data_list(d, seq_size=3))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    >>> list(slice_data_list(d, x_seq_size=2))
+    >>> list(slice_data_list(d, seq_size=3))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
     '''
-    result = []
     max_iter = len(d) // seq_size
     for i in range(0, max_iter):
         yield d[i * seq_size : i * seq_size + seq_size]
@@ -316,222 +315,82 @@ def prepare_dataloader(config, device):
     return train_dl, eval_dl
 
 
-def prepare_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_size, device, sliding_window:int=1, params={}): #TODO: fix sw
-    assert type in {'base', 'encdec'}
-    data = load_source(source)
-        
-    M = n_skills
-    sequence_size = max_n
+def prepare_dummy_dataloader(config, seq_size, batch_size, device):
+    # TODO: do not load_source twice just for dummy
+    data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+    knowledge_concepts_set = set()
+    for seq in data:
+        for q, a in seq:
+            knowledge_concepts_set.add(q)
+    # assert config.n_skills == len(knowledge_concepts_set), 'KC size asserted to be {}, got {}'.format(
+    #     config.n_skills, len(knowledge_concepts_set))
+    # TODO: change to warn?
+
+    x_values = []
+    y_values = []
+    for v in knowledge_concepts_set:
+        # wrong
+        x_values.append([(v, 0) for _ in range(seq_size)])
+        y_values.append([(v, 0) for _ in range(seq_size)])
+        # correct
+        x_values.append([(v, 1) for _ in range(seq_size)])
+        y_values.append([(v, 1) for _ in range(seq_size)])
+    dummy_ds = TensorDataset(
+        torch.LongTensor(x_values).to(device), 
+        torch.LongTensor(y_values).to(device), 
+    )
+    dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
+    return dummy_dl
+
+
+def slide_d(d: List, seq_size:int) -> List[List]:
+    '''
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    >>> list(slide_d(d, seq_size=4))
+    [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
+    '''
+    max_iter = len(d) - seq_size + 1
+    for i in range(0, max_iter):
+        yield d[i : i + seq_size]
+
+
+def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
+    SEED = 42
+    # random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+
+    M = config.n_skills
+    sequence_size = config.sequence_size
     N = ceil(log(2 * M))
     
     qa_emb = QandAEmbedder(M, sequence_size)
 
     train_num = int(len(data) * .8)
     train_data, eval_data = random_split(data, [train_num, len(data) - train_num])
-    
-    if type == 'encdec':
-        def get_ds(data):
-            x_src_indexed = []
-            x_trg_indexed = []
-            y_indexed = []
-            y_delta_q = []
-            y_a = []
-            y_prob_qa = []
-            for d in data:
-                if len(d) < sequence_size + 1 + params.get('extend_forward', 0):
-                    continue
-                for xsty_seq in slice_d(d, x_seq_size=sequence_size, type=type, sliding_window=sliding_window, reverse=True, **params):
-                    # Because it is not generative...
-                    # y is the last one
-                    x_src, x_trg, y = split_encdec(xsty_seq, **params)
-                    x_src_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_src])
-                    x_trg_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_trg])
-                    y_indexed.append([qa_emb.qaToIdxNum(qa) for qa in y]) # コメント時効？→embedding済みは学習対象にしても仕方がない（か？）
-                    y_delta_q.append([qa_emb.qaToDeltaQ(qa) for qa in y])
-                    y_a.append([qa[1] for qa in y])
-                    # yで必要なのは確率分布124と、delta q, aのパターン
-                    # delta qから確率分布124を作成する
-                    y_prob_qa.append(qa_emb.sequenceToProbSeq(y))
 
-            all_ds = TensorDataset(
-                torch.LongTensor(x_src_indexed).to(device), 
-                torch.LongTensor(x_trg_indexed).to(device), 
-                torch.LongTensor(y_indexed).to(device), 
-                torch.Tensor(y_delta_q).to(device), 
-                torch.Tensor(y_a).to(device), 
-                torch.tensor(y_prob_qa).to(device),
-            )
-            return all_ds
-    else:
-        def get_ds(data):
-            x_values = []
-            y_values = []
-            x_onehot = []
-            y_onehot = []
-            y_onehot_q = []
-            y_onehot_q_s = []
-            y_onehot_a = []
-            y_onehot_a_s = []
-            for d in data:
-                if len(d) < sequence_size + 1 + params.get('extend_forward', 0):
-                    continue
-                for xy_seq in slice_d(d, x_seq_size=sequence_size, type=type, sliding_window=sliding_window, reverse=True):
-                    # Because it is not generative...
-                    # y is the last one
-                    # x_values.append(xy_seq[:-1])
-                    # y_values.append(xy_seq[-1])
-                    x_onehot.append(qa_emb.sequenceToOnehot(xy_seq[:-1]))
-                    # y_onehot.append(qa_emb.qaToOnehot(xy_seq[-1]))
-                    delta_q, a = qa_emb.qaToDeltaQandA(xy_seq[-1])
-                    delta_q_s, a_s = qa_emb.sequenceToDeltaQandA(xy_seq[1:])
-                    y_onehot_q.append(delta_q)
-                    y_onehot_a.append(a)
-                    y_onehot_q_s.append(delta_q_s)
-                    y_onehot_a_s.append(a_s)
+    x_values = []
+    y_values = []
+    for uid, d in enumerate(eval_data):
+        if len(d) < sequence_size + 1 or len(d) < 80 or uid < 100:
+            continue
+        # x and y seqsize is sequence_size + 1
+        # NOTE: for heatmap, use SLIDE_d to get continuous result.
+        for xy_seq in slide_d(d, seq_size=sequence_size + 1):
+            x_values.append(xy_seq[:-1])
+            y_values.append(xy_seq[1:])
+        break
 
-            all_ds = TensorDataset(
-                torch.Tensor(x_onehot).to(device), 
-                torch.Tensor(y_onehot_q).to(device), 
-                torch.Tensor(y_onehot_a).to(device),
-                torch.Tensor(y_onehot_q_s).to(device),
-                torch.Tensor(y_onehot_a_s).to(device)
-            )
-            return all_ds
-    
-    train_ds = get_ds(train_data)
-    eval_ds = get_ds(eval_data)
+    eval_ds = TensorDataset(
+        torch.LongTensor(x_values).to(device), 
+        torch.LongTensor(y_values).to(device), 
+    )
 
-    # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
-    train_dl = DataLoader(train_ds, batch_size=batch_size, drop_last=True)
-    eval_dl = DataLoader(eval_ds, batch_size=batch_size, drop_last=True)
-    return train_dl, eval_dl
-
-
-
-def slide_d(d: List, x_seq_size:int, type:str='base') -> Tuple[List]:
-    '''
-    Params
-    ------
-    d:
-        list. data sequence.
-        
-    x_seq_size:
-        int.
-    
-    Example
-    -------
-    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    >>> slide_d(d, x_seq_size=2, type='encdec')
-    [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
-    '''
-    result = []
-    if type[:4] == 'base':
-        seq_size = x_seq_size + 1
-    elif type == 'generative':
-        seq_size = x_seq_size + x_seq_size
-    elif type in {'encdec', 'seq2seq'}:
-        seq_size = x_seq_size + 2
-    else:
-        raise ValueError('unexpected model type')
-    max_iter = len(d) - seq_size + 1
-    prefix = 0
-    direction = 1
-    for i in range(0, direction * max_iter, direction * 1):
-        result.append(d[prefix + i : prefix + i + seq_size])
-    return result 
-
-
-# ==============================================================================
-#       Merge prepare_heatmap_rnn_data into prepare_heatmap_data
-# ==============================================================================
-def prepare_heatmap_data(source, type, n_skills, preserved_tokens, min_n, max_n, batch_size, device, sliding_window:int=1, params={}): #TODO: fix sw
-    assert type in {'base', 'encdec', 'baselstm', 'basernn', 'seq2seq'}
-    data = load_source(source)
-
-    M = n_skills
-    sequence_size = max_n
-    N = ceil(log(2 * M))
-    
-    qa_emb = QandAEmbedder(M, sequence_size)
-
-    hm_seq_len = 65
-    hm_seq_len_lim = hm_seq_len + 10
-    if type in {'encdec', 'seq2seq'}:
-        def get_ds(data):
-            x_src_indexed = []
-            x_trg_indexed = []
-            y_indexed = []
-            y_delta_q = []
-            y_a = []
-            y_prob_qa = []
-            for d in data:
-                if len(d) <= sequence_size or \
-                    len(d) < hm_seq_len or \
-                    hm_seq_len_lim < len(d):
-                    continue
-                for xsty_seq in slide_d(d, x_seq_size=sequence_size, type=type):
-                    # Because it is not generative...
-                    # y is the last one
-                    x_src, x_trg, y = split_encdec(xsty_seq, **params)
-                    x_src_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_src])
-                    x_trg_indexed.append([qa_emb.qaToIdxNum(qa) for qa in x_trg])
-                    y_indexed.append([qa_emb.qaToIdxNum(qa) for qa in y]) # コメント時効？→embedding済みは学習対象にしても仕方がない（か？）
-                    y_delta_q.append([qa_emb.qaToDeltaQ(qa) for qa in y])
-                    y_a.append([qa[1] for qa in y])
-                    # yで必要なのは確率分布124と、delta q, aのパターン
-                    # delta qから確率分布124を作成する
-                    y_prob_qa.append(qa_emb.sequenceToProbSeq(y))
-                break
-            all_ds = TensorDataset(
-                torch.LongTensor(x_src_indexed).to(device), 
-                torch.LongTensor(x_trg_indexed).to(device), 
-                torch.LongTensor(y_indexed).to(device), 
-                torch.Tensor(y_delta_q).to(device), 
-                torch.Tensor(y_a).to(device), 
-                torch.tensor(y_prob_qa).to(device),
-            )
-            return all_ds
-    else:
-        def get_ds(data):
-            x_values = []
-            y_values = []
-            x_onehot = []
-            y_onehot = []
-            y_onehot_q = []
-            y_onehot_q_s = []
-            y_onehot_a = []
-            y_onehot_a_s = []
-            for d in data:
-                if len(d) <= sequence_size or len(d) < hm_seq_len or hm_seq_len_lim < len(d):
-                    continue
-                for xy_seq in slide_d(d, x_seq_size=sequence_size, type=type):
-                    # Because it is not generative...
-                    # y is the last one
-                    x_values.append(xy_seq[:-1])
-                    y_values.append(xy_seq[-1])
-                    x_onehot.append(qa_emb.sequenceToOnehot(xy_seq[:-1]))
-                    y_onehot.append(qa_emb.qaToOnehot(xy_seq[-1]))
-                    delta_q, a = qa_emb.qaToDeltaQandA(xy_seq[-1])
-                    delta_q_s, a_s = qa_emb.sequenceToDeltaQandA(xy_seq[1:])
-                    y_onehot_q.append(delta_q)
-                    y_onehot_a.append(a)
-                    y_onehot_q_s.append(delta_q_s)
-                    y_onehot_a_s.append(a_s)
-                break
-            all_ds = TensorDataset(
-                torch.Tensor(x_onehot).to(device), 
-                torch.Tensor(y_onehot_q).to(device), 
-                torch.Tensor(y_onehot_a).to(device),
-                torch.Tensor(y_onehot_q_s).to(device),
-                torch.Tensor(y_onehot_a_s).to(device)
-            )
-            return all_ds
-    
-    ds = get_ds(data)
-
-    # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
-    dl = DataLoader(ds, batch_size=batch_size, drop_last=True)
-    return dl
+    eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
+    return uid, eval_dl
 
 
 if __name__ == '__main__':

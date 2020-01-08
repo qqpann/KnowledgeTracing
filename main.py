@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from src.utils import sAsMinutes, timeSince
 from src.config import get_option_fallback, Config
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve
+from src.slack import slack_message
 from knowledge_tracing.trainer import Trainer
 
 logging.basicConfig()
@@ -37,14 +38,17 @@ def main(configpath: Path):
     default_cfg['config_name'] = configpath.stem
     projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
     experiments = cfg['experiments']
+    assert len(experiments) == len(set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
     cmn_dict = cfg.get('common', dict())
     cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
     for exp_dict in experiments:
         config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
         config = Config(config_dict, projectdir=projectdir)
-        pprint(config.as_dict())
+        logger.info('\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
 
         run(config)
+    logger.info('All experiments done!')
+    slack_message('All experiments done for {}'.format(configpath.stem))
 
 
 def run(config):
@@ -58,6 +62,7 @@ def run(config):
     trainer = Trainer(config)
     if not config.load_model:
         try:
+            trainer.pre_train_model()
             trainer.train_model()
         except KeyboardInterrupt as e:
             print(e)
@@ -65,6 +70,7 @@ def run(config):
             trainer.dump_report()
 
     trainer.evaluate_model()
+    # trainer.evaluate_model_heatmap()
 
 
 if __name__ == '__main__':
