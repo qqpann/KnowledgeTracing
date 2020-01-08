@@ -62,14 +62,19 @@ class Config(BaseConfig):
         self.outdir.mkdir(exist_ok=True)
         self.starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
 
-    def _get_experiment_name(self):
-        return '_'.join([self.starttime, self.get('exp_name', ''), self.model_name])
-
     @property
     def resultsdir(self):
-        resultdir = self.outdir / self.config_name / self._get_experiment_name()
+        resultdir = self.outdir / self.config_name / self.exp_name
         resultdir.mkdir(parents=True, exist_ok=True)
         return resultdir
+
+    @property
+    def load_model_path(self):
+        if not self.load_model:
+            return None
+        load_model_path = self.projectpdir / self.load_model
+        assert load_model_path.exists(), '{} not found'.format(load_model_path)
+        return load_model_path
 
     @property
     def outfname(self):

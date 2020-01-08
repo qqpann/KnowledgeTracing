@@ -7,35 +7,35 @@ import seaborn as sns
 
 
 def save_model(config, model, auc, epoch):
-    checkpointsdir = config.resultsdir / 'checkpoints'
-    checkpointsdir.mkdir(exist_ok=True)
-    torch.save(model.state_dict(), checkpointsdir /
+    outdir = config.resultsdir / 'checkpoints' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), outdir /
                f'{config.model_name}_auc{auc:.4f}_e{epoch}.model')
 
 
 def save_log(config, data, auc, epoch):
-    lc_datadir = config.resultsdir / 'lc_data'
-    lc_datadir.mkdir(exist_ok=True)
-    with open(lc_datadir / f'{config.model_name}_auc{auc:.4f}_e{epoch}.pickle', 'wb') as f:
+    outdir = config.resultsdir / 'lc_data' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
+    with open(outdir / f'{config.model_name}_auc{auc:.4f}_e{epoch}.pickle', 'wb') as f:
         pickle.dump(data, f)
 
 
 def save_report(config, report):
-    lc_datadir = config.resultsdir / 'report'
-    lc_datadir.mkdir(exist_ok=True)
-    with open(lc_datadir / f'{config.model_name}.json', 'w') as f:
+    outdir = config.resultsdir / 'report' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
+    with open(outdir / f'{config.model_name}.json', 'w') as f:
         json.dump(report, f, indent=2)
 
 
 def save_hm_fig(config, sns_fig):
-    hmdir = config.resultsdir / 'heatmap'
-    hmdir.mkdir(exist_ok=True)
-    sns_fig.savefig(hmdir / f'{config.model_name}.png')
+    outdir = config.resultsdir / 'heatmap' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
+    sns_fig.savefig(outdir / f'{config.model_name}.png')
 
 
 def save_learning_curve(idclist_dic, config):
-    lcdir = config.resultsdir / 'learning_curve'
-    lcdir.mkdir(exist_ok=True)
+    outdir = config.resultsdir / 'learning_curve' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -44,7 +44,7 @@ def save_learning_curve(idclist_dic, config):
         ax.plot(x, idclist_dic[k], label=k.replace('_', ' '))
     ax.legend()
     ax.set_ylim(0., 1.)
-    plt.savefig(lcdir / f'{config.model_name}_lc.png')
+    plt.savefig(outdir / f'{config.model_name}_lc.png')
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -54,17 +54,17 @@ def save_learning_curve(idclist_dic, config):
             ax.plot(x, idclist_dic[k], label=k)
     ax.legend()
     # ax.set_ylim(.0, .1)
-    plt.savefig(lcdir / f'{config.model_name}_loss.png')
+    plt.savefig(outdir / f'{config.model_name}_loss.png')
 
 
 def save_pred_accu_relation(config, x, y):
-    pardir = config.resultsdir / 'pa_relation'
-    pardir.mkdir(exist_ok=True)
+    outdir = config.resultsdir / 'pa_relation' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    with open(pardir / f'{config.model_name}_xy.pkl', 'wb') as f:
+    with open(outdir / f'{config.model_name}_xy.pkl', 'wb') as f:
         pickle.dump((x, y), f)
 
     fig, ax = plt.subplots()
     ax.set_aspect('equal')
     sns.scatterplot(x, y)
-    fig.savefig(pardir / f'{config.model_name}_scatter.png')
+    fig.savefig(outdir / f'{config.model_name}_scatter.png')

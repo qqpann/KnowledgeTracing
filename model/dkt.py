@@ -23,7 +23,7 @@ from sklearn import metrics
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+from src.data import SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 from src.utils import sAsMinutes, timeSince
 
 
@@ -130,9 +130,8 @@ class DKT(nn.Module):
         適宜back propagationし，
         lossを返す．
 
-        xs: shapeは[100, 20, 654]
-        yq: qのonehot配列からなる配列
-        ya: aの0,1 intからなる配列
+        xseq: [(q, a), (q, a), ... ]
+        yseq: [(q, a), (q, a), ... ]
         '''
         # print(yq.shape) => [100, 124] = [batch_size, skill_size]
         # print(xseq.shape, yseq.shape) => [100, 20, 2], [100, 20, 2]
