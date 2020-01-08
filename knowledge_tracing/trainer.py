@@ -16,6 +16,7 @@ from model.eddkt import EDDKT
 from model.dkt import DKT
 from model.ksdkt import KSDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from model.dkvmn import MODEL as DKVMN
 
 
 class Trainer(object):
@@ -69,6 +70,8 @@ class Trainer(object):
             model = DKT(config, device).to(device)
         elif config.model_name == 'ksdkt':
             model = KSDKT(config, device).to(device)
+        elif config.model_name == 'dkvmn':
+            model = DKVMN(config, device).to(device)
         else:
             raise ValueError(f'model_name {config.model_name} is wrong')
 
@@ -90,7 +93,8 @@ class Trainer(object):
         return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
 
     def get_opt(self, model):
-        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
+        # opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
+        opt = torch.optim.Adam(params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
     def pre_train_model(self):
@@ -199,13 +203,15 @@ class Trainer(object):
             wvn2_ar[i] = out.get('waviness_l2')
             ksv1_ar[i] = out.get('ksvector_l1')
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
-            pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            if out.get('pred_prob'):
+                pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
-            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
-                .detach().view(-1).cpu()
-            actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
+            if out.get('Sdq'):
+                pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
+                    .detach().view(-1).cpu()
+                actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
             if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
                     q_all_count[q.item()] += 1
