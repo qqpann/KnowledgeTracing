@@ -1,0 +1,19 @@
+{
+  "common": {
+    "source_data": "Asteria_Eng_ver5",
+    "n_skills": 326,
+    "model_name": "dkvmn",
+    "epoch_size": 100,
+    "batch_size": 32,
+    "lr": 0.05,
+    "waviness_l1": false,
+    "waviness_l2": false
+  },
+  "experiments": [
+    {
+      "cuda": false,
+      "exp_name": "dkvmn",
+      "sequence_size": 200
+    }
+  ]
+}
