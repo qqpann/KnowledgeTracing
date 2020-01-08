@@ -24,7 +24,7 @@ from sklearn import metrics
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from src.data import prepare_data, prepare_heatmap_data, SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+from src.data import SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
 from src.utils import sAsMinutes, timeSince
 
 
@@ -66,22 +66,26 @@ class KSDKT(nn.Module):
         self._loss = nn.BCELoss()
 
     def forward(self, xseq, yseq):
+        i_batch = self.config.batch_size
+        i_skill = self.config.n_skills
+        i_seqen = self.config.sequence_size
+        assert xseq.shape == (i_batch, i_seqen, 2)
+        assert yseq.shape == (i_batch, i_seqen, 2)
+        onehot_size = i_skill * 2 + 2
+        device = self.device
         # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
-        skill_n = self.config.n_skills
-        onehot_size = skill_n * 2 + 2
-        device = self.device
-        inputs = torch.LongTensor(
-            np.dot(xseq.cpu().numpy(), np.array([[1], [skill_n]]))).to(device)  # -> (100, 20, 1)
+        inputs = torch.matmul(xseq.float().to(device), torch.Tensor([[1], [i_skill]]).to(device)).long().to(device)
+        assert inputs.shape == (i_batch, i_seqen, 1)
         # inputs = inputs.squeeze()
         # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
-        yqs = torch.LongTensor(
-            np.dot(yseq.cpu().numpy(), np.array([[1], [0]]))).to(device)  # -> (100, 20, 1)
+        yqs = torch.matmul(yseq.float().to(device), torch.Tensor([[1], [0]]).to(device)).long().to(device)
+        assert yqs.shape == (i_batch, i_seqen, 1)
         yqs = yqs.squeeze(2)
-        yqs = F.one_hot(yqs, num_classes=skill_n).float()
-        target = torch.Tensor(
-            np.dot(yseq.cpu().numpy(), np.array([[0], [1]]))).to(device)  # -> (100, 20, 1)
-        # target = target.squeeze()
+        yqs = F.one_hot(yqs, num_classes=i_skill).float()
+        assert yqs.shape == (i_batch, i_seqen, i_skill)
+        target = torch.matmul(yseq.float().to(device), torch.Tensor([[0], [1]]).to(device)).to(device)
+        assert target.shape == (i_batch, i_seqen, 1)
 
         inputs = inputs.permute(1, 0, 2)
         yqs = yqs.permute(1, 0, 2)
@@ -118,6 +122,14 @@ class KSDKT(nn.Module):
         }
 
         if True:
+            assert yqs.shape == (
+                self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
+                'Expected {}, got {}'.format(
+                    (self.config.sequence_size, self.config.batch_size, self.config.n_skills), yqs.shape)
+            assert target.shape == (
+                self.config.sequence_size, self.config.batch_size, 1), \
+                'Expected {}, got {}'.format(
+                    (self.config.sequence_size, self.config.batch_size, 1), target.shape)
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
@@ -125,6 +137,8 @@ class KSDKT(nn.Module):
                 / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             out_dic['loss'] += self.config.ksvector_l1 * ksvector_l1
             out_dic['ksvector_l1'] = ksvector_l1.item()
+            out_dic['Sdqa'] = Sdqa
+            out_dic['Sdq'] = Sdq
 
         if self.config.waviness_l1 == True:
             waviness_norm_l1 = torch.abs(

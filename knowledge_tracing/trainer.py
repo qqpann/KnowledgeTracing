@@ -8,7 +8,7 @@ from math import log, ceil
 from sklearn import metrics
 from collections import defaultdict
 
-from src.data import prepare_data, prepare_dataloader
+from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from model.geddkt import GEDDKT
@@ -22,19 +22,20 @@ class Trainer(object):
 
     def __init__(self, config):
         self.config = config
-        self.logger = self.get_logger()
-        self.device = self.get_device()
-        self.train_dl, self.eval_dl = self.get_dataloader()
-        model = self.get_model()
-        if config.load_model:
-            assert Path(config.load_model).exists()
-            model.load_state_dict(torch.load(config.load_model))
+        self.logger = self.get_logger(self.config)
+        self.device = self.get_device(self.config)
+        self.train_dl, self.eval_dl = self.get_dataloader(
+            self.config, self.device)
+        self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
+        model = self.get_model(self.config, self.device)
+        if self.config.load_model:
+            model.load_state_dict(torch.load(str(self.config.load_model_path)))
             model = model.to(self.device)
         self.model = model
         self.opt = self.get_opt(self.model)
 
         self._report = {
-            'config': config.as_dict(),
+            'config': self.config.as_dict(),
             'indicator': defaultdict(list)
         }
 
@@ -45,30 +46,31 @@ class Trainer(object):
     def report(self, key, val):
         self._report['indicator'][key].append(val)
 
-    def get_logger(self):
+    def get_logger(self, config):
         logging.basicConfig()
-        logger = logging.getLogger(self.config.model_name)
+        logger = logging.getLogger(
+            '{}/{}'.format(config.model_name, config.exp_name))
         logger.setLevel(logging.INFO)
         return logger
 
-    def get_device(self):
+    def get_device(self, config):
         self.logger.info('PyTorch: {}'.format(torch.__version__))
         device = torch.device(
-            'cuda' if self.config.cuda and torch.cuda.is_available() else 'cpu')
+            'cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
         self.logger.info('Using Device: {}'.format(device))
         return device
 
-    def get_model(self):
-        if self.config.model_name == 'eddkt':
-            model = EDDKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'geddkt':
-            model = GEDDKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'dkt':
-            model = DKT(self.config, self.device).to(self.device)
-        elif self.config.model_name == 'ksdkt':
-            model = KSDKT(self.config, self.device).to(self.device)
+    def get_model(self, config, device):
+        if config.model_name == 'eddkt':
+            model = EDDKT(config, device).to(device)
+        elif config.model_name == 'geddkt':
+            model = GEDDKT(config, device).to(device)
+        elif config.model_name == 'dkt':
+            model = DKT(config, device).to(device)
+        elif config.model_name == 'ksdkt':
+            model = KSDKT(config, device).to(device)
         else:
-            raise ValueError(f'model_name {self.config.model_name} is wrong')
+            raise ValueError(f'model_name {config.model_name} is wrong')
 
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -76,17 +78,39 @@ class Trainer(object):
             f'The model has {count_parameters(model):,} trainable parameters')
         return model
 
-    def get_dataloader(self):
-        train_dl, eval_dl = prepare_dataloader(self.config, device=self.device)
+    def get_dataloader(self, config, device):
+        train_dl, eval_dl = prepare_dataloader(config, device=device)
         self.logger.info(
             'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
         self.logger.info(
             'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
         return train_dl, eval_dl
 
+    def get_dummy_dataloader(self, config, device):
+        return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
+
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
+
+    def pre_train_model(self):
+        epoch_size = self.config.pre_dummy_epoch_size
+        if epoch_size == 0:
+            return
+        real_batch_size = self.model.config.batch_size
+        try:
+            self.model.batch_size = 1
+        except AttributeError as e:
+            self.logger.warning('{}'.format(e))
+        except Exception as e:
+            self.logger.error('{}'.format(e))
+        self.model.config.batch_size = 1
+        for epoch in range(1, epoch_size + 1):
+            self.model.train()
+            for i, (xseq, yseq) in enumerate(self.dummy_dl):
+                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+        self.model.batch_size = real_batch_size
+        self.model.config.batch_size = real_batch_size
 
     def train_model(self, validate=True):
         self.logger.info('Starting train')
@@ -141,7 +165,7 @@ class Trainer(object):
 
             if epoch % 100 == 0:
                 self.logger.info(
-                    f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch} {epoch / self.config.epoch_size * 100})')
+                    f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch}epoch {epoch / self.config.epoch_size * 100:.1f}%)')
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
@@ -155,6 +179,10 @@ class Trainer(object):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
+        pred_v_mx = np.zeros(
+            [arr_len, self.config.batch_size * self.config.n_skills])
+        actu_v_mx = np.zeros(
+            [arr_len, self.config.batch_size * self.config.n_skills])
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
@@ -173,6 +201,11 @@ class Trainer(object):
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+            # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
+            #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
+            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
+                .detach().view(-1).cpu()
+            actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
             if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
                     q_all_count[q.item()] += 1
@@ -186,10 +219,15 @@ class Trainer(object):
         fpr, tpr, _thresholds = metrics.roc_curve(
             actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        # KSVector AUC
+        fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
+            actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
+        auc_v = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': loss_ar.mean(),
             'auc': auc,
+            'ksv_auc': auc_v,
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
@@ -216,6 +254,8 @@ class Trainer(object):
 
             self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                 v_loss, v_auc))
+            self.logger.info('\tValid KSV AUC: {:.6}'.format(
+                indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
@@ -241,14 +281,18 @@ class Trainer(object):
             for v in range(self.config.n_skills):
                 # wrong
                 wro = self.model.loss_batch(
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0), 
+                    torch.Tensor([(v, 0)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 0)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
                 cor = self.model.loss_batch(
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0), 
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 1)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 1)
+                                  for _ in range(dummy_len)]).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
@@ -257,75 +301,76 @@ class Trainer(object):
                     good += 1
             self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
 
-    # if config.plot_heatmap:
-    #     batch_size = 1
-    #     # TODO: don't repeat yourself
-    #     if config.load_model:
-    #         model.load_state_dict(torch.load(config.load_model))
-    #         model = model.to(dev)
-    #     heat_dl = prepare_heatmap_data(
-    #         config.source_data, config.model_name, n_skills, PRESERVED_TOKENS,
-    #         min_n=3, max_n=config.sequence_size, batch_size=batch_size, device=dev, sliding_window=0,
-    #         params={'extend_backward': config.extend_backward, 'extend_forward': config.extend_forward})
-    #     loss_func = nn.BCELoss()
-    #     opt = optim.SGD(model.parameters(), lr=config.lr)
+    def evaluate_model_heatmap(self):
+        uid, heat_dl = prepare_heatmap_dataloader(
+            self.config, self.config.sequence_size, 1, self.device)
+        self.logger.info("Heatmap data's user id is {}".format(uid))
+        self.plot_heatmap(self.config, heat_dl)
 
-    #     with torch.no_grad():
-    #         model.eval()
-    #         all_out_prob = []
-    #         val_pred = []
-    #         val_actual = []
-    #         current_eval_loss = []
-    #         yticklabels = set()
-    #         xticklabels = []
-    #         for args in heat_dl:
-    #             loss_item, batch_n, pred, actu_q, actu, pred_ks, _, _ = loss_batch(
-    #                 model, loss_func, *args, opt=None)
-    #             # current_eval_loss.append(loss_item[-1])
-    #             # print(pred.shape, actu.shape)
-    #             # val_pred.append(pred[-1])
-    #             # val_actual.append(actu[-1])
-    #             yq = torch.max(actu_q.squeeze(), 0)[1].item()
-    #             ya = int(actu.item())
-    #             yticklabels.add(yq)
-    #             xticklabels.append((yq, ya))
+    def plot_heatmap(self, config, heat_dl=None):
+        real_batch_size = self.model.config.batch_size
+        try:
+            self.model.batch_size = 1
+        except AttributeError as e:
+            self.logger.warning('{}'.format(e))
+        except Exception as e:
+            self.logger.error('{}'.format(e))
+        self.model.config.batch_size = 1
 
-    #             # print(pred_ks.shape)
-    #             assert len(pred_ks.shape) == 1, 'pred_ks dimention {}, expected 1'.format(
-    #                 pred_ks.shape)
-    #             assert pred_ks.shape[0] == n_skills
-    #             all_out_prob.append(pred_ks.unsqueeze(0))
+        # TODO: don't repeat yourself
+        with torch.no_grad():
+            self.model.eval()
+            all_out_prob = []
+            yticklabels = set()
+            xticklabels = []
+            for i, (xseq, yseq) in enumerate(heat_dl):
+                # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
+                out = self.model.loss_batch(xseq, yseq, opt=None)
 
-    #     _d = torch.cat(all_out_prob).transpose(0, 1)
-    #     _d = _d.cpu().numpy()
-    #     print(_d.shape)
-    #     print(len(yticklabels), len(xticklabels))
-    #     yticklabels = sorted(list(yticklabels))
-    #     related_d = np.matrix([_d[x, :] for x in yticklabels])
+                assert out['pred_vect'].shape == (
+                    self.config.sequence_size if self.config.model_name in {'ksdkt', 'dkt'} else self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills)
+                pred_ks = out['pred_vect'][-1, :, :].squeeze()
+                # print(pred_ks.shape)
 
-    #     # Regular Heatmap
-    #     # fig, ax = plt.subplots(figsize=(20, 10))
-    #     # sns.heatmap(_d, ax=ax)
+                yq = int(yseq[-1, -1, 0].item())
+                ya = int(yseq[-1, -1, 1].item())
+                yticklabels.add(yq)
+                xticklabels.append((yq, ya))
+                all_out_prob.append(pred_ks)
 
-    #     fig, ax = plt.subplots(figsize=(20, 7))
-    #     sns.heatmap(
-    #         related_d, vmin=0, vmax=1, ax=ax,
-    #         # cmap="Reds_r",
-    #         xticklabels=['{}'.format(y) for y in xticklabels],
-    #         yticklabels=['s{}'.format(x) for x in yticklabels],
-    #     )
-    #     xtick_dic = {s: i for i, s in enumerate(yticklabels)}
-    #     # 正解
-    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
-    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-    #              qa in enumerate(xticklabels) if qa[1] == 1]
-    #     ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
-    #     # 不正解
-    #     sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
-    #     sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-    #              qa in enumerate(xticklabels) if qa[1] == 0]
-    #     ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
+        _d = torch.stack(all_out_prob).transpose(0, 1)
+        _d = _d.cpu().numpy()
+        # print(_d.shape)
+        # print(len(yticklabels), len(xticklabels))
+        yticklabels = sorted(list(yticklabels))
+        related_d = np.matrix([_d[x, :] for x in yticklabels])
 
-    #     save_hm_fig(config, fig)
+        # Regular Heatmap
+        # fig, ax = plt.subplots(figsize=(20, 10))
+        # sns.heatmap(_d, ax=ax)
 
-    # return report
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        fig, ax = plt.subplots(figsize=(20, 7))
+        sns.heatmap(
+            related_d, vmin=0, vmax=1, ax=ax,
+            # cmap="Reds_r",
+            xticklabels=['{}'.format(y) for y in xticklabels],
+            yticklabels=['s{}'.format(x) for x in yticklabels],
+        )
+        xtick_dic = {s: i for i, s in enumerate(yticklabels)}
+        # 正解
+        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
+        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+                 qa in enumerate(xticklabels) if qa[1] == 1]
+        ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
+        # 不正解
+        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
+        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
+                 qa in enumerate(xticklabels) if qa[1] == 0]
+        ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
+
+        save_hm_fig(config, fig)
+
+        self.model.batch_size = real_batch_size
+        self.model.config.batch_size = real_batch_size
