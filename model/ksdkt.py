@@ -75,16 +75,19 @@ class KSDKT(nn.Module):
         device = self.device
         # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
-        inputs = torch.matmul(xseq.float().to(device), torch.Tensor([[1], [i_skill]]).to(device)).long().to(device)
+        inputs = torch.matmul(xseq.float().to(device), torch.Tensor(
+            [[1], [i_skill]]).to(device)).long().to(device)
         assert inputs.shape == (i_batch, i_seqen, 1)
         # inputs = inputs.squeeze()
         # inputs = F.one_hot(inputs, num_classes=onehot_size).float()
-        yqs = torch.matmul(yseq.float().to(device), torch.Tensor([[1], [0]]).to(device)).long().to(device)
+        yqs = torch.matmul(yseq.float().to(device), torch.Tensor(
+            [[1], [0]]).to(device)).long().to(device)
         assert yqs.shape == (i_batch, i_seqen, 1)
         yqs = yqs.squeeze(2)
         yqs = F.one_hot(yqs, num_classes=i_skill).float()
         assert yqs.shape == (i_batch, i_seqen, i_skill)
-        target = torch.matmul(yseq.float().to(device), torch.Tensor([[0], [1]]).to(device)).to(device)
+        target = torch.matmul(yseq.float().to(
+            device), torch.Tensor([[0], [1]]).to(device)).to(device)
         assert target.shape == (i_batch, i_seqen, 1)
 
         inputs = inputs.permute(1, 0, 2)
@@ -106,10 +109,8 @@ class KSDKT(nn.Module):
         # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
 
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
-        assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
+        assert pred_vect.shape == (i_seqen, i_batch, i_skill), \
             "Unexpected shape {}".format(pred_vect.shape)
-        # pred.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
-        # yqs.shape: (20, 100, 124); (seqlen, batch_size, skill_size)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
         # print(target, target.shape)  # (20, 100)
         loss = self._loss(pred_prob, target)
@@ -125,11 +126,11 @@ class KSDKT(nn.Module):
             assert yqs.shape == (
                 self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
                 'Expected {}, got {}'.format(
-                    (self.config.sequence_size, self.config.batch_size, self.config.n_skills), yqs.shape)
+                    (i_seqen, i_batch, i_skill), yqs.shape)
             assert target.shape == (
                 self.config.sequence_size, self.config.batch_size, 1), \
                 'Expected {}, got {}'.format(
-                    (self.config.sequence_size, self.config.batch_size, 1), target.shape)
+                    (i_seqen, i_batch, 1), target.shape)
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
