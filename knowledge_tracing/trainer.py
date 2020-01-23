@@ -82,7 +82,7 @@ class Trainer(object):
         return model
 
     def get_dataloader(self, config, device):
-        train_dl, eval_dl = prepare_dataloader(config, device=device)
+        train_dl, eval_dl = prepare_dataloader(config, device=device, pad=config.pad)
         self.logger.info(
             'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
         self.logger.info(
@@ -184,6 +184,8 @@ class Trainer(object):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
+        pred_ls = []
+        actu_ls = []
         pred_v_mx = np.zeros(
             [arr_len, self.config.batch_size * self.config.n_skills])
         actu_v_mx = np.zeros(
@@ -196,9 +198,9 @@ class Trainer(object):
             q_all_count = defaultdict(int)
             q_cor_count = defaultdict(int)
             q_pred_list = defaultdict(list)
-        for i, (xseq, yseq) in enumerate(dl):
+        for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
-            out = self.model.loss_batch(xseq, yseq, opt=opt)
+            out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
             loss_ar[i] = out['loss'].item()
             wvn1_ar[i] = out.get('waviness_l1')
             wvn2_ar[i] = out.get('waviness_l2')
@@ -207,6 +209,8 @@ class Trainer(object):
             if out.get('pred_prob', False) is not False:
                 # print(out['pred_prob'], out['pred_prob'].shape)
                 pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+                pred_ls.append(out['filtered_pred'])
+                actu_ls.append(out['filtered_target'])
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
@@ -223,9 +227,9 @@ class Trainer(object):
             if self.config.debug:
                 break
 
-        # AUC
         fpr, tpr, _thresholds = metrics.roc_curve(
-            actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
+            torch.cat(actu_ls).detach().cpu().numpy().reshape(-1), 
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
@@ -293,6 +297,7 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 0)
                                   for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
@@ -301,6 +306,7 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 1)
                                   for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
