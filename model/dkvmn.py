@@ -165,7 +165,7 @@ class MODEL(nn.Module):
         self.config = config
         self.device = device
         self.n_question = config.n_skills
-        self.batch_size = 32
+        self.batch_size = config.batch_size
         self.q_embed_dim = 50
         self.qa_embed_dim = 200
         self.memory_size = 20
@@ -282,7 +282,7 @@ class MODEL(nn.Module):
         out = {
             'loss': loss,
             'filtered_pred': torch.sigmoid(filtered_pred),
-            'filtered_target': filtered_target
+            'filtered_target': filtered_target,
         }
         return out
 
