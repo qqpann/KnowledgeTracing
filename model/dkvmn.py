@@ -279,10 +279,13 @@ class MODEL(nn.Module):
         loss = torch.nn.functional.binary_cross_entropy_with_logits(
             filtered_pred, filtered_target)
 
+        #print(filtered_pred, filtered_pred.shape) #-> torch.Size([6399])
         out = {
             'loss': loss,
             'filtered_pred': torch.sigmoid(filtered_pred),
             'filtered_target': filtered_target,
+            # 'pred_vect': pred_vect,  # (20, 100, 124)
+            # 'pred_prob': pred_prob,  # (20, 100)
         }
         return out
 
