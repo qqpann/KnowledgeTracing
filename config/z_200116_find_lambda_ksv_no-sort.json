@@ -1,0 +1,56 @@
+{
+  "common": {
+    "model_name": "ksdkt",
+    "source_data": "Asteria_Eng_ver5",
+    "n_skills": 326,
+    "epoch_size": 1000,
+    "batch_size": 100,
+    "lr": 0.1,
+    "waviness_l1": true,
+    "waviness_l2": true
+  },
+  "experiments": [
+    {
+      "load_model": "",
+      "exp_name": "seq20ks000",
+      "ksvector_l1": 0.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks001",
+      "ksvector_l1": 1.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks005",
+      "ksvector_l1": 5.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks010",
+      "ksvector_l1": 10.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks050",
+      "ksvector_l1": 50.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks100",
+      "ksvector_l1": 100.0,
+      "sequence_size": 20
+    },
+    {
+      "load_model": "",
+      "exp_name": "seq20ks500",
+      "ksvector_l1": 500.0,
+      "sequence_size": 20
+    }
+  ]
+}
