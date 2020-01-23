@@ -65,7 +65,7 @@ class KSDKT(nn.Module):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, xseq, yseq):
+    def forward(self, xseq, yseq, mask):
         i_batch = self.config.batch_size
         i_skill = self.config.n_skills
         i_seqen = self.config.sequence_size
@@ -89,6 +89,7 @@ class KSDKT(nn.Module):
         target = torch.matmul(yseq.float().to(
             device), torch.Tensor([[0], [1]]).to(device)).to(device)
         assert target.shape == (i_batch, i_seqen, 1)
+        mask = mask.to(device)
 
         inputs = inputs.permute(1, 0, 2)
         yqs = yqs.permute(1, 0, 2)
@@ -112,14 +113,27 @@ class KSDKT(nn.Module):
         assert pred_vect.shape == (i_seqen, i_batch, i_skill), \
             "Unexpected shape {}".format(pred_vect.shape)
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
-        # print(target, target.shape)  # (20, 100)
-        loss = self._loss(pred_prob, target)
+        assert pred_prob.shape == (i_seqen, i_batch), \
+            "Unexpected shape {}".format(pred_prob.shape)
+        if self.config.pad == True:
+            # _pred_prob = pack_padded_sequence(
+            #     pred_prob.unsqueeze(2), mask, enforce_sorted=False).data
+            # _target = pack_padded_sequence(
+            #     target, mask, enforce_sorted=False).data
+            _pred_prob = pred_prob.masked_select(mask.permute(1, 0))
+            _target = target.squeeze(2).masked_select(mask.permute(1, 0))
+        else:
+            _pred_prob = pred_prob
+            _target = target.squeeze(2)
+        loss = self._loss(_pred_prob, _target)
         # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
             'loss': loss,
             'pred_vect': pred_vect,  # (20, 100, 124)
             'pred_prob': pred_prob,  # (20, 100)
+            'filtered_pred': _pred_prob,
+            'filtered_target': _target,
         }
 
         if True:
@@ -167,17 +181,10 @@ class KSDKT(nn.Module):
     def initC0(self):
         return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
 
-    def loss_batch(self, xseq, yseq, opt=None):
+    def loss_batch(self, xseq, yseq, mask, opt=None):
         '''
-        DataLoaderの１イテレーションから，
-        適宜back propagationし，
-        lossを返す．
-
-        xs: shapeは[100, 20, 654]
-        yq: qのonehot配列からなる配列
-        ya: aの0,1 intからなる配列
         '''
-        out = self.forward(xseq, yseq)
+        out = self.forward(xseq, yseq, mask)
         loss = out['loss']
 
         if opt:
