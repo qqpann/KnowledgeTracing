@@ -230,12 +230,12 @@ class Trainer(object):
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
             actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
-        auc_v = metrics.auc(fpr_v, tpr_v)
+        auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': loss_ar.mean(),
             'auc': auc,
-            'ksv_auc': auc_v,
+            'ksv_auc': auc_ksv,
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
