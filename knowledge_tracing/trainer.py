@@ -93,7 +93,8 @@ class Trainer(object):
         return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
 
     def get_opt(self, model):
-        # opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
+        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
+        if self.config.model_name == 'dkvmn':
         opt = torch.optim.Adam(params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
@@ -203,12 +204,13 @@ class Trainer(object):
             wvn2_ar[i] = out.get('waviness_l2')
             ksv1_ar[i] = out.get('ksvector_l1')
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
-            if out.get('pred_prob'):
+            if out.get('pred_prob', False) is not False:
+                # print(out['pred_prob'], out['pred_prob'].shape)
                 pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
-            if out.get('Sdq'):
+            if out.get('Sdq', False) is not False:
                 pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
                     .detach().view(-1).cpu()
                 actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
