@@ -344,16 +344,20 @@ def prepare_dummy_dataloader(config, seq_size, batch_size, device):
 
     x_values = []
     y_values = []
+    y_mask = []
     for v in knowledge_concepts_set:
         # wrong
         x_values.append([(v, 0) for _ in range(seq_size)])
         y_values.append([(v, 0) for _ in range(seq_size)])
+        y_mask.append([True] * seq_size)
         # correct
         x_values.append([(v, 1) for _ in range(seq_size)])
         y_values.append([(v, 1) for _ in range(seq_size)])
+        y_mask.append([True] * seq_size)
     dummy_ds = TensorDataset(
         torch.LongTensor(x_values).to(device), 
         torch.LongTensor(y_values).to(device), 
+        torch.BoolTensor(y_mask).to(device),
     )
     dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
     return dummy_dl

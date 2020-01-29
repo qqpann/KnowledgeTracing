@@ -102,6 +102,7 @@ class Trainer(object):
         epoch_size = self.config.pre_dummy_epoch_size
         if epoch_size == 0:
             return
+        self.logger.info('Start pre train')
         real_batch_size = self.model.config.batch_size
         try:
             self.model.batch_size = 1
@@ -112,8 +113,8 @@ class Trainer(object):
         self.model.config.batch_size = 1
         for epoch in range(1, epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(self.dummy_dl):
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+            for i, (xseq, yseq, mask) in enumerate(self.dummy_dl):
+                out = self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
         self.model.batch_size = real_batch_size
         self.model.config.batch_size = real_batch_size
 
