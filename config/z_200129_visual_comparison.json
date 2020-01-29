@@ -1,0 +1,36 @@
+{
+  "common": {
+    "model_name": "ksdkt",
+    "source_data": "Asteria_Eng_ver5",
+    "n_skills": 326,
+    "sequence_size": 20,
+    "epoch_size": 1000,
+    "pre_dummy_epoch_size": 10,
+    "batch_size": 100,
+    "lr": 0.1,
+    "waviness_l1": true,
+    "waviness_l2": true
+  },
+  "experiments": [
+    {
+      "exp_name": "pre-ks00-nopad",
+      "ksvector_l1": 0.0,
+      "pad": false
+    },
+    {
+      "exp_name": "pre-ks05-nopad",
+      "ksvector_l1": 0.5,
+      "pad": false
+    },
+    {
+      "exp_name": "pre-ks00-pad",
+      "ksvector_l1": 0.0,
+      "pad": true
+    },
+    {
+      "exp_name": "pre-ks05-pad",
+      "ksvector_l1": 0.5,
+      "pad": true
+    }
+  ]
+}
