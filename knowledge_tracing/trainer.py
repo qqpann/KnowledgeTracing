@@ -48,7 +48,7 @@ class Trainer(object):
         self._report['indicator'][key].append(val)
 
     def get_logger(self, config):
-        logging.basicConfig()
+        logging.basicConfig()  # this is suppressed by former setup in main.py
         logger = logging.getLogger(
             '{}/{}'.format(config.model_name, config.exp_name))
         logger.setLevel(logging.INFO)
@@ -95,7 +95,7 @@ class Trainer(object):
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         if self.config.model_name == 'dkvmn':
-        opt = torch.optim.Adam(params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
+            opt = torch.optim.Adam(params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
     def pre_train_model(self):
@@ -195,6 +195,11 @@ class Trainer(object):
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
         ksv1_ar = np.zeros(arr_len)
+        # ##
+        # if self.config.model_name == 'dkvmn':
+        #     pred_list = []
+        #     target_list = []
+        # ##
         if only_eval:
             q_all_count = defaultdict(int)
             q_cor_count = defaultdict(int)
@@ -206,6 +211,13 @@ class Trainer(object):
             wvn1_ar[i] = out.get('waviness_l1')
             wvn2_ar[i] = out.get('waviness_l2')
             ksv1_ar[i] = out.get('ksvector_l1')
+            # ##
+            # if self.config.model_name == 'dkvmn':
+            #     right_target = np.asarray(out.get('filtered_target').data.tolist())
+            #     right_pred = np.asarray(out.get('filtered_pred').data.tolist())
+            #     pred_list.append(right_pred)
+            #     target_list.append(right_target)
+            # ##
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
             if out.get('pred_prob', False) is not False:
                 # print(out['pred_prob'], out['pred_prob'].shape)
@@ -227,11 +239,21 @@ class Trainer(object):
 
             if self.config.debug:
                 break
+        # #
+        # if self.config.model_name == 'dkvmn':
+        #     all_pred = np.concatenate(pred_list, axis=0)
+        #     all_target = np.concatenate(target_list, axis=0)
+        # #
+        # AUC
+        # fpr, tpr, _thresholds = metrics.roc_curve(
+        #     actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
 
         fpr, tpr, _thresholds = metrics.roc_curve(
             torch.cat(actu_ls).detach().cpu().numpy().reshape(-1), 
             torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        # if self.config.model_name == 'dkvmn':
+        #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
             actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
