@@ -25,8 +25,10 @@ from src.save import save_model, save_log, save_hm_fig, save_learning_curve
 from src.slack import slack_message
 from knowledge_tracing.trainer import Trainer
 
-logging.basicConfig()
-logger = logging.getLogger(__file__)
+logging.basicConfig(
+    format='%(levelname)s : %(asctime)s : %(name)s \t| %(message)s',
+    datefmt='%H:%M')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
