@@ -26,7 +26,7 @@ from src.slack import slack_message
 from knowledge_tracing.trainer import Trainer
 
 logging.basicConfig(
-    format='%(levelname)s : %(asctime)s : %(name)s \t| %(message)s',
+    format='%(levelname)s : %(process)d : %(asctime)s : %(name)s \t| %(message)s',
     datefmt='%H:%M')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
