@@ -11,6 +11,7 @@ from collections import defaultdict
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
+from src.logging import get_logger
 from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
 from model.dkt import DKT
@@ -48,10 +49,12 @@ class Trainer(object):
         self._report['indicator'][key].append(val)
 
     def get_logger(self, config):
-        logging.basicConfig()  # this is suppressed by former setup in main.py
-        logger = logging.getLogger(
-            '{}/{}'.format(config.model_name, config.exp_name))
-        logger.setLevel(logging.INFO)
+        outdir = config.resultsdir / 'report' / config.starttime
+        outdir.mkdir(parents=True, exist_ok=True)
+        logger = get_logger(
+            '{}/{}'.format(config.model_name, config.exp_name),
+            outdir / '{}_{}.log'.format(config.config_name, config.exp_name)
+        )
         return logger
 
     def get_device(self, config):
@@ -82,7 +85,8 @@ class Trainer(object):
         return model
 
     def get_dataloader(self, config, device):
-        train_dl, eval_dl = prepare_dataloader(config, device=device, pad=config.pad)
+        train_dl, eval_dl = prepare_dataloader(
+            config, device=device, pad=config.pad)
         self.logger.info(
             'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
         self.logger.info(
@@ -95,7 +99,8 @@ class Trainer(object):
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         if self.config.model_name == 'dkvmn':
-            opt = torch.optim.Adam(params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
+            opt = torch.optim.Adam(params=model.parameters(
+            ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
     def pre_train_model(self):
@@ -249,7 +254,7 @@ class Trainer(object):
         #     actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
 
         fpr, tpr, _thresholds = metrics.roc_curve(
-            torch.cat(actu_ls).detach().cpu().numpy().reshape(-1), 
+            torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
             torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
         # if self.config.model_name == 'dkvmn':
@@ -323,7 +328,8 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 0)
                                   for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
+                    torch.BoolTensor(
+                        [True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
@@ -332,7 +338,8 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 1)
                                   for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
+                    torch.BoolTensor(
+                        [True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
