@@ -30,6 +30,15 @@ from knowledge_tracing.trainer import Trainer
 logger = get_logger(__name__, 'tmp.log')
 
 
+def seed_everything(seed: int=42):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+
 def main(configpath: Path):
     with open(configpath, 'r') as f:
         cfg = json.load(f)
@@ -54,12 +63,7 @@ def main(configpath: Path):
 
 
 def run(config):
-    SEED = 42
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
+    seed_everything()
 
     trainer = Trainer(config)
     if not config.load_model:

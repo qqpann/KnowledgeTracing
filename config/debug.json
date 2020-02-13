@@ -6,13 +6,11 @@
     {
       "exp_name": "debug1",
       "model_name": "ksdkt",
-      "pad": true,
       "epoch_size": 100
     },
     {
-      "exp_name": "debug",
+      "exp_name": "debug2",
       "model_name": "ksdkt",
-      "pad": false,
       "epoch_size": 100
     }
   ]
