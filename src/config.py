@@ -60,7 +60,11 @@ class Config(BaseConfig):
         self.projectpdir = projectdir
         self.outdir = projectdir / 'output'
         self.outdir.mkdir(exist_ok=True)
-        self.starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        self.starttime = self._init_starttime()
+
+    def _init_starttime(self):
+        """ starttime won't change once set. """
+        return datetime.datetime.now().strftime('%Y%m%d-%H%M')
 
     @property
     def resultsdir(self):
