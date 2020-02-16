@@ -23,11 +23,20 @@ from src.utils import sAsMinutes, timeSince
 from src.config import get_option_fallback, Config
 from src.save import save_model, save_log, save_hm_fig, save_learning_curve
 from src.slack import slack_message
+from src.logging import get_logger
 from knowledge_tracing.trainer import Trainer
 
-logging.basicConfig()
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
+
+logger = get_logger(__name__, 'tmp.log')
+
+
+def seed_everything(seed: int=42):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
 
 
 def main(configpath: Path):
@@ -38,13 +47,15 @@ def main(configpath: Path):
     default_cfg['config_name'] = configpath.stem
     projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
     experiments = cfg['experiments']
-    assert len(experiments) == len(set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
+    assert len(experiments) == len(
+        set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
     cmn_dict = cfg.get('common', dict())
     cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
     for exp_dict in experiments:
         config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
         config = Config(config_dict, projectdir=projectdir)
-        logger.info('\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
+        logger.info(
+            '\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
 
         run(config)
     logger.info('All experiments done!')
@@ -52,12 +63,7 @@ def main(configpath: Path):
 
 
 def run(config):
-    SEED = 42
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
+    seed_everything()
 
     trainer = Trainer(config)
     if not config.load_model:

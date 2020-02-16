@@ -239,7 +239,7 @@ def slice_d(d: List, x_seq_size:int, type:str='base', sliding_window:int=0, reve
     return result 
         
 
-def slice_data_list(d: List, seq_size: int):
+def slice_data_list(d: List, seq_size: int, pad=False):
     '''
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
     >>> list(slice_data_list(d, seq_size=3))
@@ -247,10 +247,20 @@ def slice_data_list(d: List, seq_size: int):
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     >>> list(slice_data_list(d, seq_size=3))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    >>> list(slice_data_list(d, seq_size=3, pad=True))
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    >>> list(slice_data_list(d, seq_size=3, pad=True))
+    [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]
     '''
     max_iter = len(d) // seq_size
+    if pad:
+        max_iter += 1
     for i in range(0, max_iter):
-        yield d[i * seq_size : i * seq_size + seq_size]
+        res = d[i * seq_size : i * seq_size + seq_size]
+        if len(res) <= 1:
+            return
+        yield res
 
 
 def split_encdec(xsty_seq:List, extend_backward=0, extend_forward=0) -> (List, List, List):
@@ -275,7 +285,7 @@ def split_encdec(xsty_seq:List, extend_backward=0, extend_forward=0) -> (List, L
     return x_src, x_trg, y
     
 
-def prepare_dataloader(config, device):
+def prepare_dataloader(config, device, pad=False):
     '''
     '''
     data = load_source(config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
@@ -292,17 +302,23 @@ def prepare_dataloader(config, device):
     def get_ds(data):
         x_values = []
         y_values = []
+        y_mask = []
         for d in data:
             if len(d) < sequence_size + 1:
                 continue
             # x and y seqsize is sequence_size + 1
-            for xy_seq in slice_data_list(d, seq_size=sequence_size + 1):
+            for xy_seq in slice_data_list(d, seq_size=sequence_size + 1, pad=pad):
+                seq_actual_size = len(xy_seq)
+                if pad == True and seq_actual_size < sequence_size+1:
+                    xy_seq = xy_seq + [(0, 2)]*(sequence_size+1-seq_actual_size)
                 x_values.append(xy_seq[:-1])
                 y_values.append(xy_seq[1:])
+                y_mask.append([True]*(seq_actual_size - 1) + [False]*(sequence_size + 1 - seq_actual_size))
 
         all_ds = TensorDataset(
             torch.LongTensor(x_values).to(device), 
             torch.LongTensor(y_values).to(device), 
+            torch.BoolTensor(y_mask).to(device),
         )
         return all_ds
     
@@ -328,16 +344,20 @@ def prepare_dummy_dataloader(config, seq_size, batch_size, device):
 
     x_values = []
     y_values = []
+    y_mask = []
     for v in knowledge_concepts_set:
         # wrong
         x_values.append([(v, 0) for _ in range(seq_size)])
         y_values.append([(v, 0) for _ in range(seq_size)])
+        y_mask.append([True] * seq_size)
         # correct
         x_values.append([(v, 1) for _ in range(seq_size)])
         y_values.append([(v, 1) for _ in range(seq_size)])
+        y_mask.append([True] * seq_size)
     dummy_ds = TensorDataset(
         torch.LongTensor(x_values).to(device), 
         torch.LongTensor(y_values).to(device), 
+        torch.BoolTensor(y_mask).to(device),
     )
     dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
     return dummy_dl
