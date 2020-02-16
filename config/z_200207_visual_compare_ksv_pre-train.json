@@ -1,0 +1,72 @@
+{
+  "common": {
+    "model_name": "ksdkt",
+    "source_data": "Asteria_Eng_ver5",
+    "n_skills": 326,
+    "sequence_size": 20,
+    "epoch_size": 300,
+    "pre_dummy_epoch_size": 10,
+    "batch_size": 100,
+    "lr": 0.1,
+    "waviness_l1": true,
+    "waviness_l2": true,
+    "pad": true
+  },
+  "experiments": [
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks000/checkpoints/20200207-0945/ksdkt_auc0.6669_e200.model",
+      "exp_name": "ks000",
+      "ksvector_l1": 0.0
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks025/checkpoints/20200207-1004/ksdkt_auc0.6674_e200.model",
+      "exp_name": "ks025",
+      "ksvector_l1": 0.25
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks050/checkpoints/20200207-1022/ksdkt_auc0.6672_e200.model",
+      "exp_name": "ks050",
+      "ksvector_l1": 0.5
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks075/checkpoints/20200207-1041/ksdkt_auc0.6672_e300.model",
+      "exp_name": "ks075",
+      "ksvector_l1": 0.75
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks100/checkpoints/20200207-1100/ksdkt_auc0.6672_e200.model",
+      "exp_name": "ks100",
+      "ksvector_l1": 1.0
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks125/checkpoints/20200207-1119/ksdkt_auc0.6670_e200.model",
+      "exp_name": "ks125",
+      "ksvector_l1": 1.25
+    },
+    {
+      "load_model": "output/z_200207_visual_compare_ksv_pre-train/ks150/checkpoints/20200207-1137/ksdkt_auc0.6675_e200.model",
+      "exp_name": "ks150",
+      "ksvector_l1": 1.5
+    },
+    {
+      "exp_name": "ks200",
+      "ksvector_l1": 2.0
+    },
+    {
+      "exp_name": "ks250",
+      "ksvector_l1": 2.5
+    },
+    {
+      "exp_name": "ks300",
+      "ksvector_l1": 3.0
+    },
+    {
+      "exp_name": "ks400",
+      "ksvector_l1": 4.0
+    },
+    {
+      "exp_name": "ks500",
+      "ksvector_l1": 5.0
+    }
+  ]
+}

@@ -9,7 +9,7 @@
       "epoch_size": 100
     },
     {
-      "exp_name": "debug",
+      "exp_name": "debug2",
       "model_name": "ksdkt",
       "epoch_size": 100
     }

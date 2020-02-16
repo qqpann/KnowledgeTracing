@@ -11,11 +11,13 @@ from collections import defaultdict
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
+from src.logging import get_logger
 from model.geddkt import GEDDKT
 from model.eddkt import EDDKT
 from model.dkt import DKT
 from model.ksdkt import KSDKT
 from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from model.dkvmn import MODEL as DKVMN
 
 
 class Trainer(object):
@@ -47,10 +49,12 @@ class Trainer(object):
         self._report['indicator'][key].append(val)
 
     def get_logger(self, config):
-        logging.basicConfig()
-        logger = logging.getLogger(
-            '{}/{}'.format(config.model_name, config.exp_name))
-        logger.setLevel(logging.INFO)
+        outdir = config.resultsdir / 'report' / config.starttime
+        outdir.mkdir(parents=True, exist_ok=True)
+        logger = get_logger(
+            '{}/{}'.format(config.model_name, config.exp_name),
+            outdir / '{}_{}.log'.format(config.config_name, config.exp_name)
+        )
         return logger
 
     def get_device(self, config):
@@ -69,6 +73,8 @@ class Trainer(object):
             model = DKT(config, device).to(device)
         elif config.model_name == 'ksdkt':
             model = KSDKT(config, device).to(device)
+        elif config.model_name == 'dkvmn':
+            model = DKVMN(config, device).to(device)
         else:
             raise ValueError(f'model_name {config.model_name} is wrong')
 
@@ -79,7 +85,8 @@ class Trainer(object):
         return model
 
     def get_dataloader(self, config, device):
-        train_dl, eval_dl = prepare_dataloader(config, device=device)
+        train_dl, eval_dl = prepare_dataloader(
+            config, device=device, pad=config.pad)
         self.logger.info(
             'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
         self.logger.info(
@@ -91,12 +98,16 @@ class Trainer(object):
 
     def get_opt(self, model):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
+        if self.config.model_name == 'dkvmn':
+            opt = torch.optim.Adam(params=model.parameters(
+            ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
     def pre_train_model(self):
         epoch_size = self.config.pre_dummy_epoch_size
         if epoch_size == 0:
             return
+        self.logger.info('Start pre train')
         real_batch_size = self.model.config.batch_size
         try:
             self.model.batch_size = 1
@@ -107,8 +118,8 @@ class Trainer(object):
         self.model.config.batch_size = 1
         for epoch in range(1, epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(self.dummy_dl):
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+            for i, (xseq, yseq, mask) in enumerate(self.dummy_dl):
+                out = self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
         self.model.batch_size = real_batch_size
         self.model.config.batch_size = real_batch_size
 
@@ -179,6 +190,8 @@ class Trainer(object):
         arr_len = len(dl) if not self.config.debug else 1
         pred_mx = np.zeros([arr_len, self.config.batch_size])
         actu_mx = np.zeros([arr_len, self.config.batch_size])
+        pred_ls = []
+        actu_ls = []
         pred_v_mx = np.zeros(
             [arr_len, self.config.batch_size * self.config.n_skills])
         actu_v_mx = np.zeros(
@@ -187,25 +200,42 @@ class Trainer(object):
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
         ksv1_ar = np.zeros(arr_len)
+        # ##
+        # if self.config.model_name == 'dkvmn':
+        #     pred_list = []
+        #     target_list = []
+        # ##
         if only_eval:
             q_all_count = defaultdict(int)
             q_cor_count = defaultdict(int)
             q_pred_list = defaultdict(list)
-        for i, (xseq, yseq) in enumerate(dl):
+        for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
-            out = self.model.loss_batch(xseq, yseq, opt=opt)
+            out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
             loss_ar[i] = out['loss'].item()
             wvn1_ar[i] = out.get('waviness_l1')
             wvn2_ar[i] = out.get('waviness_l2')
             ksv1_ar[i] = out.get('ksvector_l1')
+            # ##
+            # if self.config.model_name == 'dkvmn':
+            #     right_target = np.asarray(out.get('filtered_target').data.tolist())
+            #     right_pred = np.asarray(out.get('filtered_pred').data.tolist())
+            #     pred_list.append(right_pred)
+            #     target_list.append(right_target)
+            # ##
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
-            pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            if out.get('pred_prob', False) is not False:
+                # print(out['pred_prob'], out['pred_prob'].shape)
+                pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+                pred_ls.append(out['filtered_pred'])
+                actu_ls.append(out['filtered_target'])
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
-            pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
-                .detach().view(-1).cpu()
-            actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
+            if out.get('Sdq', False) is not False:
+                pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
+                    .detach().view(-1).cpu()
+                actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
             if only_eval:
                 for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
                     q_all_count[q.item()] += 1
@@ -214,20 +244,30 @@ class Trainer(object):
 
             if self.config.debug:
                 break
-
+        # #
+        # if self.config.model_name == 'dkvmn':
+        #     all_pred = np.concatenate(pred_list, axis=0)
+        #     all_target = np.concatenate(target_list, axis=0)
+        # #
         # AUC
+        # fpr, tpr, _thresholds = metrics.roc_curve(
+        #     actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
+
         fpr, tpr, _thresholds = metrics.roc_curve(
-            actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
+            torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        # if self.config.model_name == 'dkvmn':
+        #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
             actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
-        auc_v = metrics.auc(fpr_v, tpr_v)
+        auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': loss_ar.mean(),
             'auc': auc,
-            'ksv_auc': auc_v,
+            'ksv_auc': auc_ksv,
             'waviness_l1': wvn1_ar.mean(),
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
@@ -273,6 +313,9 @@ class Trainer(object):
 
             self.logger.info(f'{timeSince(start_time, 1)}')
 
+            # BAD: avoid error for only DKVMN
+            if self.config.model_name == 'dkvmn':
+                return
             bad = 0
             good = 0
             self.model.batch_size = 1
@@ -285,6 +328,8 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 0)
                                   for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor(
+                        [True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
@@ -293,6 +338,8 @@ class Trainer(object):
                                   for _ in range(dummy_len)]).unsqueeze(0),
                     torch.Tensor([(v, 1)
                                   for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor(
+                        [True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
