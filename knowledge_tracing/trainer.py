@@ -12,11 +12,10 @@ from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatm
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
-from model.geddkt import GEDDKT
-from model.eddkt import EDDKT
 from model.dkt import DKT
 from model.ksdkt import KSDKT
-from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from model.eddkt import EDDKT
+from model.geddkt import GEDDKT
 from model.dkvmn import MODEL as DKVMN
 
 
@@ -42,15 +41,15 @@ class Trainer(object):
     def init_report(self):
         self._report = {
             'config': self.config.as_dict(),
-            'indicator': defaultdict(list)
+            'indicator': defaultdict(lambda: defaultdict(list))
         }
 
     def dump_report(self):
         # self._report['indicator'] = dict(self._report['indicator'])
         save_report(self.config, self._report)
 
-    def report(self, key, val):
-        self._report['indicator'][key].append(val)
+    def report(self, k, key, val):
+        self._report['indicator'][key][k].append(val)
 
     def get_logger(self, config):
         outdir = config.resultsdir / 'report' / config.starttime
@@ -108,16 +107,16 @@ class Trainer(object):
         return opt
 
     def kfold(self):
+        self.init_report()
         test_dl = self.dh.get_test_dl()
-        for train_dl, valid_dl in self.dh.gen_trainval_dl():
+        for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
             self.init_model()
-            self.init_report()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
-            self.train_model(train_dl, valid_dl)
+            self.train_model(k, train_dl, valid_dl)
 
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
-            self.test_model(test_dl)
+            self.test_model(k, test_dl)
 
     def pre_train_model(self):
         epoch_size = self.config.pre_dummy_epoch_size
@@ -139,7 +138,7 @@ class Trainer(object):
         self.model.batch_size = real_batch_size
         self.model.config.batch_size = real_batch_size
 
-    def train_model(self, train_dl, valid_dl, validate=True):
+    def train_model(self, k, train_dl, valid_dl, validate=True):
         self.pre_train_model()
         self.logger.info('Starting train')
         best = {
@@ -153,9 +152,9 @@ class Trainer(object):
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
-                self.report('epoch', epoch)
-                self.report('train_loss', t_loss)
-                self.report('train_auc', t_auc)
+                self.report(k, 'epoch', epoch)
+                self.report(k, 'train_loss', t_loss)
+                self.report(k, 'train_auc', t_auc)
             if epoch % 100 == 0:
                 self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, t_loss, t_auc))
@@ -165,12 +164,12 @@ class Trainer(object):
                     self.model.eval()
                     v_idc = self.exec_core(dl=valid_dl, opt=None)
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
-                self.report('eval_loss', v_loss)
-                self.report('eval_auc', v_auc)
-                self.report('ksvector_l1', v_idc['ksvector_l1'])
+                self.report(k, 'eval_loss', v_loss)
+                self.report(k, 'eval_auc', v_auc)
+                self.report(k, 'ksvector_l1', v_idc['ksvector_l1'])
                 if self.config.waviness_l1 or self.config.waviness_l2:
-                    self.report('waviness_l1', v_idc['waviness_l1'])
-                    self.report('waviness_l2', v_idc['waviness_l2'])
+                    self.report(k, 'waviness_l1', v_idc['waviness_l1'])
+                    self.report(k, 'waviness_l2', v_idc['waviness_l2'])
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -198,7 +197,7 @@ class Trainer(object):
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
         save_learning_curve(
-            {k: self._report['indicator'][k] for k in
+            {key: self._report['indicator'][key][k] for key in
              ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
               'ksvector_l1', 'waviness_l1', 'waviness_l2']},
             self.config)
@@ -300,19 +299,16 @@ class Trainer(object):
             for i, (xseq, yseq) in enumerate(train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    def test_model(self, test_dl):
+    def test_model(self, k, test_dl):
         self.logger.info('Starting evaluation')
         start_time = time.time()
         with torch.no_grad():
             self.model.eval()
-            indicators = self.exec_core(
-                dl=test_dl, opt=None, only_eval=True)
+            indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
-            self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
-                v_loss, v_auc))
-            self.logger.info('\tValid KSV AUC: {:.6}'.format(
-                indicators['ksv_auc']))
+            self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
+            self.logger.info('\tValid KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
