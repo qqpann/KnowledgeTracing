@@ -39,7 +39,7 @@ def seed_everything(seed: int = 42):
     torch.backends.cudnn.deterministic = True
 
 
-def main(configpath: Path):
+def run(configpath: Path):
     with open(configpath, 'r') as f:
         cfg = json.load(f)
     with open(configpath.parent.parent / 'fallback.json', 'r') as f:
@@ -73,4 +73,4 @@ if __name__ == '__main__':
     config = sys.argv[1]
     config = Path(config)
     assert config.exists(), config
-    main(config)
+    run(config)
