@@ -1,27 +1,12 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
 import os
 import sys
-import random
-import time
-import datetime
-import logging
-from pprint import pprint
 import json
-import pickle
-from pathlib import Path
-from typing import List, Tuple, Set, Dict  # noqa
-
+import torch
+import random
 import numpy as np
-from sklearn import metrics
-import seaborn as sns
-import matplotlib.pyplot as plt
+from pathlib import Path
 
-from src.utils import sAsMinutes, timeSince
 from src.config import get_option_fallback, Config
-from src.save import save_model, save_log, save_hm_fig, save_learning_curve
 from src.slack import slack_message
 from src.logging import get_logger
 from knowledge_tracing.trainer import Trainer
