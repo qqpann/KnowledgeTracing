@@ -49,8 +49,6 @@ def main(configpath: Path):
 
     config_dict = get_option_fallback(cfg, fallback=default_cfg)
     config_dict['exp_name'] = configpath.stem
-    # pprint(cfg)
-    # pprint(config_dict)
     config = Config(config_dict, projectdir=projectdir)
     logger.info('Starting Experiment: {}'.format(config.exp_name))
 
