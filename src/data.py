@@ -5,7 +5,7 @@ from typing import List, Tuple, Set, Dict
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 
 import torch
 from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
@@ -293,21 +293,91 @@ def split_encdec(xsty_seq: List, extend_backward=0, extend_forward=0) -> (List, 
     return x_src, x_trg, y
 
 
+class DataHandler:
+    def __init__(self, config, device, folds: int = 5):
+        self.config = config
+        self.device = device
+        self.folds = folds
+        all_data = self.get_data()
+        self.trainval_data, self.test_data = train_test_split(all_data, test_size=0.2)
+
+        M = self.config.n_skills
+        N = ceil(log(2 * M))
+        qa_emb = QandAEmbedder(M, self.config.sequence_size)
+
+    def prepare_dataloader(self):
+        return prepare_dataloader(self.config, self.device, self.config.pad)
+
+    def get_data(self):
+        return load_source(self.config.source_data)
+
+    def get_kfold(self, folds, random_state=None):
+        return KFold(n_splits=folds, shuffle=True, random_state=random_state)
+
+    @staticmethod
+    def get_ds(config, device, data, data_idx):
+        x_values = []
+        y_values = []
+        y_mask = []
+        for idx in data_idx:
+            d = data[idx]
+            if len(d) < config.sequence_size + 1:
+                continue
+            # x and y seqsize is sequence_size + 1
+            for xy_seq in slice_data_list(d, seq_size=config.sequence_size + 1, pad=config.pad):
+                seq_actual_size = len(xy_seq)
+                if config.pad == True and seq_actual_size < config.sequence_size+1:
+                    xy_seq = xy_seq + [(0, 2)] * (config.sequence_size+1-seq_actual_size)
+                x_values.append(xy_seq[:-1])
+                y_values.append(xy_seq[1:])
+                y_mask.append([True]*(seq_actual_size - 1) +
+                              [False]*(config.sequence_size + 1 - seq_actual_size))
+
+        all_ds = TensorDataset(
+            torch.LongTensor(x_values).to(device),
+            torch.LongTensor(y_values).to(device),
+            torch.BoolTensor(y_mask).to(device),
+        )
+        return all_ds
+
+    def get_test_dl(self):
+        test_ds = self.get_ds(self.config, self.device, self.test_data, range(len(self.test_data)))
+        test_dl = DataLoader(test_ds, batch_size=self.config.batch_size, drop_last=True)
+        return test_dl
+
+    def gen_trainval_dl(self):
+        kf = self.get_kfold(self.folds)
+
+        for train_idx, valid_idx in kf.split(self.trainval_data):
+            train_ds = self.get_ds(self.config, self.device, self.trainval_data, train_idx)
+            valid_ds = self.get_ds(self.config, self.device, self.trainval_data, valid_idx)
+
+            train_dl = DataLoader(
+                train_ds, batch_size=self.config.batch_size, drop_last=True)
+            valid_dl = DataLoader(
+                valid_ds, batch_size=self.config.batch_size, drop_last=True)
+            yield train_dl, valid_dl
+
+
+# load_source->list
+# train, valid, test split based on index
+#
+
+
 def prepare_dataloader(config, device, pad=False):
     '''
     '''
     data = load_source(
         config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
 
-    M = config.n_skills
-    sequence_size = config.sequence_size
-    N = ceil(log(2 * M))
-
-    qa_emb = QandAEmbedder(M, sequence_size)
-
     train_num = int(len(data) * .8)
     train_data, eval_data = random_split(
         data, [train_num, len(data) - train_num])
+
+    M = config.n_skills
+    sequence_size = config.sequence_size
+    N = ceil(log(2 * M))
+    qa_emb = QandAEmbedder(M, sequence_size)
 
     def get_ds(data):
         x_values = []

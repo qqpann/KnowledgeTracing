@@ -8,7 +8,7 @@ from math import log, ceil
 from sklearn import metrics
 from collections import defaultdict
 
-from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader
+from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
@@ -26,16 +26,20 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
-        self.train_dl, self.eval_dl = self.get_dataloader(
-            self.config, self.device)
+        self.dh = DataHandler(self.config, self.device, folds=5)
         self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
-        model = self.get_model(self.config, self.device)
+
+    def init_model(self):
+        self.model = self.get_model(self.config, self.device)
+        self.opt = self.get_opt(self.model)
+
+    def load_model(self):
         if self.config.load_model:
             model.load_state_dict(torch.load(str(self.config.load_model_path)))
             model = model.to(self.device)
         self.model = model
-        self.opt = self.get_opt(self.model)
 
+    def init_report(self):
         self._report = {
             'config': self.config.as_dict(),
             'indicator': defaultdict(list)
@@ -103,6 +107,18 @@ class Trainer(object):
             ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
         return opt
 
+    def kfold(self):
+        test_dl = self.dh.get_test_dl()
+        for train_dl, valid_dl in self.dh.gen_trainval_dl():
+            self.init_model()
+            self.init_report()
+            self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+            self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+            self.train_model(train_dl, valid_dl)
+
+            self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
+            self.test_model(test_dl)
+
     def pre_train_model(self):
         epoch_size = self.config.pre_dummy_epoch_size
         if epoch_size == 0:
@@ -123,7 +139,8 @@ class Trainer(object):
         self.model.batch_size = real_batch_size
         self.model.config.batch_size = real_batch_size
 
-    def train_model(self, validate=True):
+    def train_model(self, train_dl, valid_dl, validate=True):
+        self.pre_train_model()
         self.logger.info('Starting train')
         best = {
             'auc': 0.,
@@ -132,7 +149,7 @@ class Trainer(object):
         start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            t_idc = self.exec_core(self.train_dl, self.opt)
+            t_idc = self.exec_core(train_dl, self.opt)
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
@@ -146,7 +163,7 @@ class Trainer(object):
             if epoch % 10 == 0 and validate:
                 with torch.no_grad():
                     self.model.eval()
-                    v_idc = self.exec_core(dl=self.eval_dl, opt=None)
+                    v_idc = self.exec_core(dl=valid_dl, opt=None)
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
                 self.report('eval_loss', v_loss)
                 self.report('eval_auc', v_auc)
@@ -276,20 +293,20 @@ class Trainer(object):
             indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
-    def _train_model_simple(self):
+    def _train_model_simple(self, train_dl):
         '''最小構成を見て基本を思い出す'''
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(self.train_dl):
+            for i, (xseq, yseq) in enumerate(train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    def evaluate_model(self):
+    def test_model(self, test_dl):
         self.logger.info('Starting evaluation')
         start_time = time.time()
         with torch.no_grad():
             self.model.eval()
             indicators = self.exec_core(
-                dl=self.eval_dl, opt=None, only_eval=True)
+                dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
             self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
@@ -318,28 +335,23 @@ class Trainer(object):
                 return
             bad = 0
             good = 0
+            bak_batch_size = self.model.batch_size
             self.model.batch_size = 1
             self.model.config.batch_size = 1
             dummy_len = self.config.sequence_size
             for v in range(self.config.n_skills):
                 # wrong
                 wro = self.model.loss_batch(
-                    torch.Tensor([(v, 0)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 0)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor(
-                        [True]*self.config.sequence_size).unsqueeze(0),
+                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 wro = wro['pred_prob']
                 # correct
                 cor = self.model.loss_batch(
-                    torch.Tensor([(v, 1)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 1)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor(
-                        [True]*self.config.sequence_size).unsqueeze(0),
+                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
+                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
                     opt=None)
                 cor = cor['pred_prob']
                 if (cor - wro)[-1].item() < 0:
@@ -347,6 +359,8 @@ class Trainer(object):
                 else:
                     good += 1
             self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
+            self.model.batch_size = bak_batch_size
+            self.model.config.batch_size = bak_batch_size
 
     def evaluate_model_heatmap(self):
         uid, heat_dl = prepare_heatmap_dataloader(
