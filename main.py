@@ -30,7 +30,7 @@ from knowledge_tracing.trainer import Trainer
 logger = get_logger(__name__, 'tmp.log')
 
 
-def seed_everything(seed: int=42):
+def seed_everything(seed: int = 42):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
@@ -42,41 +42,33 @@ def seed_everything(seed: int=42):
 def main(configpath: Path):
     with open(configpath, 'r') as f:
         cfg = json.load(f)
-    with open(configpath.parent / 'fallback.json', 'r') as f:
+    with open(configpath.parent.parent / 'fallback.json', 'r') as f:
         default_cfg = json.load(f)
-    default_cfg['config_name'] = configpath.stem
+    default_cfg['config_name'] = configpath.parent.name
     projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
-    experiments = cfg['experiments']
-    assert len(experiments) == len(
-        set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
-    cmn_dict = cfg.get('common', dict())
-    cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
-    for exp_dict in experiments:
-        config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
-        config = Config(config_dict, projectdir=projectdir)
-        logger.info(
-            '\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
 
-        run(config)
+    config_dict = get_option_fallback(cfg, fallback=default_cfg)
+    config_dict['exp_name'] = configpath.stem
+    # pprint(cfg)
+    # pprint(config_dict)
+    config = Config(config_dict, projectdir=projectdir)
+    logger.info('Starting Experiment: {}'.format(config.exp_name))
+
+    seed_everything()
+    trainer = Trainer(config)
+    if config.load_model:
+        # trainer.evaluate_model()
+        # trainer.evaluate_model_heatmap()
+        logger.info('All evaluations done!?')
+        return
+    try:
+        trainer.kfold()
+    except KeyboardInterrupt as e:
+        print(e)
+    finally:
+        trainer.dump_report()
     logger.info('All experiments done!')
     slack_message('All experiments done for {}'.format(configpath.stem))
-
-
-def run(config):
-    seed_everything()
-
-    trainer = Trainer(config)
-    if not config.load_model:
-        try:
-            trainer.pre_train_model()
-            trainer.train_model()
-        except KeyboardInterrupt as e:
-            print(e)
-        finally:
-            trainer.dump_report()
-
-    trainer.evaluate_model()
-    # trainer.evaluate_model_heatmap()
 
 
 if __name__ == '__main__':

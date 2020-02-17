@@ -1,0 +1,5 @@
+{
+  "debug": true,
+  "model_name": "ksdkt",
+  "epoch_size": 100
+}
