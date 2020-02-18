@@ -39,10 +39,17 @@ def run(configpath: Path):
 
     seed_everything()
     trainer = Trainer(config)
+    if not config.overwrite and trainer.check_prev_report():
+        report_path, checkpoint_path = trainer.check_prev_report()
+        with open(report_path, 'r') as f:
+            report_dict = json.load(f)
+        config_dict = report_dict['config']
+        config_dict['load_model'] = str(checkpoint_path)
+        config = Config(config_dict, projectdir=projectdir)
     if config.load_model:
-        # trainer.evaluate_model()
+        trainer.evaluate_model()
         # trainer.evaluate_model_heatmap()
-        logger.info('All evaluations done!?')
+        logger.info('All evaluations done!')
         return
     try:
         trainer.kfold()
