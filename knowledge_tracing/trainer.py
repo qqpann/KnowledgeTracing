@@ -291,15 +291,15 @@ class Trainer(object):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
     def test_model(self, k, test_dl):
-        self.logger.info('Starting evaluation')
+        self.logger.info('Starting test')
         start_time = time.time()
         with torch.no_grad():
             self.model.eval()
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
-            self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
-            self.logger.info('\tValid KSV AUC: {:.6}'.format(indicators['ksv_auc']))
+            self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
+            self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
