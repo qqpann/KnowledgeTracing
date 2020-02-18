@@ -13,6 +13,7 @@ from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
 
 dirname = os.path.join(os.path.dirname(__file__), '../data')
 # Self made from ASSISTments
+# TODO: use collections.namedtuple
 SOURCE_ASSIST0910_SELF = 'selfmade_ASSISTmentsSkillBuilder0910'
 SOURCE_ASSIST0910_ORIG = 'original_ASSISTmentsSkillBuilder0910'  # Piech et al.
 
