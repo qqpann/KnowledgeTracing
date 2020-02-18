@@ -26,7 +26,7 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
-        self.dh = DataHandler(self.config, self.device, folds=5)
+        self.dh = DataHandler(self.config, self.device)
         self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
 
     def init_model(self):
@@ -34,10 +34,10 @@ class Trainer(object):
         self.opt = self.get_opt(self.model)
 
     def load_model(self):
-        if self.config.load_model:
-            model.load_state_dict(torch.load(str(self.config.load_model_path)))
-            model = model.to(self.device)
-        self.model = model
+        if not self.config.load_model:
+            return
+        self.model.load_state_dict(torch.load(str(self.config.load_model_path)))
+        self.model.to(self.device)
 
     def init_report(self):
         self.report = Report(self.config)
@@ -112,6 +112,12 @@ class Trainer(object):
 
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
             self.test_model(k, test_dl)
+
+    def evaluate_model(self):
+        test_dl = self.dh.get_test_dl()
+        self.init_model()
+        self.load_model()
+        self.test_model(0, test_dl)
 
     def pre_train_model(self):
         epoch_size = self.config.pre_dummy_epoch_size
