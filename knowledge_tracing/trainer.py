@@ -45,6 +45,15 @@ class Trainer(object):
     def dump_report(self):
         self.report.dump()
 
+    def check_prev_report(self):
+        reportdir = self.config.resultsdir / 'report'
+        checkpointdir = self.config.resultsdir / 'checkpoints'
+        if not reportdir.exists() or not checkpointdir.exists():
+            return None
+        report_path = sorted(reportdir.glob('*/*.json'))[-1]
+        checkpoint_path = sorted(checkpointdir.glob('*/*.model'))[-1]
+        return report_path, checkpoint_path
+
     def get_logger(self, config):
         outdir = config.resultsdir / 'report' / config.starttime
         outdir.mkdir(parents=True, exist_ok=True)
