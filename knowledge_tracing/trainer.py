@@ -12,6 +12,7 @@ from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatm
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
+from src.report import Report
 from model.dkt import DKT
 from model.ksdkt import KSDKT
 from model.eddkt import EDDKT
@@ -39,17 +40,10 @@ class Trainer(object):
         self.model = model
 
     def init_report(self):
-        self._report = {
-            'config': self.config.as_dict(),
-            'indicator': defaultdict(lambda: defaultdict(list))
-        }
+        self.report = Report(self.config)
 
     def dump_report(self):
-        # self._report['indicator'] = dict(self._report['indicator'])
-        save_report(self.config, self._report)
-
-    def report(self, k, key, val):
-        self._report['indicator'][key][k].append(val)
+        self.report.dump()
 
     def get_logger(self, config):
         outdir = config.resultsdir / 'report' / config.starttime
@@ -110,6 +104,7 @@ class Trainer(object):
         self.init_report()
         test_dl = self.dh.get_test_dl()
         for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
+            self.report.fold = k
             self.init_model()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
@@ -141,10 +136,8 @@ class Trainer(object):
     def train_model(self, k, train_dl, valid_dl, validate=True):
         self.pre_train_model()
         self.logger.info('Starting train')
-        best = {
-            'auc': 0.,
-            'auc_epoch': 0,
-        }
+        self.report.set_best('auc', .0)
+        self.report.set_best('auc_epoch', 0)
         start_time = time.time()
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
@@ -152,9 +145,9 @@ class Trainer(object):
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
-                self.report(k, 'epoch', epoch)
-                self.report(k, 'train_loss', t_loss)
-                self.report(k, 'train_auc', t_auc)
+                self.report('epoch', epoch)
+                self.report('train_loss', t_loss)
+                self.report('train_auc', t_auc)
             if epoch % 100 == 0:
                 self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, t_loss, t_auc))
@@ -164,12 +157,12 @@ class Trainer(object):
                     self.model.eval()
                     v_idc = self.exec_core(dl=valid_dl, opt=None)
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
-                self.report(k, 'eval_loss', v_loss)
-                self.report(k, 'eval_auc', v_auc)
-                self.report(k, 'ksvector_l1', v_idc['ksvector_l1'])
+                self.report('eval_loss', v_loss)
+                self.report('eval_auc', v_auc)
+                self.report('ksvector_l1', v_idc['ksvector_l1'])
                 if self.config.waviness_l1 or self.config.waviness_l2:
-                    self.report(k, 'waviness_l1', v_idc['waviness_l1'])
-                    self.report(k, 'waviness_l2', v_idc['waviness_l2'])
+                    self.report('waviness_l1', v_idc['waviness_l1'])
+                    self.report('waviness_l2', v_idc['waviness_l2'])
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -178,17 +171,15 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
-                if v_auc > best['auc']:
-                    best['auc'] = v_auc
-                    best['auc_epoch'] = epoch
-                    # report['best_eval_auc'] = bset_eval_auc
-                    # report['best_eval_auc_epoch'] = epoch
+                if v_auc > self.report.get_best('auc'):
+                    self.report.set_best('auc', v_auc)
+                    self.report.set_best('auc_epoch', epoch)
                     save_model(self.config, self.model, v_auc, epoch)
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
                 else:
                     self.logger.info(
-                        f'Best AUC {best["auc"]:.6} at epoch {best["auc_epoch"]}')
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
 
             if epoch % 100 == 0:
                 self.logger.info(
@@ -197,7 +188,7 @@ class Trainer(object):
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
         save_learning_curve(
-            {key: self._report['indicator'][key][k] for key in
+            {key: self.report._indicator[key][k] for key in
              ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
               'ksvector_l1', 'waviness_l1', 'waviness_l2']},
             self.config)
