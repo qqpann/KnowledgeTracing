@@ -295,12 +295,12 @@ def split_encdec(xsty_seq: List, extend_backward=0, extend_forward=0) -> (List, 
 
 
 class DataHandler:
-    def __init__(self, config, device, folds: int = 5):
+    def __init__(self, config, device):
         self.config = config
         self.device = device
-        self.folds = folds
+        self.folds = self.config.kfold
         all_data = self.get_data()
-        self.trainval_data, self.test_data = train_test_split(all_data, test_size=0.2)
+        self.trainval_data, self.test_data = train_test_split(all_data, test_size=self.config.test_size)
 
         M = self.config.n_skills
         N = ceil(log(2 * M))
