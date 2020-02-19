@@ -9,7 +9,7 @@ from sklearn import metrics
 from collections import defaultdict
 
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
-from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
+from src.save import save_model, save_best_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
 from src.report import Report
@@ -33,10 +33,13 @@ class Trainer(object):
         self.model = self.get_model(self.config, self.device)
         self.opt = self.get_opt(self.model)
 
-    def load_model(self):
-        if not self.config.load_model:
+    def load_model(self, load_model_path=None):
+        if not self.config.load_model and not load_model_path:
             return
-        self.model.load_state_dict(torch.load(str(self.config.load_model_path)))
+        if not load_model_path:
+            load_model_path = str(self.config.load_model_path)
+        self.logger.info('Loading model {}'.format(load_model_path))
+        self.model.load_state_dict(torch.load(load_model_path))
         self.model.to(self.device)
 
     def init_report(self):
@@ -110,6 +113,7 @@ class Trainer(object):
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
             self.train_model(k, train_dl, valid_dl)
 
+            self.load_model(self.config.resultsdir / 'checkpoints' / self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
             self.test_model(k, test_dl)
 
@@ -169,6 +173,10 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.report('waviness_l1', v_idc['waviness_l1'])
                     self.report('waviness_l2', v_idc['waviness_l2'])
+                if v_auc > self.report.get_best('auc'):
+                    self.report.set_best('auc', v_auc)
+                    self.report.set_best('auc_epoch', epoch)
+                    save_best_model(self.config, self.model, 'f{}_best.model'.format(k))
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -178,8 +186,6 @@ class Trainer(object):
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
                 if v_auc > self.report.get_best('auc'):
-                    self.report.set_best('auc', v_auc)
-                    self.report.set_best('auc_epoch', epoch)
                     save_model(self.config, self.model, v_auc, epoch)
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
