@@ -13,6 +13,12 @@ def save_model(config, model, auc, epoch):
                f'{config.model_name}_auc{auc:.4f}_e{epoch}.model')
 
 
+def save_best_model(config, model, fname):
+    outdir = config.resultsdir / 'checkpoints' / config.starttime
+    outdir.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), outdir / fname)
+
+
 def save_log(config, data, auc, epoch):
     outdir = config.resultsdir / 'lc_data' / config.starttime
     outdir.mkdir(parents=True, exist_ok=True)
