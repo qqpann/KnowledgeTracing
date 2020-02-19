@@ -116,20 +116,14 @@ dmypy.json
 .pyre/
 
 .vscode/
-
 models/
-
 debug_*
-
 output/*
-
 !output/1124_eddkt_vs_dkt/20191124-1603_eddkt_ef15_eddkt/checkpoints/eddkt_auc0.8528_e1000.model
 !output/1124_eddkt_vs_dkt/20191124-1810_dkt_dkt/checkpoints/dkt_auc0.8480_e400.model
-
 data/*/*.csv
 data/**/*.pickle
 data/*/*.txt
-
 notebook/data/*
-
 nohup.out
+config/**/*.auto.json
