@@ -304,6 +304,7 @@ class Trainer(object):
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
+            self.report('test_auc', v_auc)
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
             self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
