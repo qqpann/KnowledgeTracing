@@ -8,7 +8,7 @@
   "epoch_size": 1000,
   "pre_dummy_epoch_size": [0, 5, 10, 20, 50, 100, 150, 200],
   "batch_size": 128,
-  "lr": 0.075,
+  "lr": 0.1,
   "waviness_l1": true,
   "waviness_l2": true,
   "lambda_l1": 0.0,
