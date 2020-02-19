@@ -23,6 +23,16 @@ def seed_everything(seed: int = 42):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
 
+def check_prev_report(config_dict, projectdir):
+    config_name, exp_name = config_dict['config_name'], config_dict['exp_name']
+    reportdir = projectdir / 'output' / config_name / exp_name / 'report'
+    checkpointdir = projectdir / 'output' / config_name / exp_name / 'checkpoints'
+    if not reportdir.exists() or not checkpointdir.exists():
+        return None
+    report_path = sorted(reportdir.glob('*/*.json'))[-1]
+    checkpoint_path = sorted(checkpointdir.glob('*/*.model'))[-1]
+    return report_path, checkpoint_path
+
 
 def run(configpath: Path):
     with open(configpath, 'r') as f:
@@ -34,18 +44,17 @@ def run(configpath: Path):
 
     config_dict = get_option_fallback(cfg, fallback=default_cfg)
     config_dict['exp_name'] = configpath.stem
+    if not config_dict['overwrite'] and check_prev_report(config_dict, projectdir):
+        report_path, checkpoint_path = check_prev_report(config_dict, projectdir)
+        with open(report_path, 'r') as f:
+            report_dict = json.load(f)
+        config_dict = report_dict['config']
+        config_dict['load_model'] = str(checkpoint_path)
     config = Config(config_dict, projectdir=projectdir)
     logger.info('Starting Experiment: {}'.format(config.exp_name))
 
     seed_everything()
     trainer = Trainer(config)
-    if not config.overwrite and trainer.check_prev_report():
-        report_path, checkpoint_path = trainer.check_prev_report()
-        with open(report_path, 'r') as f:
-            report_dict = json.load(f)
-        config_dict = report_dict['config']
-        config_dict['load_model'] = str(checkpoint_path)
-        config = Config(config_dict, projectdir=projectdir)
     if config.load_model:
         trainer.evaluate_model()
         # trainer.evaluate_model_heatmap()
