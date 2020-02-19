@@ -1,12 +1,11 @@
 {
-  "overwrite": true,
   "model_name": "ksdkt",
   "source_data": "original_ASSISTmentsSkillBuilder0910",
   "n_skills": 124,
   "sequence_size": 20,
   "pad": false,
   "epoch_size": 1000,
-  "pre_dummy_epoch_size": 0,
+  "pre_dummy_epoch_size": 100,
   "batch_size": 100,
   "lr": 0.05,
   "waviness_l1": true,
