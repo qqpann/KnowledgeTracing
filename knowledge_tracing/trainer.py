@@ -115,7 +115,7 @@ class Trainer(object):
 
             self.load_model(self.config.resultsdir / 'checkpoints' / self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
-            self.test_model(k, test_dl)
+            self.test_model(k, test_dl, do_report=True)
 
     def evaluate_model(self):
         test_dl = self.dh.get_test_dl()
@@ -302,7 +302,7 @@ class Trainer(object):
             for i, (xseq, yseq) in enumerate(train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    def test_model(self, k, test_dl):
+    def test_model(self, k, test_dl, do_report=False):
         self.logger.info('Starting test')
         start_time = time.time()
         with torch.no_grad():
@@ -310,7 +310,8 @@ class Trainer(object):
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
-            self.report('test_auc', v_auc)
+            if do_report:
+                self.report('test_auc', v_auc)
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
             self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
