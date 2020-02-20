@@ -60,11 +60,16 @@ class Config(BaseConfig):
         self.projectpdir = projectdir
         self.outdir = projectdir / 'output'
         self.outdir.mkdir(exist_ok=True)
-        self.starttime = self._init_starttime()
+        self._init_starttime()
 
     def _init_starttime(self):
         """ starttime won't change once set. """
-        return datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        if getattr(self, 'starttime', None):
+            # use loaded starttime if loading from report json
+            return
+        starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        setattr(self, 'starttime', starttime)
+        self._attr_list.append('starttime')
 
     @property
     def resultsdir(self):
