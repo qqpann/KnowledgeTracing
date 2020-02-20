@@ -33,11 +33,13 @@ class Trainer(object):
         self.model = self.get_model(self.config, self.device)
         self.opt = self.get_opt(self.model)
 
-    def load_model(self, load_model_path=None):
-        if not self.config.load_model and not load_model_path:
-            return
-        if not load_model_path:
+    def load_model(self, load_model=None):
+        if load_model:
+            load_model_path = load_model
+        elif self.config.load_model:
             load_model_path = str(self.config.load_model_path)
+        else:
+            return None
         self.logger.info('Loading model {}'.format(load_model_path))
         self.model.load_state_dict(torch.load(load_model_path))
         self.model.to(self.device)
@@ -119,9 +121,10 @@ class Trainer(object):
 
     def evaluate_model(self):
         test_dl = self.dh.get_test_dl()
-        self.init_model()
-        self.load_model()
-        self.test_model(0, test_dl)
+        for k in range(self.config.kfold):
+            self.init_model()
+            self.load_model(self.config.resultsdir / 'checkpoints' / self.config.starttime / 'f{}_best.model'.format(k))
+            self.test_model(k, test_dl, do_report=False)
 
     def pre_train_model(self):
         epoch_size = self.config.pre_dummy_epoch_size
