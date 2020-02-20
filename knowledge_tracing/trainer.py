@@ -9,7 +9,7 @@ from sklearn import metrics
 from collections import defaultdict
 
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
-from src.save import save_model, save_best_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
+from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
 from src.report import Report
@@ -176,10 +176,10 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.report('waviness_l1', v_idc['waviness_l1'])
                     self.report('waviness_l2', v_idc['waviness_l2'])
-                if v_auc > self.report.get_best('auc'):
+                if v_auc > self.report.get_best('auc'):  # best auc
                     self.report.set_best('auc', v_auc)
                     self.report.set_best('auc_epoch', epoch)
-                    save_best_model(self.config, self.model, 'f{}_best.model'.format(k))
+                    save_model(self.config, self.model, 'f{}_best.model'.format(k))
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -188,8 +188,8 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
-                if v_auc > self.report.get_best('auc'):
-                    save_model(self.config, self.model, v_auc, epoch)
+                if v_auc >= self.report.get_best('auc'):  # best auc
+                    save_model(self.config, self.model, f'{self.config.model_name}_auc{v_auc:.4f}_e{epoch}.model')
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
                 else:
