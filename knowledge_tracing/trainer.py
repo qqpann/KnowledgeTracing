@@ -51,7 +51,7 @@ class Trainer(object):
         self.report.dump()
 
     def get_logger(self, config):
-        outdir = config.resultsdir / 'report' / config.starttime
+        outdir = config.resultsdir / 'log' / config.starttime
         outdir.mkdir(parents=True, exist_ok=True)
         logger = get_logger(
             '{}/{}'.format(config.model_name, config.exp_name),
