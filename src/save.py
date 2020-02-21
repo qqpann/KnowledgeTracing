@@ -22,7 +22,7 @@ def save_log(config, data, auc, epoch):
 def save_report(config, report):
     outdir = config.resultsdir / 'report' / config.starttime
     outdir.mkdir(parents=True, exist_ok=True)
-    with open(outdir / f'{config.model_name}.json', 'w') as f:
+    with open(outdir / 'report.json', 'w') as f:
         json.dump(report, f, indent=2)
 
 
