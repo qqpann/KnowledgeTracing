@@ -26,10 +26,10 @@ def get_report_path(projectdir: Path, expcfgpath: Path) -> Path:
     exp_name = expcfgpath.stem
     outputdir = projectdir / 'output' / config_name / exp_name
     assert outputdir.exists()
-    return sorted(outputdir.glob('report/*/*.json'))[-1]  # report.json
+    return sorted(outputdir.glob('report/*/*.json'))[-1]  # report.json from latest starttime
 
 
-def get_best_model_path(projectdir: Path, config_dict: dict) -> Path:
+def get_best_model_paths(projectdir: Path, config_dict: dict) -> List[Path]:
     starttime = config_dict['starttime']
     config_name = config_dict['config_name']
     exp_name = config_dict['exp_name']
