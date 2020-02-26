@@ -99,10 +99,11 @@ class Trainer(object):
         return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
 
     def get_opt(self, model):
-        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         if self.config.model_name == 'dkvmn':
             opt = torch.optim.Adam(params=model.parameters(
             ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
+        return opt
+        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
     def kfold(self):
@@ -115,7 +116,8 @@ class Trainer(object):
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
             self.train_model(k, train_dl, valid_dl)
 
-            self.load_model(self.config.resultsdir / 'checkpoints' / self.config.starttime / 'f{}_best.model'.format(k))
+            self.load_model(self.config.resultsdir / 'checkpoints' /
+                            self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
             self.test_model(k, test_dl, do_report=True)
 
@@ -123,7 +125,8 @@ class Trainer(object):
         test_dl = self.dh.get_test_dl()
         for k in range(self.config.kfold):
             self.init_model()
-            self.load_model(self.config.resultsdir / 'checkpoints' / self.config.starttime / 'f{}_best.model'.format(k))
+            self.load_model(self.config.resultsdir / 'checkpoints' /
+                            self.config.starttime / 'f{}_best.model'.format(k))
             self.test_model(k, test_dl, do_report=False)
 
     def pre_train_model(self):
@@ -249,6 +252,7 @@ class Trainer(object):
             if out.get('pred_prob', False) is not False:
                 # print(out['pred_prob'], out['pred_prob'].shape)
                 pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            if out.get('filtered_pred', False) is not False:
                 pred_ls.append(out['filtered_pred'])
                 actu_ls.append(out['filtered_target'])
             actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()

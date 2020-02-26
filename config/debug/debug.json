@@ -1,6 +1,7 @@
 {
   "debug": false,
-  "overwrite": false,
-  "model_name": "ksdkt",
+  "overwrite": true,
+  "cuda": true,
+  "model_name": "dkvmn",
   "epoch_size": 100
 }
