@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import json
-import torch.nn.init
+# import torch.nn.init
 
 
 # Utils
@@ -289,7 +289,7 @@ class MODEL(nn.Module):
         }
         return out
 
-    def loss_batch(self, xseq, yseq, opt=None):
+    def loss_batch(self, xseq, yseq, mask, opt=None):
         i_skill = self.config.n_skills
         device = self.device
         # q_one_seq = q_data[idx * params.batch_size:(idx + 1) * params.batch_size, :]
@@ -319,8 +319,8 @@ class MODEL(nn.Module):
 
         target = (target.float().cpu().numpy() - 1) / self.n_question
         target = np.floor(target)
-        input_q = varible(torch.LongTensor(q_one_seq), self.device)
-        input_qa = varible(torch.LongTensor(qa_batch_seq), self.device)
+        input_q = varible((q_one_seq), self.device)
+        input_qa = varible((qa_batch_seq), self.device)
         target = varible(torch.FloatTensor(target), self.device)
         target_to_1d = torch.chunk(target, self.batch_size, 0)
         target_1d = torch.cat([target_to_1d[i]
