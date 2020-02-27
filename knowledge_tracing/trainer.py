@@ -339,8 +339,8 @@ class Trainer(object):
             self.logger.info(f'{timeSince(start_time, 1)}')
 
             # BAD: avoid error for only DKVMN
-            if self.config.model_name == 'dkvmn':
-                return
+            # if self.config.model_name == 'dkvmn':
+            #     return
             bad = 0
             good = 0
             bak_batch_size = self.model.batch_size
