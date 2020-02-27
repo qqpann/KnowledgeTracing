@@ -102,7 +102,7 @@ class Trainer(object):
         if self.config.model_name == 'dkvmn':
             opt = torch.optim.Adam(params=model.parameters(
             ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
-        return opt
+            return opt
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
