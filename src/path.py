@@ -29,6 +29,14 @@ def get_report_path(projectdir: Path, expcfgpath: Path) -> Path:
     return sorted(outputdir.glob('report/*/*.json'))[-1]  # report.json from latest starttime
 
 
+def get_report_paths(projectdir: Path, config_name: str) -> Path:
+    assert projectdir.exists()
+    outputdir = projectdir / 'output' / config_name
+    assert outputdir.exists()
+    exp_paths = [expoutdir for expoutdir in outputdir.iterdir() if expoutdir.is_dir()]
+    return [sorted(d.glob('report/*/*.json'))[-1] for d in exp_paths]  # report.json from latest starttime
+
+
 def get_best_model_paths(projectdir: Path, config_dict: dict) -> List[Path]:
     starttime = config_dict['starttime']
     config_name = config_dict['config_name']
@@ -40,4 +48,5 @@ def get_best_model_paths(projectdir: Path, config_dict: dict) -> List[Path]:
 if __name__ == '__main__':
     from pprint import pprint
     p = Path().cwd()
-    pprint([get_best_model_path(p, load_rep_cfg(get_report_path(p, e))) for e in get_exp_paths(p, '20_0220_edm2020_asmt15')])
+    pprint([get_best_model_path(p, load_rep_cfg(get_report_path(p, e)))
+            for e in get_exp_paths(p, '20_0220_edm2020_asmt15')])
