@@ -211,12 +211,10 @@ class MODEL(nn.Module):
         # nn.init.normal(self.input_embed_linear.weight, std=0.02)
 
     def init_embeddings(self):
-
         nn.init.kaiming_normal_(self.q_embed.weight)
         nn.init.kaiming_normal_(self.qa_embed.weight)
 
     def forward(self, q_data, qa_data, target, student_id=None):
-
         batch_size = q_data.shape[0]
         seqlen = q_data.shape[1]
         q_embed_data = self.q_embed(q_data)
@@ -279,7 +277,7 @@ class MODEL(nn.Module):
         loss = torch.nn.functional.binary_cross_entropy_with_logits(
             filtered_pred, filtered_target)
 
-        #print(filtered_pred, filtered_pred.shape) #-> torch.Size([6399])
+        # print(filtered_pred, filtered_pred.shape) #-> torch.Size([6399])
         out = {
             'loss': loss,
             'filtered_pred': torch.sigmoid(filtered_pred),
