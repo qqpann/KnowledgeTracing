@@ -1,6 +1,7 @@
 TYPE = GPU
-IMAGE_NAME = $(USER)-lab-image
-CONTAINER_NAME = $(USER)-lab-container
+PROJECT_NAME = lab
+IMAGE_NAME = $(USER)-$(PROJECT_NAME)-image
+CONTAINER_NAME = $(USER)-$(PROJECT_NAME)-container
 HOST_PORT = $(shell expr 10000 + $(shell id -u $(USER)))
 NVIDIA_DOCKER_CMD = docker  # nvidia-docker is old. should use with `--gpus all`
 
@@ -10,7 +11,7 @@ build:
 
 .PHONY: run
 run:
-	$(NVIDIA_DOCKER_CMD) run -itd --gpus all --name $(CONTAINER_NAME) \
+	$(NVIDIA_DOCKER_CMD) run -itd --gpus all --rm --name $(CONTAINER_NAME) \
 	-v $(HOST_DIR):/code \
 	-p $(HOST_PORT):8888 $(IMAGE_NAME) \
 	env SHELL='/bin/bash' jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --notebook-dir=/code

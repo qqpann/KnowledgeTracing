@@ -94,6 +94,5 @@ wcwidth==0.1.7
 webencodings==0.5.1
 widgetsnbextension==3.5.1
 wrapt==1.11.2
-xonsh==0.9.13.dev1
 youtube-dl==2019.10.22
 zipp==0.6.0
