@@ -61,7 +61,8 @@ def run(configpath: Path):
         logger.info('All evaluations done!')
         return
     try:
-        trainer.kfold()
+        # trainer.kfold()
+        trainer.cv()
     except KeyboardInterrupt as e:
         print(e)
     finally:

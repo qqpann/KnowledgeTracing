@@ -4,7 +4,7 @@
   "model_name": null,
   "load_model": "",
   "overwrite": false,
-  "source_data": "original_ASSISTmentsSkillBuilder0910",
+  "source_data": "assist2009",
   "n_skills": 124,
   "test_size": 0.2,
   "kfold": 5,
