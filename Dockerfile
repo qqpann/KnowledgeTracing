@@ -20,9 +20,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends apt-utils
 
-ENV PYENV_ROOT /root/.pyenv
-ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
          build-essential \
          cmake \
@@ -39,21 +36,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          tk-dev libgdbm-dev \
          libc6-dev \
          libbz2-dev \
+         liblzma-dev \
          libpng-dev && \
      rm -rf /var/lib/apt/lists/*
+
+ENV PYENV_ROOT /root/.pyenv
+ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 # https://github.com/pyenv/pyenv-installer
 RUN curl https://pyenv.run | bash
 RUN pyenv install 3.7.4
 RUN pyenv global 3.7.4
-RUN pip install --upgrade pip
 
-RUN rm -rf /usr/bin/python /usr/bin/pip
-RUN ln -s /usr/bin/python3 /usr/bin/python & \
-    ln -s /usr/bin/pip3 /usr/bin/pip
+RUN rm -rf /usr/bin/python* /usr/bin/pip*
 
 WORKDIR /code
 COPY requirements.txt /code
+RUN pip install -U pip
 RUN pip install -r requirements.txt
 # Install jupyterlab vim extension, which requires nodejs
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
