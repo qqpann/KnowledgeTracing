@@ -57,7 +57,7 @@ class Config(BaseConfig):
 
     def __init__(self, options: Dict, projectdir: Path):
         super().__init__(options)
-        self.projectpdir = projectdir
+        self.projectdir = projectdir
         self.outdir = projectdir / 'output'
         self.outdir.mkdir(exist_ok=True)
         self._init_starttime()
@@ -81,7 +81,7 @@ class Config(BaseConfig):
     def load_model_path(self):
         if not self.load_model:
             return None
-        load_model_path = self.projectpdir / self.load_model
+        load_model_path = self.projectdir / self.load_model
         assert load_model_path.exists(), '{} not found'.format(load_model_path)
         return load_model_path
 
