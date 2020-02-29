@@ -86,14 +86,14 @@ class Trainer(object):
             f'The model has {count_parameters(model):,} trainable parameters')
         return model
 
-    def get_dataloader(self, config, device):
-        train_dl, eval_dl = prepare_dataloader(
-            config, device=device, pad=config.pad)
-        self.logger.info(
-            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-        self.logger.info(
-            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
-        return train_dl, eval_dl
+    # def get_dataloader(self, config, device):
+    #     train_dl, eval_dl = prepare_dataloader(
+    #         config, device=device, pad=config.pad)
+    #     self.logger.info(
+    #         'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    #     self.logger.info(
+    #         'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
+    #     return train_dl, eval_dl
 
     def get_dummy_dataloader(self, config, device):
         return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
@@ -120,6 +120,28 @@ class Trainer(object):
                             self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
             self.test_model(k, test_dl, do_report=True)
+
+    def cv(self):
+        projectdir = self.config.projectdir
+        name = self.config.source_data
+        self.init_report()
+        fintrain_dl, fintest_dl = self.dh.get_traintest_dl(projectdir, name)
+        for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl(projectdir, name)):
+            self.report.fold = k
+            self.init_model()
+            self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+            self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+            self.train_model(k, train_dl, valid_dl)
+
+            self.load_model(self.config.resultsdir / 'checkpoints' /
+                            self.config.starttime / 'f{}_best.model'.format(k))
+            self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+            self.test_model(k, fintest_dl, do_report=True)
+
+        # TODO: add all experiment
+        # self.train_model(k, fintrain_dl, None)
+        # self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+        # self.test_model(k, fintest_dl, do_report=True)
 
     def evaluate_model(self):
         test_dl = self.dh.get_test_dl()
