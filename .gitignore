@@ -127,3 +127,8 @@ data/**/*.pickle
 notebook/data/*
 nohup.out
 config/**/*.auto.json
+
+!data/input/assist2009_updated
+!data/input/assist2015
+!data/input/STATICS
+!data/input/synthetic
