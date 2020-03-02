@@ -220,11 +220,19 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
-                if v_auc >= self.report.get_best('auc'):  # best auc
+                if v_auc >= self.report.get_best('auc'):
+                    # refresh.
                     save_model(self.config, self.model, f'{self.config.model_name}_auc{v_auc:.4f}_e{epoch}.model')
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
+                elif (epoch - self.report.get_best('auc_epoch')) > self.config.early_stop:
+                    # early stop.
+                    self.logger.info(
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
+                    self.logger.info(f'Early stopping.')
+                    break
                 else:
+                    # no refresh, but no early stop yet.
                     self.logger.info(
                         f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
 
