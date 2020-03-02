@@ -61,7 +61,7 @@ def load_source(projectdir, name) -> List[List[Tuple[int]]]:
         testfname = os.path.join(dirname, 'input/builder_test.csv')
         data = load_qa_format_source(trainfname)
     else:
-        filename = os.path.join(dirname, f'input/{source}.pickle')
+        filename = os.path.join(dirname, f'input/{name}.pickle')
         with open(filename, 'rb') as f:
             data_dict = pickle.load(f)
             data = list(data_dict.values())

@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from pathlib import Path
 from math import log, ceil
+from statistics import mean
 from sklearn import metrics
 from collections import defaultdict
 
@@ -110,7 +111,7 @@ class Trainer(object):
         self.init_report()
         test_dl = self.dh.get_test_dl()
         for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
-            self.report.fold = k
+            self.report.subname = k
             self.init_model()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
@@ -127,21 +128,27 @@ class Trainer(object):
         self.init_report()
         fintrain_dl, fintest_dl = self.dh.get_traintest_dl(projectdir, name)
         for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl(projectdir, name)):
-            self.report.fold = k
+            self.report.subname = k
             self.init_model()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
-            self.train_model(k, train_dl, valid_dl)
+            self.train_model(train_dl, valid_dl, self.config.epoch_size, subname=k)
 
             self.load_model(self.config.resultsdir / 'checkpoints' /
                             self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
-            self.test_model(k, fintest_dl, do_report=True)
+            self.test_model(fintest_dl, subname=k, do_report=True)
 
         # TODO: add all experiment
-        # self.train_model(k, fintrain_dl, None)
-        # self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
-        # self.test_model(k, fintest_dl, do_report=True)
+        self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
+        self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+        self.report.subname = 'all'
+        self.init_model()
+        self.report.get_best('auc_epoch')
+        # TODO: Fix bad usage of k
+        test_epoch_size = round(mean([self.report._best['auc_epoch'][i] for i in range(k+1)]), -1)
+        self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
+        self.test_model(fintest_dl, subname='all', do_report=True)
 
     def evaluate_model(self):
         test_dl = self.dh.get_test_dl()
@@ -171,13 +178,13 @@ class Trainer(object):
         self.model.batch_size = real_batch_size
         self.model.config.batch_size = real_batch_size
 
-    def train_model(self, k, train_dl, valid_dl, validate=True):
+    def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.pre_train_model()
         self.logger.info('Starting train')
         self.report.set_best('auc', .0)
         self.report.set_best('auc_epoch', 0)
         start_time = time.time()
-        for epoch in range(1, self.config.epoch_size + 1):
+        for epoch in range(1, epoch_size + 1):
             self.model.train()
             t_idc = self.exec_core(train_dl, self.opt)
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
@@ -204,7 +211,7 @@ class Trainer(object):
                 if v_auc > self.report.get_best('auc'):  # best auc
                     self.report.set_best('auc', v_auc)
                     self.report.set_best('auc_epoch', epoch)
-                    save_model(self.config, self.model, 'f{}_best.model'.format(k))
+                    save_model(self.config, self.model, 'f{}_best.model'.format(subname))
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -223,15 +230,15 @@ class Trainer(object):
 
             if epoch % 100 == 0:
                 self.logger.info(
-                    f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch}epoch {epoch / self.config.epoch_size * 100:.1f}%)')
+                    f'{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)')
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
-        save_learning_curve(
-            {key: self.report._indicator[key][k] for key in
-             ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
-              'ksvector_l1', 'waviness_l1', 'waviness_l2']},
-            self.config)
+        # save_learning_curve(
+        #     {key: self.report._indicator[key][k] for key in
+        #      ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
+        #       'ksvector_l1', 'waviness_l1', 'waviness_l2']},
+        #     self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
@@ -331,7 +338,7 @@ class Trainer(object):
             for i, (xseq, yseq) in enumerate(train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    def test_model(self, k, test_dl, do_report=False):
+    def test_model(self, test_dl, subname: str, do_report=False):
         self.logger.info('Starting test')
         start_time = time.time()
         with torch.no_grad():

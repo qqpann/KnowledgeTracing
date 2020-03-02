@@ -8,16 +8,16 @@ class Report:
         self.config = config
         self._indicator = defaultdict(lambda: defaultdict(list))
         self._best = defaultdict(lambda: defaultdict(float))
-        self.fold = 0
+        self.subname = 0
 
     def __call__(self, key, value):
-        self._indicator[key][self.fold].append(value)
+        self._indicator[key][self.subname].append(value)
 
     def set_best(self, key, value):
-        self._best[key][self.fold] = value
+        self._best[key][self.subname] = value
 
     def get_best(self, key):
-        return self._best[key][self.fold]
+        return self._best[key][self.subname]
 
     def as_dict(self):
         _report = {

@@ -55,11 +55,11 @@ def run(configpath: Path):
 
     seed_everything()
     trainer = Trainer(config)
-    if config.load_model:
-        trainer.evaluate_model()
-        # trainer.evaluate_model_heatmap()
-        logger.info('All evaluations done!')
-        return
+    # if config.load_model:
+    #     trainer.evaluate_model()
+    #     # trainer.evaluate_model_heatmap()
+    #     logger.info('All evaluations done!')
+    #     return
     try:
         # trainer.kfold()
         trainer.cv()
