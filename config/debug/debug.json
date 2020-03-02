@@ -3,5 +3,7 @@
   "overwrite": true,
   "cuda": true,
   "model_name": "ksdkt",
-  "epoch_size": 100
+  "lr": 10.0,
+  "epoch_size": 100,
+  "early_stop": 1
 }
