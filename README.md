@@ -2,6 +2,16 @@
 
 ## Datasets
 
+We used prepared data by Zhang et al. <https://github.com/jennyzhang0215/DKVMN>
+
+|           | KC size |
+|-----------|---------|
+| assist09  | 110     |
+| assist15  | 100     |
+| statics   | 1223    |
+| synthetic | 50      |
+<!-- Table created here: https://www.tablesgenerator.com/markdown_tables# -->
+
 ### ASSISTments Skill builder 2009-2010
 
 https://sites.google.com/site/assistmentsdata/home/assistment-2009-2010-data

@@ -1,6 +1,7 @@
 import os
 import pickle
 import logging
+import warnings
 from math import log, ceil
 from pathlib import Path
 from typing import List, Tuple, Set, Dict
@@ -68,6 +69,24 @@ def load_source(projectdir, name) -> List[List[Tuple[int]]]:
     return data
 
 
+def get_knowledge_concepts_dict(data: List[List[Tuple[int]]]):
+    kc_set = set()
+    for seq in data:
+        for q, a in seq:
+            kc_set.add(q)
+    kc_dict = dict()
+    for q, i in zip(sorted(kc_set), range(len(kc_set))):
+        kc_dict[q] = i
+    return kc_dict
+
+
+def re_numbering_knowledge_concepts(data, kc_dict) -> List[List[Tuple[int]]]:
+    res = []
+    for seq in data:
+        res.append([(kc_dict[q], a) for q, a in seq])
+    return res
+
+
 def load_qa_format_source(filename: str) -> List[List[Tuple[int]]]:
     with open(filename, 'r') as f:
         lines = f.readlines()
@@ -108,7 +127,14 @@ class DataHandler:
         self.config = config
         self.device = device
         self.projectdir = self.config.projectdir
-        self.folds = self.config.kfold
+        self.name = self.config.source_data
+        fintrain_data, fintest_data = self.get_traintest_data(projectdir=self.projectdir, name=self.name)
+        self.kc_dict = get_knowledge_concepts_dict(fintrain_data + fintest_data)
+        assert self.config.n_skills == len(self.kc_dict),\
+            f'{self.config.n_skills} and {len(self.kc_dict)} mismatch.'
+        self.fintrain_data = re_numbering_knowledge_concepts(fintrain_data, self.kc_dict)
+        self.fintest_data = re_numbering_knowledge_concepts(fintest_data, self.kc_dict)
+        # self.folds = self.config.kfold
 
         # if config.source_data in {ASSIST2009, ASSIST2015, STATICS2011, SYNTHETIC}:
         #     pass
@@ -119,8 +145,8 @@ class DataHandler:
     # def get_data(self):
     #     return load_source(self.config.source_data)
 
-    def get_kfold(self, folds, random_state=None):
-        return KFold(n_splits=folds, shuffle=True, random_state=random_state)
+    # def get_kfold(self, folds, random_state=None):
+    #     return KFold(n_splits=folds, shuffle=True, random_state=random_state)
 
     @staticmethod
     def get_ds(config, device, data, data_idx):
@@ -148,25 +174,23 @@ class DataHandler:
         )
         return all_ds
 
-    def get_test_dl(self):
-        test_ds = self.get_ds(self.config, self.device, self.test_data, range(len(self.test_data)))
-        test_dl = DataLoader(test_ds, batch_size=self.config.batch_size, drop_last=True)
-        return test_dl
+    # def get_test_dl(self):
+    #     test_ds = self.get_ds(self.config, self.device, self.test_data, range(len(self.test_data)))
+    #     test_dl = DataLoader(test_ds, batch_size=self.config.batch_size, drop_last=True)
+    #     return test_dl
 
-    def gen_trainval_dl(self):
-        kf = self.get_kfold(self.folds)
+    # def gen_trainval_dl(self):
+    #     kf = self.get_kfold(self.folds)
+    #     for train_idx, valid_idx in kf.split(self.trainval_data):
+    #         train_ds = self.get_ds(self.config, self.device, self.trainval_data, train_idx)
+    #         valid_ds = self.get_ds(self.config, self.device, self.trainval_data, valid_idx)
+    #         train_dl = DataLoader(
+    #             train_ds, batch_size=self.config.batch_size, drop_last=True)
+    #         valid_dl = DataLoader(
+    #             valid_ds, batch_size=self.config.batch_size, drop_last=True)
+    #         yield train_dl, valid_dl
 
-        for train_idx, valid_idx in kf.split(self.trainval_data):
-            train_ds = self.get_ds(self.config, self.device, self.trainval_data, train_idx)
-            valid_ds = self.get_ds(self.config, self.device, self.trainval_data, valid_idx)
-
-            train_dl = DataLoader(
-                train_ds, batch_size=self.config.batch_size, drop_last=True)
-            valid_dl = DataLoader(
-                valid_ds, batch_size=self.config.batch_size, drop_last=True)
-            yield train_dl, valid_dl
-
-    def get_traintest_dl(self, projectdir: Path, name: str):
+    def get_traintest_data(self, projectdir: Path, name: str):
         if name == ASSIST2009:
             sourcedir = projectdir / 'data/input/assist2009_updated'
             train = 'assist2009_updated_train.csv'
@@ -185,17 +209,21 @@ class DataHandler:
             test = 'naive_c5_q50_s4000_v1_test.csv'
         else:
             raise ValueError('name is wrong')
-        train_data = load_qa_format_source(sourcedir / train)
-        test_data = load_qa_format_source(sourcedir / test)
-        train_ds = self.get_ds(self.config, self.device, train_data, range(len(train_data)))
-        test_ds = self.get_ds(self.config, self.device, test_data, range(len(test_data)))
+        fintrain_data = load_qa_format_source(sourcedir / train)
+        fintest_data = load_qa_format_source(sourcedir / test)
+        return fintrain_data, fintest_data
+
+    def get_traintest_dl(self):
+        train_ds = self.get_ds(self.config, self.device, self.fintrain_data, range(len(self.fintrain_data)))
+        test_ds = self.get_ds(self.config, self.device, self.fintest_data, range(len(self.fintest_data)))
         train_dl = DataLoader(
             train_ds, batch_size=self.config.batch_size, drop_last=True)
         test_dl = DataLoader(
             test_ds, batch_size=self.config.batch_size, drop_last=True)
         return train_dl, test_dl
 
-    def generate_trainval_dl(self, projectdir: Path, name: str):
+    def generate_trainval_dl(self):
+        projectdir, name = self.projectdir, self.name
         if name == ASSIST2009:
             sourcedir = projectdir / 'data/input/assist2009_updated'
             train = 'assist2009_updated_train{}.csv'
@@ -222,6 +250,8 @@ class DataHandler:
         for i in range(1, kfold + 1):
             train_data = load_qa_format_source(sourcedir / train.format(i))
             valid_data = load_qa_format_source(sourcedir / valid.format(i))
+            train_data = re_numbering_knowledge_concepts(train_data, self.kc_dict)
+            valid_data = re_numbering_knowledge_concepts(valid_data, self.kc_dict)
             train_ds = self.get_ds(self.config, self.device, train_data, range(len(train_data)))
             valid_ds = self.get_ds(self.config, self.device, valid_data, range(len(valid_data)))
             train_dl = DataLoader(
@@ -284,6 +314,7 @@ def prepare_dataloader(config, device, pad=False):
 
 
 def prepare_dummy_dataloader(config, seq_size, batch_size, device):
+
     # TODO: do not load_source twice just for dummy
     # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
     data = load_source(config.projectdir, config.source_data)
