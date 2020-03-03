@@ -1,8 +1,8 @@
 {
   "overwrite": false,
   "model_name": "ksdkt",
-  "source_data": "assist2009",
-  "n_skills": 110,
+  "source_data": "synthetic",
+  "n_skills": 50,
   "sequence_size": 20,
   "pad": false,
   "epoch_size": 2000,
