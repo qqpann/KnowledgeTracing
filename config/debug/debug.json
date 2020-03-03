@@ -5,5 +5,7 @@
   "model_name": "ksdkt",
   "lr": 10.0,
   "epoch_size": 100,
-  "early_stop": 1
+  "early_stop": 1,
+  "straighten_during_train_every": 10,
+  "straighten_during_train_for": 1
 }
