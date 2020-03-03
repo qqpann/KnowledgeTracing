@@ -65,6 +65,9 @@ def run(configpath: Path):
         trainer.cv()
     except KeyboardInterrupt as e:
         print(e)
+    except Exception as e:
+        print(e)
+        slack_message('Exception: {}'.format(e))
     finally:
         trainer.dump_report()
     logger.info('All experiments done!')
