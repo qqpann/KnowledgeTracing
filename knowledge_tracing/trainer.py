@@ -107,27 +107,26 @@ class Trainer(object):
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
-    def kfold(self):
-        self.init_report()
-        test_dl = self.dh.get_test_dl()
-        for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
-            self.report.subname = k
-            self.init_model()
-            self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-            self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
-            self.train_model(k, train_dl, valid_dl)
-
-            self.load_model(self.config.resultsdir / 'checkpoints' /
-                            self.config.starttime / 'f{}_best.model'.format(k))
-            self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
-            self.test_model(k, test_dl, do_report=True)
+    # def kfold(self):
+    #     self.init_report()
+    #     test_dl = self.dh.get_test_dl()
+    #     for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
+    #         self.report.subname = k
+    #         self.init_model()
+    #         self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    #         self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+    #         self.train_model(k, train_dl, valid_dl)
+    #         self.load_model(self.config.resultsdir / 'checkpoints' /
+    #                         self.config.starttime / 'f{}_best.model'.format(k))
+    #         self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
+    #         self.test_model(k, test_dl, do_report=True)
 
     def cv(self):
         projectdir = self.config.projectdir
         name = self.config.source_data
         self.init_report()
-        fintrain_dl, fintest_dl = self.dh.get_traintest_dl(projectdir, name)
-        for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl(projectdir, name)):
+        fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl()):
             self.report.subname = k
             self.init_model()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
@@ -150,13 +149,13 @@ class Trainer(object):
         self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
         self.test_model(fintest_dl, subname='all', do_report=True)
 
-    def evaluate_model(self):
-        test_dl = self.dh.get_test_dl()
-        for k in range(self.config.kfold):
-            self.init_model()
-            self.load_model(self.config.resultsdir / 'checkpoints' /
-                            self.config.starttime / 'f{}_best.model'.format(k))
-            self.test_model(k, test_dl, do_report=False)
+    # def evaluate_model(self):
+    #     test_dl = self.dh.get_test_dl()
+    #     for k in range(self.config.kfold):
+    #         self.init_model()
+    #         self.load_model(self.config.resultsdir / 'checkpoints' /
+    #                         self.config.starttime / 'f{}_best.model'.format(k))
+    #         self.test_model(k, test_dl, do_report=False)
 
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
