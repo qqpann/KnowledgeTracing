@@ -134,19 +134,6 @@ class DataHandler:
             f'{self.config.n_skills} and {len(self.kc_dict)} mismatch.'
         self.fintrain_data = re_numbering_knowledge_concepts(fintrain_data, self.kc_dict)
         self.fintest_data = re_numbering_knowledge_concepts(fintest_data, self.kc_dict)
-        # self.folds = self.config.kfold
-
-        # if config.source_data in {ASSIST2009, ASSIST2015, STATICS2011, SYNTHETIC}:
-        #     pass
-        # else:
-        #     all_data = prepare_dataloader(self.config, self.device, self.config.pad)
-        #     self.trainval_data, self.test_data = train_test_split(all_data, test_size=self.config.test_size)
-
-    # def get_data(self):
-    #     return load_source(self.config.source_data)
-
-    # def get_kfold(self, folds, random_state=None):
-    #     return KFold(n_splits=folds, shuffle=True, random_state=random_state)
 
     @staticmethod
     def get_ds(config, device, data, data_idx):
@@ -173,22 +160,6 @@ class DataHandler:
             torch.BoolTensor(y_mask).to(device),
         )
         return all_ds
-
-    # def get_test_dl(self):
-    #     test_ds = self.get_ds(self.config, self.device, self.test_data, range(len(self.test_data)))
-    #     test_dl = DataLoader(test_ds, batch_size=self.config.batch_size, drop_last=True)
-    #     return test_dl
-
-    # def gen_trainval_dl(self):
-    #     kf = self.get_kfold(self.folds)
-    #     for train_idx, valid_idx in kf.split(self.trainval_data):
-    #         train_ds = self.get_ds(self.config, self.device, self.trainval_data, train_idx)
-    #         valid_ds = self.get_ds(self.config, self.device, self.trainval_data, valid_idx)
-    #         train_dl = DataLoader(
-    #             train_ds, batch_size=self.config.batch_size, drop_last=True)
-    #         valid_dl = DataLoader(
-    #             valid_ds, batch_size=self.config.batch_size, drop_last=True)
-    #         yield train_dl, valid_dl
 
     def get_traintest_data(self, projectdir: Path, name: str):
         if name == ASSIST2009:
@@ -260,6 +231,29 @@ class DataHandler:
                 valid_ds, batch_size=self.config.batch_size, drop_last=True)
             yield train_dl, valid_dl
 
+    def get_straighten_dl(self):
+        x_values = []
+        y_values = []
+        y_mask = []
+        seq_size = self.config.sequence_size
+        batch_size = 1
+        for v in self.kc_dict.values():
+            # wrong
+            x_values.append([(v, 0) for _ in range(seq_size)])
+            y_values.append([(v, 0) for _ in range(seq_size)])
+            y_mask.append([True] * seq_size)
+            # correct
+            x_values.append([(v, 1) for _ in range(seq_size)])
+            y_values.append([(v, 1) for _ in range(seq_size)])
+            y_mask.append([True] * seq_size)
+        straighten_ds = TensorDataset(
+            torch.LongTensor(x_values).to(self.device),
+            torch.LongTensor(y_values).to(self.device),
+            torch.BoolTensor(y_mask).to(self.device),
+        )
+        straighten_dl = DataLoader(straighten_ds, batch_size=batch_size, drop_last=True)
+        return straighten_dl
+
 
 # load_source->list
 # train, valid, test split based on index
@@ -313,23 +307,11 @@ def prepare_dataloader(config, device, pad=False):
     return train_dl, eval_dl
 
 
-def prepare_dummy_dataloader(config, seq_size, batch_size, device):
-
-    # TODO: do not load_source twice just for dummy
-    # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
-    data = load_source(config.projectdir, config.source_data)
-    knowledge_concepts_set = set()
-    for seq in data:
-        for q, a in seq:
-            knowledge_concepts_set.add(q)
-    # assert config.n_skills == len(knowledge_concepts_set), 'KC size asserted to be {}, got {}'.format(
-    #     config.n_skills, len(knowledge_concepts_set))
-    # TODO: change to warn?
-
+def prepare_dummy_dataloader(config, kc_dict: Dict, seq_size: int, batch_size: int, device):
     x_values = []
     y_values = []
     y_mask = []
-    for v in knowledge_concepts_set:
+    for v in kc_dict.values():
         # wrong
         x_values.append([(v, 0) for _ in range(seq_size)])
         y_values.append([(v, 0) for _ in range(seq_size)])

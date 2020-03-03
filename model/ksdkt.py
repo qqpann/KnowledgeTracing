@@ -84,6 +84,7 @@ class KSDKT(nn.Module):
             [[1], [0]]).to(device)).long().to(device)
         assert yqs.shape == (i_batch, i_seqen, 1)
         yqs = yqs.squeeze(2)
+        assert torch.max(yqs).item() < i_skill, f'{torch.max(yqs)} < {i_skill} not fulfilled'
         yqs = F.one_hot(yqs, num_classes=i_skill).float()
         assert yqs.shape == (i_batch, i_seqen, i_skill)
         target = torch.matmul(yseq.float().to(

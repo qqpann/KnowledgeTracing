@@ -28,7 +28,7 @@ class Trainer(object):
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
         self.dh = DataHandler(self.config, self.device)
-        self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
+        self.dummy_dl = self.dh.get_straighten_dl()
 
     def init_model(self):
         self.model = self.get_model(self.config, self.device)
@@ -96,8 +96,8 @@ class Trainer(object):
     #         'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
     #     return train_dl, eval_dl
 
-    def get_dummy_dataloader(self, config, device):
-        return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
+    # def get_dummy_dataloader(self, config, device):
+    #     return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
 
     def get_opt(self, model):
         if self.config.model_name == 'dkvmn':
