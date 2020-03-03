@@ -3,7 +3,7 @@
   "overwrite": true,
   "cuda": true,
   "source_data": "synthetic",
-  "n_skills": 124,
+  "n_skills": 50,
   "model_name": "ksdkt",
   "lr": 10.0,
   "epoch_size": 100,
