@@ -3,6 +3,7 @@ import sys
 import json
 import shutil
 from pathlib import Path
+from src.slack import slack_message
 
 if __name__ == '__main__':
     config = Path(sys.argv[1])
@@ -46,11 +47,13 @@ if __name__ == '__main__':
         config = config_name_path
     # Single config
     if config.is_file():
+        slack_message('Start {}'.format(config))
         print(f'python run.py {str(config)}')
         os.system(f'python run.py {str(config)}')
         sys.exit(0)  # 0: successful termination.
     # Manual comparison
     os.system(f'ls {str(config)}')
+    slack_message('Start grid\n{}'.format('\n'.join([str(c) for c in config.iterdir()])))
     for cfg in config.glob('*.json'):
         print(f'python run.py {str(cfg)}')
         os.system(f'python run.py {str(cfg)}')
