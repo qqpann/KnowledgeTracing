@@ -158,11 +158,9 @@ class Trainer(object):
                             self.config.starttime / 'f{}_best.model'.format(k))
             self.test_model(k, test_dl, do_report=False)
 
-    def pre_train_model(self):
-        epoch_size = self.config.pre_dummy_epoch_size
+    def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
-        self.logger.info('Start pre train')
         real_batch_size = self.model.config.batch_size
         try:
             self.model.batch_size = 1
@@ -179,13 +177,17 @@ class Trainer(object):
         self.model.config.batch_size = real_batch_size
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
-        self.pre_train_model()
+        self.logger.info('Start straightening pre-train')
+        self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
         self.logger.info('Starting train')
         self.report.set_best('auc', .0)
         self.report.set_best('auc_epoch', 0)
         start_time = time.time()
         for epoch in range(1, epoch_size + 1):
             self.model.train()
+            if self.config.straighten_during_train_every and epoch % self.config.straighten_during_train_every == 0:
+                self.logger.info('Start straightening during train')
+                self.straighten_train_model(epoch_size=self.config.straighten_during_train_for)
             t_idc = self.exec_core(train_dl, self.opt)
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
