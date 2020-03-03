@@ -5,7 +5,7 @@
   "load_model": "",
   "overwrite": false,
   "source_data": "assist2009",
-  "n_skills": 124,
+  "n_skills": 110,
   "test_size": 0.2,
   "kfold": 5,
   "epoch_size": 2000,
