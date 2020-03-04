@@ -160,20 +160,21 @@ class Trainer(object):
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
-        real_batch_size = self.model.config.batch_size
-        try:
-            self.model.batch_size = 1
-        except AttributeError as e:
-            self.logger.warning('{}'.format(e))
-        except Exception as e:
-            self.logger.error('{}'.format(e))
-        self.model.config.batch_size = 1
+        # real_batch_size = self.model.config.batch_size
+        # try:
+        #     # self.model.batch_size = 1
+        #     pass
+        # except AttributeError as e:
+        #     self.logger.warning('{}'.format(e))
+        # except Exception as e:
+        #     self.logger.error('{}'.format(e))
+        # self.model.config.batch_size = 1
         for epoch in range(1, epoch_size + 1):
             self.model.train()
             for i, (xseq, yseq, mask) in enumerate(self.dummy_dl):
                 out = self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
-        self.model.batch_size = real_batch_size
-        self.model.config.batch_size = real_batch_size
+        # self.model.batch_size = real_batch_size
+        # self.model.config.batch_size = real_batch_size
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.logger.info('Start straightening pre-train')
@@ -251,14 +252,16 @@ class Trainer(object):
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
-        pred_mx = np.zeros([arr_len, self.config.batch_size])
-        actu_mx = np.zeros([arr_len, self.config.batch_size])
+        # pred_mx = np.zeros([arr_len, self.config.batch_size])
+        # actu_mx = np.zeros([arr_len, self.config.batch_size])
         pred_ls = []
         actu_ls = []
-        pred_v_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.n_skills])
-        actu_v_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.n_skills])
+        # pred_v_mx = np.zeros(
+        #     [arr_len, self.config.batch_size * self.config.n_skills])
+        # actu_v_mx = np.zeros(
+        #     [arr_len, self.config.batch_size * self.config.n_skills])
+        pred_v_ls = []
+        actu_v_ls = []
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
@@ -268,10 +271,10 @@ class Trainer(object):
         #     pred_list = []
         #     target_list = []
         # ##
-        if only_eval:
-            q_all_count = defaultdict(int)
-            q_cor_count = defaultdict(int)
-            q_pred_list = defaultdict(list)
+        # if only_eval:
+        #     q_all_count = defaultdict(int)
+        #     q_cor_count = defaultdict(int)
+        #     q_pred_list = defaultdict(list)
         for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
             out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
@@ -287,24 +290,26 @@ class Trainer(object):
             #     target_list.append(right_target)
             # ##
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
-            if out.get('pred_prob', False) is not False:
-                # print(out['pred_prob'], out['pred_prob'].shape)
-                pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            # if out.get('pred_prob', False) is not False:
+            #     # print(out['pred_prob'], out['pred_prob'].shape)
+            #     pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            # actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
             if out.get('filtered_pred', False) is not False:
-                pred_ls.append(out['filtered_pred'])
-                actu_ls.append(out['filtered_target'])
-            actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+                pred_ls.append(out['filtered_pred'].reshape(-1))
+                actu_ls.append(out['filtered_target'].reshape(-1))
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             if out.get('Sdq', False) is not False:
-                pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
-                    .detach().view(-1).cpu()
-                actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
-            if only_eval:
-                for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
-                    q_all_count[q.item()] += 1
-                    q_cor_count[q.item()] += int(a)
-                    q_pred_list[q.item()].append(p)
+                # pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
+                #     .detach().view(-1).cpu()
+                # actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
+                pred_v_ls.append((out['Sdq'] * out['pred_vect'])[-1, :, :].detach().view(-1).cpu())
+                actu_v_ls.append(out['Sdqa'][-1, :, :].view(-1).cpu())
+            # if only_eval:
+            #     for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
+            #         q_all_count[q.item()] += 1
+            #         q_cor_count[q.item()] += int(a)
+            #         q_pred_list[q.item()].append(p)
 
             if self.config.debug:
                 break
@@ -325,7 +330,8 @@ class Trainer(object):
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
-            actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
+            torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
+            torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
@@ -336,8 +342,8 @@ class Trainer(object):
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
         }
-        if only_eval:
-            indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
+        # if only_eval:
+        #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
     def _train_model_simple(self, train_dl):
@@ -363,16 +369,16 @@ class Trainer(object):
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
 
-            # Pred & Accu Relation
-            q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
-            pa_scat_x = list()
-            pa_scat_y = list()
-            for q, l in q_pred_list.items():
-                all_acc = q_cor_count[q] / q_all_count[q]
-                for p in l:
-                    pa_scat_x.append(p)
-                    pa_scat_y.append(all_acc)
-            save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
+            # # Pred & Accu Relation
+            # q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
+            # pa_scat_x = list()
+            # pa_scat_y = list()
+            # for q, l in q_pred_list.items():
+            #     all_acc = q_cor_count[q] / q_all_count[q]
+            #     for p in l:
+            #         pa_scat_x.append(p)
+            #         pa_scat_y.append(all_acc)
+            # save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
 
             self.logger.info(f'{timeSince(start_time, 1)}')
 
