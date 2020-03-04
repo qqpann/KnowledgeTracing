@@ -58,3 +58,4 @@ RUN pip install -r requirements.txt
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt install nodejs
 RUN jupyter labextension install jupyterlab_vim
+RUN jupyter labextension install @jupyterlab/toc
