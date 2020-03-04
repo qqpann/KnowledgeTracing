@@ -12,6 +12,7 @@ import time
 import random
 import pickle
 import logging
+import warnings
 import math
 from math import log, ceil
 from pathlib import Path
@@ -67,6 +68,9 @@ class KSDKT(nn.Module):
 
     def forward(self, xseq, yseq, mask):
         i_batch = self.config.batch_size
+        if i_batch != xseq.shape[0]:
+            warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
+            i_batch = xseq.shape[0]
         i_skill = self.config.n_skills
         i_seqen = self.config.sequence_size
         assert xseq.shape == (i_batch, i_seqen, 2), '{} != {}'.format(xseq.shape, (i_batch, i_seqen, 2))
@@ -98,11 +102,11 @@ class KSDKT(nn.Module):
 
         inputs = self.embedding(inputs).squeeze(2)
         if self.model_name == 'dkt:rnn':
-            h0 = self.initHidden0()
+            h0 = self.initHidden0(i_batch)
             out, _hn = self.rnn(inputs, h0)
         elif self.model_name == 'ksdkt':
-            h0 = self.initHidden0()
-            c0 = self.initC0()
+            h0 = self.initHidden0(i_batch)
+            c0 = self.initC0(i_batch)
             out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
         # top_n, top_i = out.topk(1)
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
@@ -138,14 +142,10 @@ class KSDKT(nn.Module):
         }
 
         if True:
-            assert yqs.shape == (
-                self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
-                'Expected {}, got {}'.format(
-                    (i_seqen, i_batch, i_skill), yqs.shape)
-            assert target.shape == (
-                self.config.sequence_size, self.config.batch_size, 1), \
-                'Expected {}, got {}'.format(
-                    (i_seqen, i_batch, 1), target.shape)
+            assert yqs.shape == (i_seqen, i_batch, i_skill), \
+                'Expected {}, got {}'.format((i_seqen, i_batch, i_skill), yqs.shape)
+            assert target.shape == (i_seqen, i_batch, 1), \
+                'Expected {}, got {}'.format((i_seqen, i_batch, 1), target.shape)
             dqa = yqs * target
             Sdqa = torch.cumsum(dqa, dim=0)
             Sdq = torch.cumsum(yqs, dim=0)
@@ -176,11 +176,11 @@ class KSDKT(nn.Module):
 
         return out_dic
 
-    def initHidden0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
+    def initHidden0(self, batch_size):
+        return torch.zeros(self.n_layers * self.directions, batch_size, self.hidden_size).to(self.device)
 
-    def initC0(self):
-        return torch.zeros(self.n_layers * self.directions, self.batch_size, self.hidden_size).to(self.device)
+    def initC0(self, batch_size):
+        return torch.zeros(self.n_layers * self.directions, batch_size, self.hidden_size).to(self.device)
 
     def loss_batch(self, xseq, yseq, mask, opt=None):
         '''
