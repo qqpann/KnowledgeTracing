@@ -5,9 +5,19 @@
   "source_data": "synthetic",
   "n_skills": 50,
   "model_name": "ksdkt",
-  "lr": 10.0,
+  "lr": 0.1,
   "epoch_size": 100,
-  "early_stop": 1,
+  "early_stop": 200,
+  "pre_dummy_epoch_size": 8, 
   "straighten_during_train_every": 10,
-  "straighten_during_train_for": 1
+  "straighten_during_train_for": 1,
+  "batch_size": 128,
+  "dkt": {
+    "batch_size": 128,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
 }
