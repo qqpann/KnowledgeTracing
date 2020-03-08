@@ -179,6 +179,11 @@ class Trainer(object):
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.logger.info('Start straightening pre-train')
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
+        if self.config.transfer_learning:
+            self.logger.info('Transfer learning')
+            for param in self.model.parameters():
+                param.requires_grad = False
+            self.model.fc = self.model.init_fc()
         self.logger.info('Starting train')
         self.report.set_best('auc', .0)
         self.report.set_best('auc_epoch', 0)
