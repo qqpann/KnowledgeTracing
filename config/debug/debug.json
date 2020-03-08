@@ -8,9 +8,8 @@
   "lr": 0.1,
   "epoch_size": 100,
   "early_stop": 200,
+  "transfer_learning": true,
   "pre_dummy_epoch_size": 8, 
-  "straighten_during_train_every": 10,
-  "straighten_during_train_for": 1,
   "batch_size": 128,
   "dkt": {
     "batch_size": 128,

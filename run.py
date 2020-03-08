@@ -71,7 +71,7 @@ def run(configpath: Path):
     finally:
         trainer.dump_report()
     logger.info('All experiments done!')
-    slack_message('All experiments done for {}'.format(configpath.stem))
+    slack_message('All experiments done for {}.\nBest: ```{}```'.format(configpath.stem, str(trainer.report.as_dict()['best'])))
 
 
 if __name__ == '__main__':

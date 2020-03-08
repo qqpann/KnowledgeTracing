@@ -60,8 +60,7 @@ class KSDKT(nn.Module):
                                 dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
-        self.decoder = nn.Linear(
-            self.hidden_size * self.directions, self.output_size)
+        self.fc = self.init_fc()
         # self.sigmoid = nn.Sigmoid()
 
         self._loss = nn.BCELoss()
@@ -110,7 +109,7 @@ class KSDKT(nn.Module):
             out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
         # top_n, top_i = out.topk(1)
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
-        out = self.decoder(out)
+        out = self.fc(out)
         # decoded = self.sigmoid(decoded)
         # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
 
@@ -181,6 +180,9 @@ class KSDKT(nn.Module):
 
     def initC0(self, batch_size):
         return torch.zeros(self.n_layers * self.directions, batch_size, self.hidden_size).to(self.device)
+
+    def init_fc(self):
+        return nn.Linear(self.hidden_size * self.directions, self.output_size).to(self.device)
 
     def loss_batch(self, xseq, yseq, mask, opt=None):
         '''
