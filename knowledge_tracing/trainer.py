@@ -160,21 +160,10 @@ class Trainer(object):
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
-        # real_batch_size = self.model.config.batch_size
-        # try:
-        #     # self.model.batch_size = 1
-        #     pass
-        # except AttributeError as e:
-        #     self.logger.warning('{}'.format(e))
-        # except Exception as e:
-        #     self.logger.error('{}'.format(e))
-        # self.model.config.batch_size = 1
-        for epoch in range(1, epoch_size + 1):
+        for _ in range(1, epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq, mask) in enumerate(self.dummy_dl):
-                out = self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
-        # self.model.batch_size = real_batch_size
-        # self.model.config.batch_size = real_batch_size
+            for xseq, yseq, mask in self.dummy_dl:
+                self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.logger.info('Start straightening pre-train')

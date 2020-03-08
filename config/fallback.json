@@ -34,7 +34,6 @@
     "teacher_forcing_ratio": 1.0
   },
   "dkt": {
-    "batch_size": 128,
     "hidden_size": 200,
     "n_layers": 2,
     "bidirectional": false,
