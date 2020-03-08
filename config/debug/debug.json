@@ -12,7 +12,6 @@
   "pre_dummy_epoch_size": 8, 
   "batch_size": 128,
   "dkt": {
-    "batch_size": 128,
     "hidden_size": 200,
     "n_layers": 2,
     "bidirectional": false,
