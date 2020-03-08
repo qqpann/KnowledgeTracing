@@ -39,25 +39,24 @@ class KSDKT(nn.Module):
 
         self.model_name = config.model_name
         self.input_size = ceil(log(2 * config.n_skills))
-        self.hidden_size = config.dkt['hidden_size']
         self.output_size = config.n_skills
-        self.n_layers = config.dkt['n_layers']
         self.batch_size = config.batch_size
+        self.hidden_size = config.dkt['hidden_size']
+        self.n_layers = config.dkt['n_layers']
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
+        self.dropout = self.config.dkt['dropout_rate']
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
-        self.embedding = nn.Embedding(
-            config.n_skills * 2 + 2, self.input_size).to(device)
+        self.embedding = nn.Embedding(config.n_skills * 2, self.input_size).to(device)
 
-        nonlinearity = 'tanh'
         # https://pytorch.org/docs/stable/nn.html#rnn
         if self.model_name == 'dkt:rnn':
             self.rnn = nn.RNN(self.input_size, self.hidden_size, self.n_layers,
-                              nonlinearity=nonlinearity, dropout=self.dkt['dropout_rate'], bidirectional=self.bidirectional)
+                              nonlinearity='tanh', dropout=self.dropout, bidirectional=self.bidirectional)
         elif self.model_name == 'ksdkt':
             self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.n_layers,
-                                dropout=config.dkt['dropout_rate'], bidirectional=self.bidirectional)
+                                dropout=self.dropout, bidirectional=self.bidirectional)
         else:
             raise ValueError('Model name not supported')
         self.fc = self.init_fc()
@@ -100,13 +99,7 @@ class KSDKT(nn.Module):
         target = target.permute(1, 0, 2)
 
         inputs = self.embedding(inputs).squeeze(2)
-        if self.model_name == 'dkt:rnn':
-            h0 = self.initHidden0(i_batch)
-            out, _hn = self.rnn(inputs, h0)
-        elif self.model_name == 'ksdkt':
-            h0 = self.initHidden0(i_batch)
-            c0 = self.initC0(i_batch)
-            out, (_hn, _cn) = self.lstm(inputs, (h0, c0))
+        out, _Hn = self.lstm(inputs, self.init_Hidden0(i_batch))
         # top_n, top_i = out.topk(1)
         # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
         out = self.fc(out)
@@ -175,11 +168,20 @@ class KSDKT(nn.Module):
 
         return out_dic
 
-    def initHidden0(self, batch_size):
+    def init_h0(self, batch_size):
         return torch.zeros(self.n_layers * self.directions, batch_size, self.hidden_size).to(self.device)
 
-    def initC0(self, batch_size):
+    def init_c0(self, batch_size):
         return torch.zeros(self.n_layers * self.directions, batch_size, self.hidden_size).to(self.device)
+
+    def init_Hidden0(self, i_batch: int):
+        if self.model_name == 'dkt:rnn':
+            h0 = self.init_h0(i_batch)
+            return h0
+        elif self.model_name == 'ksdkt':
+            h0 = self.init_h0(i_batch)
+            c0 = self.init_c0(i_batch)
+            return (h0, c0)
 
     def init_fc(self):
         return nn.Linear(self.hidden_size * self.directions, self.output_size).to(self.device)
