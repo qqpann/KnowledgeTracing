@@ -10,8 +10,17 @@ class Report:
         self._best = defaultdict(lambda: defaultdict(float))
         self.subname = 0
 
-    def __call__(self, key, value):
+    def set_value(self, key, value):
+        self._indicator[key][self.subname] = value
+
+    def get_value(self, key):
+        return self._indicator[key][self.subname]
+
+    def append_value(self, key, value):
         self._indicator[key][self.subname].append(value)
+
+    def __call__(self, key, value):
+        self.append_value(key, value)
 
     def set_best(self, key, value):
         self._best[key][self.subname] = value
