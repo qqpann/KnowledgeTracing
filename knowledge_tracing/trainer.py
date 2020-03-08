@@ -143,7 +143,6 @@ class Trainer(object):
         self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
         self.report.subname = 'all'
         self.init_model()
-        self.report.get_best('auc_epoch')
         # TODO: Fix bad usage of k
         test_epoch_size = round(mean([self.report._best['auc_epoch'][i] for i in range(k+1)]), -1)
         self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
@@ -172,8 +171,6 @@ class Trainer(object):
             self.logger.info('Transfer learning')
             self.model.embedding.weight.requires_grad = False
         self.logger.info('Starting train')
-        self.report.set_best('auc', .0)
-        self.report.set_best('auc_epoch', 0)
         start_time = time.time()
         for epoch in range(1, epoch_size + 1):
             self.model.train()
