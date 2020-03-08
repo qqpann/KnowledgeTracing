@@ -5,8 +5,9 @@ import logging
 import numpy as np
 from pathlib import Path
 from math import log, ceil
-from statistics import mean
+from statistics import mean, stdev
 from sklearn import metrics
+from sklearn.metrics import ndcg_score as ndcg
 from collections import defaultdict
 
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
@@ -344,7 +345,6 @@ class Trainer(object):
 
     def test_model(self, test_dl, subname: str, do_report=False):
         self.logger.info('Starting test')
-        start_time = time.time()
         with torch.no_grad():
             self.model.eval()
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
@@ -369,39 +369,45 @@ class Trainer(object):
             #         pa_scat_y.append(all_acc)
             # save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
 
-            self.logger.info(f'{timeSince(start_time, 1)}')
-
             # BAD: avoid error for only DKVMN
             # if self.config.model_name == 'dkvmn':
             #     return
-            bad = 0
-            good = 0
-            bak_batch_size = self.model.batch_size
-            self.model.batch_size = 1
-            self.model.config.batch_size = 1
-            dummy_len = self.config.sequence_size
+
+            # Reverse Prediction
+            seq_size = self.config.sequence_size
+            simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size+1)[::-1]]
+            # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
+            # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
+            good, bad = 0, 0
+            simu_res = dict()
+            simu_ndcg = []
             for v in range(self.config.n_skills):
-                # wrong
-                wro = self.model.loss_batch(
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 0) for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
-                    opt=None)
-                wro = wro['pred_prob']
-                # correct
-                cor = self.model.loss_batch(
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 1) for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor([True]*self.config.sequence_size).unsqueeze(0),
-                    opt=None)
-                cor = cor['pred_prob']
-                if (cor - wro)[-1].item() < 0:
-                    bad += 1
-                else:
+                xs = []
+                preds = []
+                for s in simu:
+                    res = self.model.loss_batch(
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.BoolTensor([True]*seq_size).unsqueeze(0),)
+                    preds.append(res['pred_prob'][-1].item())
+                    xs.append(sum(s))
+                # RP soft
+                if preds[-1] > preds[0]:
                     good += 1
-            self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
-            self.model.batch_size = bak_batch_size
-            self.model.config.batch_size = bak_batch_size
+                else:
+                    bad += 1
+                # RP hard
+                simu_ndcg.append(ndcg(np.asarray([xs]), np.asarray([preds])))
+                # raw data
+                simu_res[v] = (xs, preds)
+            self.logger.info('RP soft \t good:bad = {}:{}'.format(good, bad))
+            self.logger.info('RP hard \t nDCG = {:.4f}±{:.4f}'.format(mean(simu_ndcg), stdev(simu_ndcg)))
+            # RP soft
+            self.report.set_value('RPsoft', {'good': good, 'bad': bad, 's_good': xs[-1], 's_bad': xs[0]})
+            # RP hard
+            self.report.set_value('RPhard', simu_ndcg)
+            # raw data
+            self.report.set_value('simu_pred', simu_res)
 
     def evaluate_model_heatmap(self):
         uid, heat_dl = prepare_heatmap_dataloader(
