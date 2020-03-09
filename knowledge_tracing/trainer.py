@@ -138,8 +138,6 @@ class Trainer(object):
                             self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
             self.test_model(fintest_dl, subname=k, do_report=True)
-
-        # TODO: add all experiment
         self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
         self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
         self.report.subname = 'all'
@@ -160,17 +158,17 @@ class Trainer(object):
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
+        self.logger.info('Start straightening pre-train')
         for _ in range(1, epoch_size + 1):
             self.model.train()
             for xseq, yseq, mask in self.dummy_dl:
                 self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
-        self.logger.info('Start straightening pre-train')
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
-        if self.config.transfer_learning:
-            self.logger.info('Transfer learning')
-            self.model.embedding.weight.requires_grad = False
+        # if self.config.transfer_learning:
+        #     self.logger.info('Transfer learning')
+        #     self.model.embedding.weight.requires_grad = False
         self.logger.info('Starting train')
         start_time = time.time()
         for epoch in range(1, epoch_size + 1):
