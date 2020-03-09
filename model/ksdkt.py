@@ -73,7 +73,7 @@ class KSDKT(nn.Module):
         i_seqen = self.config.sequence_size
         assert xseq.shape == (i_batch, i_seqen, 2), '{} != {}'.format(xseq.shape, (i_batch, i_seqen, 2))
         assert yseq.shape == (i_batch, i_seqen, 2), '{} != {}'.format(yseq.shape, (i_batch, i_seqen, 2))
-        onehot_size = i_skill * 2 + 2
+        # onehot_size = i_skill * 2 + 2
         device = self.device
         # Convert to onehot; (12, 1) -> (0, 0, ..., 1, 0, ...)
         # https://pytorch.org/docs/master/nn.functional.html#one-hot
