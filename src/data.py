@@ -188,9 +188,9 @@ class DataHandler:
         train_ds = self.get_ds(self.config, self.device, self.fintrain_data, range(len(self.fintrain_data)))
         test_ds = self.get_ds(self.config, self.device, self.fintest_data, range(len(self.fintest_data)))
         train_dl = DataLoader(
-            train_ds, batch_size=self.config.batch_size, drop_last=False)
+            train_ds, batch_size=self.config.batch_size, drop_last=True)
         test_dl = DataLoader(
-            test_ds, batch_size=self.config.batch_size, drop_last=False)
+            test_ds, batch_size=self.config.batch_size, drop_last=True)
         return train_dl, test_dl
 
     def generate_trainval_dl(self):
@@ -226,9 +226,9 @@ class DataHandler:
             train_ds = self.get_ds(self.config, self.device, train_data, range(len(train_data)))
             valid_ds = self.get_ds(self.config, self.device, valid_data, range(len(valid_data)))
             train_dl = DataLoader(
-                train_ds, batch_size=self.config.batch_size, drop_last=False)
+                train_ds, batch_size=self.config.batch_size, drop_last=True)
             valid_dl = DataLoader(
-                valid_ds, batch_size=self.config.batch_size, drop_last=False)
+                valid_ds, batch_size=self.config.batch_size, drop_last=True)
             yield train_dl, valid_dl
 
     def get_straighten_dl(self):
@@ -236,8 +236,7 @@ class DataHandler:
         y_values = []
         y_mask = []
         seq_size = self.config.sequence_size
-        # batch_size = 1
-        batch_size = self.config.batch_size
+        batch_size = 1
         for v in self.kc_dict.values():
             # wrong
             x_values.append([(v, 0) for _ in range(seq_size)])
