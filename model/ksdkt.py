@@ -48,7 +48,7 @@ class KSDKT(nn.Module):
         self.dropout = self.config.dkt['dropout_rate']
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
-        self.embedding = nn.Embedding(config.n_skills * 2, self.input_size).to(device)
+        self.embedding = nn.Embedding(config.n_skills * 2 + config.dkt['preserved_tokens'], self.input_size).to(device)
 
         # https://pytorch.org/docs/stable/nn.html#rnn
         if self.model_name == 'dkt:rnn':
@@ -67,7 +67,7 @@ class KSDKT(nn.Module):
     def forward(self, xseq, yseq, mask):
         i_batch = self.config.batch_size
         if i_batch != xseq.shape[0]:
-            warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
+            # warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
             i_batch = xseq.shape[0]
         i_skill = self.config.n_skills
         i_seqen = self.config.sequence_size
