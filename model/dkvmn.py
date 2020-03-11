@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import json
-import torch.nn.init
+# import torch.nn.init
 
 
 # Utils
@@ -211,12 +211,11 @@ class MODEL(nn.Module):
         # nn.init.normal(self.input_embed_linear.weight, std=0.02)
 
     def init_embeddings(self):
-
         nn.init.kaiming_normal_(self.q_embed.weight)
         nn.init.kaiming_normal_(self.qa_embed.weight)
 
     def forward(self, q_data, qa_data, target, student_id=None):
-
+        assert q_data.shape == (self.config.batch_size, self.config.sequence_size), q_data.shape
         batch_size = q_data.shape[0]
         seqlen = q_data.shape[1]
         q_embed_data = self.q_embed(q_data)
@@ -273,23 +272,27 @@ class MODEL(nn.Module):
         mask = target_1d.ge(0)               # [batch_size * seq_len, 1]
         # pred_1d = predicts.view(-1, 1)           # [batch_size * seq_len, 1]
         pred_1d = pred.view(-1, 1)           # [batch_size * seq_len, 1]
+        assert pred.shape == (self.batch_size * seqlen, 1)
+        assert target_1d.shape == (self.batch_size * seqlen, 1)
+        assert mask.shape == (self.batch_size * seqlen, 1)
+        assert pred_1d.shape == (self.batch_size * seqlen, 1)
 
         filtered_pred = torch.masked_select(pred_1d, mask)
         filtered_target = torch.masked_select(target_1d, mask)
         loss = torch.nn.functional.binary_cross_entropy_with_logits(
             filtered_pred, filtered_target)
 
-        #print(filtered_pred, filtered_pred.shape) #-> torch.Size([6399])
+        # print(filtered_pred, filtered_pred.shape) #-> torch.Size([6399])
         out = {
             'loss': loss,
             'filtered_pred': torch.sigmoid(filtered_pred),
             'filtered_target': filtered_target,
             # 'pred_vect': pred_vect,  # (20, 100, 124)
-            # 'pred_prob': pred_prob,  # (20, 100)
+            'pred_prob': pred.view(seqlen, batch_size),  # (20, 100)
         }
         return out
 
-    def loss_batch(self, xseq, yseq, opt=None):
+    def loss_batch(self, xseq, yseq, mask, opt=None):
         i_skill = self.config.n_skills
         device = self.device
         # q_one_seq = q_data[idx * params.batch_size:(idx + 1) * params.batch_size, :]
@@ -319,14 +322,13 @@ class MODEL(nn.Module):
 
         target = (target.float().cpu().numpy() - 1) / self.n_question
         target = np.floor(target)
-        input_q = varible(torch.LongTensor(q_one_seq), self.device)
-        input_qa = varible(torch.LongTensor(qa_batch_seq), self.device)
+        input_q = varible((q_one_seq), self.device)
+        input_qa = varible((qa_batch_seq), self.device)
         target = varible(torch.FloatTensor(target), self.device)
         target_to_1d = torch.chunk(target, self.batch_size, 0)
         target_1d = torch.cat([target_to_1d[i]
                                for i in range(self.batch_size)], 1)
         target_1d = target_1d.permute(1, 0)
-
         out = self.forward(input_q, input_qa, target_1d)
         loss = out['loss']
 

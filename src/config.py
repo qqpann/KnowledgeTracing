@@ -57,14 +57,19 @@ class Config(BaseConfig):
 
     def __init__(self, options: Dict, projectdir: Path):
         super().__init__(options)
-        self.projectpdir = projectdir
+        self.projectdir = projectdir
         self.outdir = projectdir / 'output'
         self.outdir.mkdir(exist_ok=True)
-        self.starttime = self._init_starttime()
+        self._init_starttime()
 
     def _init_starttime(self):
         """ starttime won't change once set. """
-        return datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        if getattr(self, 'starttime', None):
+            # use loaded starttime if loading from report json
+            return
+        starttime = datetime.datetime.now().strftime('%Y%m%d-%H%M')
+        setattr(self, 'starttime', starttime)
+        self._attr_list.append('starttime')
 
     @property
     def resultsdir(self):
@@ -76,7 +81,7 @@ class Config(BaseConfig):
     def load_model_path(self):
         if not self.load_model:
             return None
-        load_model_path = self.projectpdir / self.load_model
+        load_model_path = self.projectdir / self.load_model
         assert load_model_path.exists(), '{} not found'.format(load_model_path)
         return load_model_path
 
