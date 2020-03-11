@@ -5,18 +5,20 @@ import logging
 import numpy as np
 from pathlib import Path
 from math import log, ceil
+from statistics import mean, stdev
 from sklearn import metrics
+from sklearn.metrics import ndcg_score as ndcg
 from collections import defaultdict
 
-from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader
+from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.logging import get_logger
-from model.geddkt import GEDDKT
-from model.eddkt import EDDKT
+from src.report import Report
 from model.dkt import DKT
 from model.ksdkt import KSDKT
-from model.seq2seq import get_Seq2Seq, get_loss_batch_seq2seq
+from model.eddkt import EDDKT
+from model.geddkt import GEDDKT
 from model.dkvmn import MODEL as DKVMN
 
 
@@ -26,30 +28,32 @@ class Trainer(object):
         self.config = config
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
-        self.train_dl, self.eval_dl = self.get_dataloader(
-            self.config, self.device)
-        self.dummy_dl = self.get_dummy_dataloader(self.config, self.device)
-        model = self.get_model(self.config, self.device)
-        if self.config.load_model:
-            model.load_state_dict(torch.load(str(self.config.load_model_path)))
-            model = model.to(self.device)
-        self.model = model
+        self.dh = DataHandler(self.config, self.device)
+        self.dummy_dl = self.dh.get_straighten_dl()
+
+    def init_model(self):
+        self.model = self.get_model(self.config, self.device)
         self.opt = self.get_opt(self.model)
 
-        self._report = {
-            'config': self.config.as_dict(),
-            'indicator': defaultdict(list)
-        }
+    def load_model(self, load_model=None):
+        if load_model:
+            load_model_path = load_model
+        elif self.config.load_model:
+            load_model_path = str(self.config.load_model_path)
+        else:
+            return None
+        self.logger.info('Loading model {}'.format(load_model_path))
+        self.model.load_state_dict(torch.load(load_model_path))
+        self.model.to(self.device)
+
+    def init_report(self):
+        self.report = Report(self.config)
 
     def dump_report(self):
-        # self._report['indicator'] = dict(self._report['indicator'])
-        save_report(self.config, self._report)
-
-    def report(self, key, val):
-        self._report['indicator'][key].append(val)
+        self.report.dump()
 
     def get_logger(self, config):
-        outdir = config.resultsdir / 'report' / config.starttime
+        outdir = config.resultsdir / 'log' / config.starttime
         outdir.mkdir(parents=True, exist_ok=True)
         logger = get_logger(
             '{}/{}'.format(config.model_name, config.exp_name),
@@ -84,55 +88,95 @@ class Trainer(object):
             f'The model has {count_parameters(model):,} trainable parameters')
         return model
 
-    def get_dataloader(self, config, device):
-        train_dl, eval_dl = prepare_dataloader(
-            config, device=device, pad=config.pad)
-        self.logger.info(
-            'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-        self.logger.info(
-            'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
-        return train_dl, eval_dl
+    # def get_dataloader(self, config, device):
+    #     train_dl, eval_dl = prepare_dataloader(
+    #         config, device=device, pad=config.pad)
+    #     self.logger.info(
+    #         'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    #     self.logger.info(
+    #         'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
+    #     return train_dl, eval_dl
 
-    def get_dummy_dataloader(self, config, device):
-        return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
+    # def get_dummy_dataloader(self, config, device):
+    #     return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
 
     def get_opt(self, model):
-        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         if self.config.model_name == 'dkvmn':
             opt = torch.optim.Adam(params=model.parameters(
             ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
+            return opt
+        opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
 
-    def pre_train_model(self):
-        epoch_size = self.config.pre_dummy_epoch_size
+    # def kfold(self):
+    #     self.init_report()
+    #     test_dl = self.dh.get_test_dl()
+    #     for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
+    #         self.report.subname = k
+    #         self.init_model()
+    #         self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+    #         self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+    #         self.train_model(k, train_dl, valid_dl)
+    #         self.load_model(self.config.resultsdir / 'checkpoints' /
+    #                         self.config.starttime / 'f{}_best.model'.format(k))
+    #         self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
+    #         self.test_model(k, test_dl, do_report=True)
+
+    def cv(self):
+        projectdir = self.config.projectdir
+        name = self.config.source_data
+        self.init_report()
+        fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl()):
+            self.report.subname = k
+            self.init_model()
+            self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
+            self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+            self.train_model(train_dl, valid_dl, self.config.epoch_size, subname=k)
+
+            self.load_model(self.config.resultsdir / 'checkpoints' /
+                            self.config.starttime / 'f{}_best.model'.format(k))
+            self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+            self.test_model(fintest_dl, subname=k, do_report=True)
+        self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
+        self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+        self.report.subname = 'all'
+        self.init_model()
+        # TODO: Fix bad usage of k
+        test_epoch_size = round(mean([self.report._best['auc_epoch'][i] for i in range(k+1)]), -1)
+        self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
+        self.test_model(fintest_dl, subname='all', do_report=True)
+
+    # def evaluate_model(self):
+    #     test_dl = self.dh.get_test_dl()
+    #     for k in range(self.config.kfold):
+    #         self.init_model()
+    #         self.load_model(self.config.resultsdir / 'checkpoints' /
+    #                         self.config.starttime / 'f{}_best.model'.format(k))
+    #         self.test_model(k, test_dl, do_report=False)
+
+    def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
-        self.logger.info('Start pre train')
-        real_batch_size = self.model.config.batch_size
-        try:
-            self.model.batch_size = 1
-        except AttributeError as e:
-            self.logger.warning('{}'.format(e))
-        except Exception as e:
-            self.logger.error('{}'.format(e))
-        self.model.config.batch_size = 1
+        self.logger.info('Start straightening pre-train')
+        for _ in range(1, epoch_size + 1):
+            self.model.train()
+            for xseq, yseq, mask in self.dummy_dl:
+                self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
+
+    def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
+        self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
+        # if self.config.transfer_learning:
+        #     self.logger.info('Transfer learning')
+        #     self.model.embedding.weight.requires_grad = False
+        self.logger.info('Starting train')
+        start_time = time.time()
         for epoch in range(1, epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq, mask) in enumerate(self.dummy_dl):
-                out = self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
-        self.model.batch_size = real_batch_size
-        self.model.config.batch_size = real_batch_size
-
-    def train_model(self, validate=True):
-        self.logger.info('Starting train')
-        best = {
-            'auc': 0.,
-            'auc_epoch': 0,
-        }
-        start_time = time.time()
-        for epoch in range(1, self.config.epoch_size + 1):
-            self.model.train()
-            t_idc = self.exec_core(self.train_dl, self.opt)
+            if self.config.straighten_during_train_every and epoch % self.config.straighten_during_train_every == 0:
+                self.logger.info('Start straightening during train')
+                self.straighten_train_model(epoch_size=self.config.straighten_during_train_for)
+            t_idc = self.exec_core(train_dl, self.opt)
             t_loss, t_auc = t_idc['loss'], t_idc['auc']
 
             if epoch % 10 == 0:
@@ -146,7 +190,7 @@ class Trainer(object):
             if epoch % 10 == 0 and validate:
                 with torch.no_grad():
                     self.model.eval()
-                    v_idc = self.exec_core(dl=self.eval_dl, opt=None)
+                    v_idc = self.exec_core(dl=valid_dl, opt=None)
                     v_loss, v_auc = v_idc['loss'], v_idc['auc']
                 self.report('eval_loss', v_loss)
                 self.report('eval_auc', v_auc)
@@ -154,6 +198,10 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.report('waviness_l1', v_idc['waviness_l1'])
                     self.report('waviness_l2', v_idc['waviness_l2'])
+                if v_auc > self.report.get_best('auc'):  # best auc
+                    self.report.set_best('auc', v_auc)
+                    self.report.set_best('auc_epoch', epoch)
+                    save_model(self.config, self.model, 'f{}_best.model'.format(subname))
             if epoch % 100 == 0 and validate:
                 self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
                     epoch, v_loss, v_auc))
@@ -162,40 +210,46 @@ class Trainer(object):
                 if self.config.waviness_l1 or self.config.waviness_l2:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
-                if v_auc > best['auc']:
-                    best['auc'] = v_auc
-                    best['auc_epoch'] = epoch
-                    # report['best_eval_auc'] = bset_eval_auc
-                    # report['best_eval_auc_epoch'] = epoch
-                    save_model(self.config, self.model, v_auc, epoch)
+                if v_auc >= self.report.get_best('auc'):
+                    # refresh.
+                    save_model(self.config, self.model, f'{self.config.model_name}_auc{v_auc:.4f}_e{epoch}.model')
                     self.logger.info(
                         f'Best AUC {v_auc:.6} refreshed and saved!')
-                else:
+                elif (epoch - self.report.get_best('auc_epoch')) > self.config.early_stop:
+                    # early stop.
                     self.logger.info(
-                        f'Best AUC {best["auc"]:.6} at epoch {best["auc_epoch"]}')
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
+                    self.logger.info(f'Early stopping.')
+                    break
+                else:
+                    # no refresh, but no early stop yet.
+                    self.logger.info(
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
 
             if epoch % 100 == 0:
                 self.logger.info(
-                    f'{timeSince(start_time, epoch / self.config.epoch_size)} ({epoch}epoch {epoch / self.config.epoch_size * 100:.1f}%)')
+                    f'{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)')
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
-        save_learning_curve(
-            {k: self._report['indicator'][k] for k in
-             ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
-              'ksvector_l1', 'waviness_l1', 'waviness_l2']},
-            self.config)
+        # save_learning_curve(
+        #     {key: self.report._indicator[key][k] for key in
+        #      ['epoch', 'train_loss', 'train_auc', 'eval_loss', 'eval_auc',
+        #       'ksvector_l1', 'waviness_l1', 'waviness_l2']},
+        #     self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
-        pred_mx = np.zeros([arr_len, self.config.batch_size])
-        actu_mx = np.zeros([arr_len, self.config.batch_size])
+        # pred_mx = np.zeros([arr_len, self.config.batch_size])
+        # actu_mx = np.zeros([arr_len, self.config.batch_size])
         pred_ls = []
         actu_ls = []
-        pred_v_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.n_skills])
-        actu_v_mx = np.zeros(
-            [arr_len, self.config.batch_size * self.config.n_skills])
+        # pred_v_mx = np.zeros(
+        #     [arr_len, self.config.batch_size * self.config.n_skills])
+        # actu_v_mx = np.zeros(
+        #     [arr_len, self.config.batch_size * self.config.n_skills])
+        pred_v_ls = []
+        actu_v_ls = []
         loss_ar = np.zeros(arr_len)
         wvn1_ar = np.zeros(arr_len)
         wvn2_ar = np.zeros(arr_len)
@@ -205,10 +259,10 @@ class Trainer(object):
         #     pred_list = []
         #     target_list = []
         # ##
-        if only_eval:
-            q_all_count = defaultdict(int)
-            q_cor_count = defaultdict(int)
-            q_pred_list = defaultdict(list)
+        # if only_eval:
+        #     q_all_count = defaultdict(int)
+        #     q_cor_count = defaultdict(int)
+        #     q_pred_list = defaultdict(list)
         for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
             out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
@@ -224,23 +278,26 @@ class Trainer(object):
             #     target_list.append(right_target)
             # ##
             # out['pred_prob'].shape : (20, 100) (seq_len, batch_size)
-            if out.get('pred_prob', False) is not False:
-                # print(out['pred_prob'], out['pred_prob'].shape)
-                pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
-                pred_ls.append(out['filtered_pred'])
-                actu_ls.append(out['filtered_target'])
-            actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+            # if out.get('pred_prob', False) is not False:
+            #     # print(out['pred_prob'], out['pred_prob'].shape)
+            #     pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
+            # actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
+            if out.get('filtered_pred', False) is not False:
+                pred_ls.append(out['filtered_pred'].reshape(-1))
+                actu_ls.append(out['filtered_target'].reshape(-1))
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             if out.get('Sdq', False) is not False:
-                pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
-                    .detach().view(-1).cpu()
-                actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
-            if only_eval:
-                for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
-                    q_all_count[q.item()] += 1
-                    q_cor_count[q.item()] += int(a)
-                    q_pred_list[q.item()].append(p)
+                # pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
+                #     .detach().view(-1).cpu()
+                # actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
+                pred_v_ls.append((out['Sdq'] * out['pred_vect'])[-1, :, :].detach().view(-1).cpu())
+                actu_v_ls.append(out['Sdqa'][-1, :, :].view(-1).cpu())
+            # if only_eval:
+            #     for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
+            #         q_all_count[q.item()] += 1
+            #         q_cor_count[q.item()] += int(a)
+            #         q_pred_list[q.item()].append(p)
 
             if self.config.debug:
                 break
@@ -261,7 +318,8 @@ class Trainer(object):
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
         fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
-            actu_v_mx.reshape(-1), pred_v_mx.reshape(-1), pos_label=1)
+            torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
+            torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
@@ -272,81 +330,82 @@ class Trainer(object):
             'waviness_l2': wvn2_ar.mean(),
             'ksvector_l1': ksv1_ar.mean(),
         }
-        if only_eval:
-            indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
+        # if only_eval:
+        #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
-    def _train_model_simple(self):
+    def _train_model_simple(self, train_dl):
         '''最小構成を見て基本を思い出す'''
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(self.train_dl):
+            for i, (xseq, yseq) in enumerate(train_dl):
                 out = self.model.loss_batch(xseq, yseq, opt=self.opt)
 
-    def evaluate_model(self):
-        self.logger.info('Starting evaluation')
-        start_time = time.time()
+    def test_model(self, test_dl, subname: str, do_report=False):
+        self.logger.info('Starting test')
         with torch.no_grad():
             self.model.eval()
-            indicators = self.exec_core(
-                dl=self.eval_dl, opt=None, only_eval=True)
+            indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
 
-            self.logger.info('\tValid Loss: {:.6}\tAUC: {:.6}'.format(
-                v_loss, v_auc))
-            self.logger.info('\tValid KSV AUC: {:.6}'.format(
-                indicators['ksv_auc']))
+            if do_report:
+                self.report('test_auc', v_auc)
+            self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
+            self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
 
-            # Pred & Accu Relation
-            q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
-            pa_scat_x = list()
-            pa_scat_y = list()
-            for q, l in q_pred_list.items():
-                all_acc = q_cor_count[q] / q_all_count[q]
-                for p in l:
-                    pa_scat_x.append(p)
-                    pa_scat_y.append(all_acc)
-            save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
-
-            self.logger.info(f'{timeSince(start_time, 1)}')
+            # # Pred & Accu Relation
+            # q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
+            # pa_scat_x = list()
+            # pa_scat_y = list()
+            # for q, l in q_pred_list.items():
+            #     all_acc = q_cor_count[q] / q_all_count[q]
+            #     for p in l:
+            #         pa_scat_x.append(p)
+            #         pa_scat_y.append(all_acc)
+            # save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
 
             # BAD: avoid error for only DKVMN
-            if self.config.model_name == 'dkvmn':
-                return
-            bad = 0
-            good = 0
-            self.model.batch_size = 1
-            self.model.config.batch_size = 1
-            dummy_len = self.config.sequence_size
+            # if self.config.model_name == 'dkvmn':
+            #     return
+
+            # Reverse Prediction
+            seq_size = self.config.sequence_size
+            simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size+1)[::-1]]
+            # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
+            # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
+            good, bad = 0, 0
+            simu_res = dict()
+            simu_ndcg = []
             for v in range(self.config.n_skills):
-                # wrong
-                wro = self.model.loss_batch(
-                    torch.Tensor([(v, 0)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 0)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor(
-                        [True]*self.config.sequence_size).unsqueeze(0),
-                    opt=None)
-                wro = wro['pred_prob']
-                # correct
-                cor = self.model.loss_batch(
-                    torch.Tensor([(v, 1)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.Tensor([(v, 1)
-                                  for _ in range(dummy_len)]).unsqueeze(0),
-                    torch.BoolTensor(
-                        [True]*self.config.sequence_size).unsqueeze(0),
-                    opt=None)
-                cor = cor['pred_prob']
-                if (cor - wro)[-1].item() < 0:
-                    bad += 1
-                else:
+                xs = []
+                preds = []
+                for s in simu:
+                    res = self.model.loss_batch(
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.BoolTensor([True]*seq_size).unsqueeze(0),)
+                    preds.append(res['pred_prob'][-1].item())
+                    xs.append(sum(s))
+                # RP soft
+                if preds[-1] > preds[0]:
                     good += 1
-            self.logger.info('Good: {} \t Bad: {}'.format(good, bad))
+                else:
+                    bad += 1
+                # RP hard
+                simu_ndcg.append(ndcg(np.asarray([xs]), np.asarray([preds])))
+                # raw data
+                simu_res[v] = (xs, preds)
+            self.logger.info('RP soft \t good:bad = {}:{}'.format(good, bad))
+            self.logger.info('RP hard \t nDCG = {:.4f}±{:.4f}'.format(mean(simu_ndcg), stdev(simu_ndcg)))
+            # RP soft
+            self.report.set_value('RPsoft', {'good': good, 'bad': bad, 's_good': xs[-1], 's_bad': xs[0]})
+            # RP hard
+            self.report.set_value('RPhard', simu_ndcg)
+            # raw data
+            self.report.set_value('simu_pred', simu_res)
 
     def evaluate_model_heatmap(self):
         uid, heat_dl = prepare_heatmap_dataloader(

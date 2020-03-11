@@ -1,0 +1,26 @@
+{
+  "overwrite": false,
+  "model_name": "ksdkt",
+  "source_data": "statics2011",
+  "n_skills": 1223,
+  "sequence_size": 20,
+  "pad": false,
+  "epoch_size": 2000,
+  "early_stop": 150,
+  "pre_dummy_epoch_size": [0, 3, 8, 20, 50, 150, 400],
+  "batch_size": 128,
+  "lr": 0.1,
+  "waviness_l1": true,
+  "waviness_l2": true,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": 0.0,
+  "dkt": {
+    "batch_size": 128,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
+}

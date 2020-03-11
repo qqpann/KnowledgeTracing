@@ -1,86 +1,59 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
 import os
 import sys
-import random
-import time
-import datetime
-import logging
-from pprint import pprint
 import json
-import pickle
+import shutil
 from pathlib import Path
-from typing import List, Tuple, Set, Dict  # noqa
-
-import numpy as np
-from sklearn import metrics
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-from src.utils import sAsMinutes, timeSince
-from src.config import get_option_fallback, Config
-from src.save import save_model, save_log, save_hm_fig, save_learning_curve
 from src.slack import slack_message
-from src.logging import get_logger
-from knowledge_tracing.trainer import Trainer
-
-
-logger = get_logger(__name__, 'tmp.log')
-
-
-def seed_everything(seed: int=42):
-    random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-
-
-def main(configpath: Path):
-    with open(configpath, 'r') as f:
-        cfg = json.load(f)
-    with open(configpath.parent / 'fallback.json', 'r') as f:
-        default_cfg = json.load(f)
-    default_cfg['config_name'] = configpath.stem
-    projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
-    experiments = cfg['experiments']
-    assert len(experiments) == len(
-        set([e['exp_name'] for e in experiments])), 'exp_name has duplicate.'
-    cmn_dict = cfg.get('common', dict())
-    cmn_dict = get_option_fallback(cmn_dict, fallback=default_cfg)
-    for exp_dict in experiments:
-        config_dict = get_option_fallback(exp_dict, fallback=cmn_dict)
-        config = Config(config_dict, projectdir=projectdir)
-        logger.info(
-            '\nStarting Experiment: {}\n--- * --- * ---'.format(config.exp_name))
-
-        run(config)
-    logger.info('All experiments done!')
-    slack_message('All experiments done for {}'.format(configpath.stem))
-
-
-def run(config):
-    seed_everything()
-
-    trainer = Trainer(config)
-    if not config.load_model:
-        try:
-            trainer.pre_train_model()
-            trainer.train_model()
-        except KeyboardInterrupt as e:
-            print(e)
-        finally:
-            trainer.dump_report()
-
-    trainer.evaluate_model()
-    # trainer.evaluate_model_heatmap()
-
 
 if __name__ == '__main__':
-    config = sys.argv[1]
-    config = Path(config)
-    assert config.exists(), config
-    main(config)
+    config = Path(sys.argv[1])
+    assert config.exists()
+    # Grid search
+    if config.name.endswith('.grid.json'):
+        with open(config, 'r') as f:
+            grid = json.load(f)
+        grid_search_target = []
+        for key, val in grid.items():
+            if type(val) is list:
+                grid_search_target.append(key)
+        assert len(grid_search_target) <= 2, 'Grid search only supports <=2 so far.'
+        if len(grid_search_target) == 1:
+            target_name = grid_search_target[0]
+            grid_combinations = [{target_name: v} for v in grid[target_name]]
+        elif len(grid_search_target) == 2:
+            grid_combinations = []
+            target_name1 = grid_search_target[0]
+            target_name2 = grid_search_target[1]
+            for v1 in grid[target_name1]:
+                for v2 in grid[target_name2]:
+                    grid_combinations.append({
+                        target_name1: v1,
+                        target_name2: v2,
+                    })
+        config_name_path = config.parent / config.name[:-10]
+        if config_name_path.exists():
+            # Danger: remove directory with files in it.
+            shutil.rmtree(config_name_path)
+        config_name_path.mkdir(exist_ok=False)
+        for grid_options in grid_combinations:
+            new_grid = grid.copy()
+            name_suffix = ''
+            for k, v in grid_options.items():
+                new_grid[k] = v
+                name_suffix += k+str(v)
+            name = name_suffix + '.auto.json'
+            with open(config_name_path / name, 'w') as f:
+                json.dump(new_grid, f, indent=2)
+        config = config_name_path
+    # Single config
+    if config.is_file():
+        slack_message('Start {}'.format(config))
+        print(f'python run.py {str(config)}')
+        os.system(f'python run.py {str(config)}')
+        sys.exit(0)  # 0: successful termination.
+    # Manual comparison
+    os.system(f'ls {str(config)}')
+    slack_message('Start grid\n{}'.format('\n'.join([str(c) for c in config.iterdir()])))
+    for cfg in config.glob('*.json'):
+        print(f'python run.py {str(cfg)}')
+        os.system(f'python run.py {str(cfg)}')
