@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def save_model(config, model, auc, epoch):
+def save_model(config, model, fname):
     outdir = config.resultsdir / 'checkpoints' / config.starttime
     outdir.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), outdir /
-               f'{config.model_name}_auc{auc:.4f}_e{epoch}.model')
+    torch.save(model.state_dict(), outdir / fname)
 
 
 def save_log(config, data, auc, epoch):
@@ -23,7 +22,7 @@ def save_log(config, data, auc, epoch):
 def save_report(config, report):
     outdir = config.resultsdir / 'report' / config.starttime
     outdir.mkdir(parents=True, exist_ok=True)
-    with open(outdir / f'{config.model_name}.json', 'w') as f:
+    with open(outdir / 'report.json', 'w') as f:
         json.dump(report, f, indent=2)
 
 
