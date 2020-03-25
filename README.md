@@ -82,6 +82,7 @@ https://sites.google.com/site/assistmentsdata/home/assistment-2009-2010-data
 | Python       | 3.7     |
 | CUDA         | 10.1    |
 | PyTorch      | 1.3.0   |
+| Docker       | 19.03   |
 
 ## References
 
