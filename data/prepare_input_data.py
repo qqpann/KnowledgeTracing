@@ -1,9 +1,13 @@
-import codecs
 import os
-from collections import defaultdict
+import codecs
 import pickle
-
 import pandas as pd
+from tqdm import tqdm
+from typing import Dict
+from pathlib import Path
+from collections import defaultdict
+from sklearn.model_selection import train_test_split, KFold
+
 import click
 
 
@@ -15,25 +19,57 @@ def id_generator():
         n += 1
 
 
+def ask_for(obj: str, message: str):
+    ''' Ask for input if not provided '''
+    if obj:
+        return obj
+    return input(message)
+
+
+def dump_qa_fmt(obj: Dict, f) -> None:
+    for usr, seq in obj.items():
+        f.write('{}\n'.format(usr))
+        problems = ','.join([str(qa[0]) for qa in seq])
+        answers = ','.join([str(qa[1]) for qa in seq])
+        f.write('{}\n'.format(problems))
+        f.write('{}\n'.format(answers))
+
+
 @click.command()
-@click.option('--file', default='skill_builder_data_corrected', help='File name without extension')
-@click.option('-csid', '--col-sid', 'csid', default='skill_id', help='Column name of skill id')
-@click.option('-cusr', '--col-usr', 'cusr', default='user_id', help='Column name of user id')
-@click.option('-cans', '--col-ans', 'cans', default='correct', help='Column name of answer')
+@click.option('--file', 'infile', default='skill_builder_data_corrected', help='File name without extension')
+@click.option('-csid', '--col-sid', 'csid', default='', help='Column name of skill id')
+@click.option('-cusr', '--col-usr', 'cusr', default='', help='Column name of user id')
+@click.option('-cans', '--col-ans', 'cans', default='', help='Column name of answer')
 @click.option('--sort-by', default='', help='Column name to sort by')
+@click.option('--folds', default=5, help='Validation k-folds to split into')
+@click.option('--test-size', default=.2, help='Test data size to split')
+@click.option('--split-mode', default='user', help='How to split valid or test')
 @click.option('--outfile-name', default='', help='File name to output')
-def main(file, csid, cusr, cans, sort_by, outfile_name):
-    run(file, csid, cusr, cans, sort_by, outfile_name)
+@click.option('--rerun', is_flag=True, help='Overwrite the output')
+def main(infile, csid, cusr, cans, sort_by, folds, test_size, split_mode,  outfile_name, rerun):
+    run(infile, csid, cusr, cans, sort_by, folds, test_size, split_mode, outfile_name, rerun)
 
 
-def run(file, csid, cusr, cans, sort_by, outfile_name=''):
-    dirname = os.path.dirname(__file__)
-    infname = os.path.join(dirname, f'raw_input/{file}.csv')
-    outfname = os.path.join(dirname, f'input/{outfile_name if outfile_name else file}.pickle')
-    outfname_txt = os.path.join(dirname, f'input/{outfile_name if outfile_name else file}.txt')
-    outdicname = os.path.join(dirname, f'input/{outfile_name if outfile_name else file}_dic.pickle')
-    # order_id,assignment_id,user_id,assistment_id,problem_id,original,correct,attempt_count,ms_first_response,tutor_mode,answer_type,sequence_id,student_class_id,position,type,base_sequence_id,skill_id,skill_name,teacher_id,school_id,hint_count,hint_total,overlap_time,template_id,answer_id,answer_text,first_action,bottom_hint,opportunity,opportunity_original
-    print(infname)
+def run(infile, csid, cusr, cans, sort_by, folds, test_size, split_mode, outfile_name='', rerun=False):
+    """
+    TODO: support random split
+    TODO: support time split
+    """
+    dirname = Path(os.path.dirname(__file__))
+    if (dirname / infile).exists():
+        # Bad solution. Accepts path --file argument.
+        infile = (dirname / infile).stem
+    infname = dirname / f'raw_input/{infile}.csv'
+    assert infname.exists(), f'{infname} not found.'
+    if not outfile_name:
+        outfile_name = infile
+    outdir = dirname / f'input/{outfile_name}'
+    if outdir.exists() and not rerun:
+        print('Aborting: Outdir exists and not rerun')
+        print('No change will be made')
+        return
+    if not outdir.exists():
+        outdir.mkdir(parents=False, exist_ok=False)
 
     try:
         with codecs.open(infname, 'r', 'utf-8', 'strict') as f:
@@ -44,43 +80,56 @@ def run(file, csid, cusr, cans, sort_by, outfile_name=''):
         print('example: nkf -Lu -w file_name > new_file_name')
         print(e)
 
+    print(df.shape)
+    csid = ask_for(csid, 'Column name of skill id? > ')
+    cusr = ask_for(cusr, 'Column name of user id? > ')
+    cans = ask_for(cans, 'Column name of answer? > ')
     df.dropna(subset=[csid, cusr, cans])
     print(df.shape)
-
-    df.dropna(subset=[csid, cusr, cans])
+    assert set(df[cans].unique()) == {0, 1}, f'cans consists of {df[cans].unique()}. Only [0, 1] are supported'
 
     if sort_by:
         df = df.sort_values(by=sort_by)
 
-    it = iter(id_generator())
-
+    p_it = iter(id_generator())
+    u_it = iter(id_generator())
+    users = defaultdict(lambda: next(u_it))
+    problems = defaultdict(lambda: next(p_it))
     processed = defaultdict(list)
-    problems = defaultdict(lambda: next(it))
-    for idx, row in df.iterrows():
-        # nanは無視する
+    for idx, row in tqdm(df.iterrows()):
         sid = row[csid]
         usr = row[cusr]
-        ans = row[cans]
-        ans = int(ans)
-        assert ans in {0, 1}, 'ans {} not in 0, 1'.format(ans)
+        ans = int(row[cans])
         # processed[row.user_id].append((problems[row.problem_id], row.correct))
-        processed[usr].append((problems[sid], ans))
+        processed[users[usr]].append((problems[sid], ans))
 
     print('Knowledge Concepts:', len(problems))
-    print('Students:', len(processed))
+    print('Students:', len(users))
+    assert len(processed) == len(users), f'{len(processed)} and {len(users)} mismatch'
 
-    # Save processed data
-    with open(outfname, 'wb') as f:
-        pickle.dump(dict(processed), f)
+    all_idx = list(users.values())
+    train_idx, test_idx = train_test_split(all_idx, test_size=test_size)
+    kf = KFold(n_splits=folds, shuffle=False, random_state=None)
+
+    outdicname = outdir / f'{outfile_name}_dic.pickle'
     with open(outdicname, 'wb') as f:
         pickle.dump(dict(problems), f)
-    with open(outfname_txt, 'w') as f:
-        for usr, seq in processed.items():
-            f.write('{}\n'.format(usr))
-            problems = ','.join([str(qa[0]) for qa in seq])
-            answers = ','.join([str(qa[1]) for qa in seq])
-            f.write('{}\n'.format(problems))
-            f.write('{}\n'.format(answers))
+
+    with open(outdir / f'{outfile_name}_train.txt', 'w') as f:
+        dump_qa_fmt({k: v for k, v in processed.items() if k in train_idx}, f)
+    with open(outdir / f'{outfile_name}_train.pkl', 'wb') as f:
+        pickle.dump({k: v for k, v in processed.items() if k in train_idx}, f)
+
+    with open(outdir / f'{outfile_name}_test.txt', 'w') as f:
+        dump_qa_fmt({k: v for k, v in processed.items() if k in test_idx}, f)
+    with open(outdir / f'{outfile_name}_test.pkl', 'wb') as f:
+        pickle.dump({k: v for k, v in processed.items() if k in test_idx}, f)
+
+    for k, (train_k_idx, valid_k_idx) in enumerate(kf.split(train_idx), start=1):
+        with open(outdir / f'{outfile_name}_train{k}.txt', 'w') as f:
+            dump_qa_fmt({k: v for k, v in processed.items() if k in train_k_idx}, f)
+        with open(outdir / f'{outfile_name}_valid{k}.txt', 'w') as f:
+            dump_qa_fmt({k: v for k, v in processed.items() if k in valid_k_idx}, f)
 
 
 if __name__ == '__main__':

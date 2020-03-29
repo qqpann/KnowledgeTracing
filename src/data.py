@@ -179,7 +179,12 @@ class DataHandler:
             train = 'naive_c5_q50_s4000_v1_train.csv'
             test = 'naive_c5_q50_s4000_v1_test.csv'
         else:
-            raise ValueError('name is wrong')
+            sourcedir = projectdir / 'data/input/{}'.format(name)
+            train = name + '_train.txt'
+            test = name + '_test.txt'
+            assert sourcedir.exists() and (sourcedir / train).exists() and (sourcedir/test).exists(),\
+                FileNotFoundError(f'Source not found. Check {sourcedir} and file naming rules')
+
         fintrain_data = load_qa_format_source(sourcedir / train)
         fintest_data = load_qa_format_source(sourcedir / test)
         return fintrain_data, fintest_data
@@ -216,7 +221,12 @@ class DataHandler:
             valid = 'naive_c5_q50_s4000_v1_valid{}.csv'
             kfold = 1
         else:
-            raise ValueError('name is wrong')
+            sourcedir = projectdir / 'data/input/{}'.format(name)
+            train = name + '_train{}.txt'
+            valid = name + '_valid{}.txt'
+            kfold = 5
+            assert sourcedir.exists(),\
+                FileNotFoundError(f'Source not found. Check {sourcedir} and file naming rules')
 
         for i in range(1, kfold + 1):
             train_data = load_qa_format_source(sourcedir / train.format(i))
