@@ -6,10 +6,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
-assert WEBHOOK_URL is not None
+
+
+def slack_is_available():
+    if WEBHOOK_URL is None:
+        return False
+    else:
+        return True
 
 
 def slack_message(text: str):
+    if not slack_is_available():
+        return None
     message = {'text': text}
     response = requests.post(
         WEBHOOK_URL, data=json.dumps(message),
