@@ -36,12 +36,12 @@ def check_prev_report(config_dict, projectdir):
 
 
 def run(configpath: Path):
+    projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
     with open(configpath, 'r') as f:
         cfg = json.load(f)
-    with open(configpath.parent.parent / 'fallback.json', 'r') as f:
+    with open(projectdir / 'config/fallback.json', 'r') as f:
         default_cfg = json.load(f)
     default_cfg['config_name'] = configpath.parent.name
-    projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
 
     config_dict = get_option_fallback(cfg, fallback=default_cfg)
     config_dict['exp_name'] = configpath.stem
