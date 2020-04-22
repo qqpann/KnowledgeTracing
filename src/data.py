@@ -141,11 +141,8 @@ class DataHandler:
         y_values = []
         y_mask = []
         for idx in data_idx:
-            d = data[idx]
-            if len(d) < config.sequence_size + 1:
-                continue
             # x and y seqsize is sequence_size + 1
-            for xy_seq in slice_data_list(d, seq_size=config.sequence_size + 1, pad=config.pad):
+            for xy_seq in slice_data_list(data[idx], seq_size=config.sequence_size + 1, pad=config.pad):
                 seq_actual_size = len(xy_seq)
                 if config.pad == True and seq_actual_size < config.sequence_size+1:
                     xy_seq = xy_seq + [(0, 2)] * (config.sequence_size+1-seq_actual_size)
@@ -236,9 +233,9 @@ class DataHandler:
             train_ds = self.get_ds(self.config, self.device, train_data, range(len(train_data)))
             valid_ds = self.get_ds(self.config, self.device, valid_data, range(len(valid_data)))
             train_dl = DataLoader(
-                train_ds, batch_size=self.config.batch_size, drop_last=True)
+                train_ds, batch_size=self.config.batch_size, drop_last=False)
             valid_dl = DataLoader(
-                valid_ds, batch_size=self.config.batch_size, drop_last=True)
+                valid_ds, batch_size=self.config.batch_size, drop_last=False)
             yield train_dl, valid_dl
 
     def get_straighten_dl(self):
