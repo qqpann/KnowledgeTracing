@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.config import get_option_fallback, Config
 from src.slack import slack_message, slack_is_available
-from src.logging import get_logger
+from src.log import get_logger
 from knowledge_tracing.trainer import Trainer
 
 

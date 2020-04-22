@@ -13,7 +13,7 @@ from collections import defaultdict
 from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
-from src.logging import get_logger
+from src.log import get_logger
 from src.report import Report
 from model.dkt import DKT
 from model.ksdkt import KSDKT
