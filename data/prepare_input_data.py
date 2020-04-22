@@ -116,20 +116,32 @@ def run(infile, csid, cusr, cans, sort_by, folds, test_size, split_mode, outfile
         pickle.dump(dict(problems), f)
 
     with open(outdir / f'{outfile_name}_train.txt', 'w') as f:
-        dump_qa_fmt({k: v for k, v in processed.items() if k in train_idx}, f)
+        result = {k: v for k, v in processed.items() if k in train_idx}
+        assert len(result) > 0
+        dump_qa_fmt(result, f)
     with open(outdir / f'{outfile_name}_train.pkl', 'wb') as f:
-        pickle.dump({k: v for k, v in processed.items() if k in train_idx}, f)
+        result = {k: v for k, v in processed.items() if k in train_idx}
+        assert len(result) > 0
+        pickle.dump(result, f)
 
     with open(outdir / f'{outfile_name}_test.txt', 'w') as f:
-        dump_qa_fmt({k: v for k, v in processed.items() if k in test_idx}, f)
+        result = {k: v for k, v in processed.items() if k in test_idx}
+        assert len(result) > 0
+        dump_qa_fmt(result, f)
     with open(outdir / f'{outfile_name}_test.pkl', 'wb') as f:
-        pickle.dump({k: v for k, v in processed.items() if k in test_idx}, f)
+        result = {k: v for k, v in processed.items() if k in test_idx}
+        assert len(result) > 0
+        pickle.dump(result, f)
 
     for k, (train_k_idx, valid_k_idx) in enumerate(kf.split(train_idx), start=1):
         with open(outdir / f'{outfile_name}_train{k}.txt', 'w') as f:
-            dump_qa_fmt({k: v for k, v in processed.items() if k in train_k_idx}, f)
+            result = {k: v for k, v in processed.items() if k in train_k_idx}
+            assert len(result) > 0
+            dump_qa_fmt(result, f)
         with open(outdir / f'{outfile_name}_valid{k}.txt', 'w') as f:
-            dump_qa_fmt({k: v for k, v in processed.items() if k in valid_k_idx}, f)
+            result = {k: v for k, v in processed.items() if k in valid_k_idx}
+            assert len(result) > 0
+            dump_qa_fmt(result, f)
 
 
 if __name__ == '__main__':
