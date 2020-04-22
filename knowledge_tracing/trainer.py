@@ -132,6 +132,7 @@ class Trainer(object):
             self.init_model()
             self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
             self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+            # assert len(train_dl) > 0 and len(valid_dl) > 0, 'k:{},train:{},valid:{}'.format(k, len(train_dl), len(valid_dl))
             self.train_model(train_dl, valid_dl, self.config.epoch_size, subname=k)
 
             self.load_model(self.config.resultsdir / 'checkpoints' /
@@ -240,6 +241,7 @@ class Trainer(object):
 
     def exec_core(self, dl, opt, only_eval=False):
         arr_len = len(dl) if not self.config.debug else 1
+        # assert arr_len > 0, f'{dl}, {len(dl)}, {dl.dataset}'
         # pred_mx = np.zeros([arr_len, self.config.batch_size])
         # actu_mx = np.zeros([arr_len, self.config.batch_size])
         pred_ls = []
@@ -250,10 +252,14 @@ class Trainer(object):
         #     [arr_len, self.config.batch_size * self.config.n_skills])
         pred_v_ls = []
         actu_v_ls = []
-        loss_ar = np.zeros(arr_len)
-        wvn1_ar = np.zeros(arr_len)
-        wvn2_ar = np.zeros(arr_len)
-        ksv1_ar = np.zeros(arr_len)
+        # loss_ar = np.zeros(arr_len)
+        # wvn1_ar = np.zeros(arr_len)
+        # wvn2_ar = np.zeros(arr_len)
+        # ksv1_ar = np.zeros(arr_len)
+        loss_ls = list()
+        wvn1_ls = list()
+        wvn2_ls = list()
+        ksv1_ls = list()
         # ##
         # if self.config.model_name == 'dkvmn':
         #     pred_list = []
@@ -266,10 +272,14 @@ class Trainer(object):
         for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
             out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
-            loss_ar[i] = out['loss'].item()
-            wvn1_ar[i] = out.get('waviness_l1')
-            wvn2_ar[i] = out.get('waviness_l2')
-            ksv1_ar[i] = out.get('ksvector_l1')
+            # loss_ar[i] = out['loss'].item()
+            # wvn1_ar[i] = out.get('waviness_l1')
+            # wvn2_ar[i] = out.get('waviness_l2')
+            # ksv1_ar[i] = out.get('ksvector_l1')
+            loss_ls.append(out['loss'].item())
+            wvn1_ls.append(out.get('waviness_l1'))
+            wvn2_ls.append(out.get('waviness_l2'))
+            ksv1_ls.append(out.get('ksvector_l1'))
             # ##
             # if self.config.model_name == 'dkvmn':
             #     right_target = np.asarray(out.get('filtered_target').data.tolist())
@@ -310,6 +320,8 @@ class Trainer(object):
         # fpr, tpr, _thresholds = metrics.roc_curve(
         #     actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
 
+        assert len(actu_ls)>0 and len(pred_ls)>0, f'{len(actu_ls)},{len(pred_ls)}'
+
         fpr, tpr, _thresholds = metrics.roc_curve(
             torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
             torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
@@ -323,12 +335,12 @@ class Trainer(object):
         auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
-            'loss': loss_ar.mean(),
+            'loss': mean(loss_ls),
             'auc': auc,
             'ksv_auc': auc_ksv,
-            'waviness_l1': wvn1_ar.mean(),
-            'waviness_l2': wvn2_ar.mean(),
-            'ksvector_l1': ksv1_ar.mean(),
+            'waviness_l1': mean(wvn1_ls),
+            'waviness_l2': mean(wvn2_ls),
+            'ksvector_l1': mean(ksv1_ls),
         }
         # if only_eval:
         #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
