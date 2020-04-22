@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from src.slack import slack_message
 
+
 if __name__ == '__main__':
     config = Path(sys.argv[1])
     assert config.exists()
