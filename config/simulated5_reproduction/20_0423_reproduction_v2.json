@@ -1,0 +1,24 @@
+{
+  "cuda": true,
+  "overwrite": true,
+  "model_name": "ksdkt",
+  "source_data": "simulated5_reproduction_v2",
+  "n_skills": 50,
+  "pad": true,
+  "test_size": 0.2,
+  "kfold": 5,
+  "epoch_size": 2000,
+  "early_stop": 150,
+  "transfer_learning": false,
+  "pre_dummy_epoch_size": 0,
+  "batch_size": 128,
+  "lr": 0.05,
+  "sequence_size": 20,
+  "dkt": {
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
+}
