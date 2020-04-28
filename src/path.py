@@ -20,10 +20,15 @@ def get_exp_paths(projectdir: Path, config_name: str, ) -> List[Path]:
     return exp_paths
 
 
-def get_report_path(projectdir: Path, expcfgpath: Path) -> Path:
-    assert projectdir.exists()
-    config_name = expcfgpath.parent.name
-    exp_name = expcfgpath.stem
+def get_exp_names(projectdir: Path, config_name: str) -> List[str]:
+    outputdir = projectdir / 'output' / config_name
+    if outputdir.exists():
+        return [exp_path.name for exp_path in outputdir.iterdir()]
+    else:
+        return None
+
+
+def get_report_path(projectdir: Path, config_name: str, exp_name: str) -> Path:
     outputdir = projectdir / 'output' / config_name / exp_name
     assert outputdir.exists()
     return sorted(outputdir.glob('report/*/*.json'))[-1]  # report.json from latest starttime
