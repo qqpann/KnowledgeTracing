@@ -10,7 +10,6 @@ import tqdm
 
 def irt_prob(difficulty: float, ability: float) -> float:
     c = 0.25
-    return difficulty
     return c + (1 - c) / (1 + math.exp(difficulty - ability))
 
 
@@ -24,8 +23,9 @@ class Question:
 class Student:
     def __init__(self, number: int):
         self.number = number
+        scale_max = 0.3
         # self.intelligence = [np.random.normal(loc=0.6, scale=0.2) for _ in range(5)]
-        self.intelligence = min(np.random.normal(loc=0.6, scale=0.5), 0.99)
+        self.intelligence = min(np.random.normal(loc=0.6, scale=0.5), 0.99) * scale_max
 
     def get_irt_prob(self, question: Question) -> float:
         # prob = irt_prob(question.rank, self.intelligence[question.lo_id])
