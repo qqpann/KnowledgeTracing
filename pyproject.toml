@@ -14,8 +14,11 @@ matplotlib = "^3.2.1"
 seaborn = "^0.10.1"
 python-dotenv = "^0.13.0"
 requests = "^2.23.0"
+tqdm = "^4.45.0"
+click = "^7.1.2"
 
 [tool.poetry.dev-dependencies]
+jupyterlab = "^2.1.1"
 
 [build-system]
 requires = ["poetry>=0.12"]
