@@ -14,18 +14,19 @@ def irt_prob(difficulty: float, ability: float) -> float:
 
 
 class Question:
-    def __init__(self, lo_name: str, lo_id, rank: float):
+    def __init__(self, lo_name: str, lo_id, rank: float=None):
         self.lo_name = lo_name
         self.lo_id = lo_id
+        if rank is None:
+            rank = np.random.normal(loc=0.0, scale=1.0)
         self.rank = rank
 
 
 class Student:
     def __init__(self, number: int):
         self.number = number
-        scale_max = 0.3
-        # self.intelligence = [np.random.normal(loc=0.6, scale=0.2) for _ in range(5)]
-        self.intelligence = min(np.random.normal(loc=0.6, scale=0.5), 0.99) * scale_max
+        # scale_max = 0.3
+        self.intelligence = np.random.normal(loc=0.0, scale=1.0)
 
     def get_irt_prob(self, question: Question) -> float:
         # prob = irt_prob(question.rank, self.intelligence[question.lo_id])
@@ -57,7 +58,7 @@ def main(outpath):
     questions = []
     for lo in range(5):
         for q in range(10):
-            q = Question("lo{}_q{}".format(lo, q), lo, rank=np.random.normal(loc=0.6, scale=0.5))
+            q = Question("lo{}_q{}".format(lo, q), lo, )
             questions.append(q)
 
     d = {'SEQ': [], 'CustomerNumber': [], 'SkillID': [], 'IRTprob': [], 'AnswerResult': []}

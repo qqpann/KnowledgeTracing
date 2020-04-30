@@ -1,0 +1,8 @@
+
+{
+  "model_name": "ksdkt",
+  "source_data": "simulated5_reproduction_v9",
+  "n_skills": 50,
+  "pad": true
+}
+
