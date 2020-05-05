@@ -279,121 +279,121 @@ class DataHandler:
 #
 
 
-def prepare_dataloader(config, device, pad=False):
-    '''
-    '''
-    data = load_source(
-        config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+# def prepare_dataloader(config, device, pad=False):
+#     '''
+#     '''
+#     data = load_source(
+#         config.source_data)  # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
 
-    train_num = int(len(data) * .8)
-    train_data, eval_data = random_split(
-        data, [train_num, len(data) - train_num])
+#     train_num = int(len(data) * .8)
+#     train_data, eval_data = random_split(
+#         data, [train_num, len(data) - train_num])
 
-    sequence_size = config.sequence_size
+#     sequence_size = config.sequence_size
 
-    def get_ds(data):
-        x_values = []
-        y_values = []
-        y_mask = []
-        for d in data:
-            if len(d) < sequence_size + 1:
-                continue
-            # x and y seqsize is sequence_size + 1
-            for xy_seq in slice_data_list(d, seq_size=sequence_size + 1, pad=pad):
-                seq_actual_size = len(xy_seq)
-                if pad == True and seq_actual_size < sequence_size+1:
-                    xy_seq = xy_seq + [(0, 2)] * \
-                        (sequence_size+1-seq_actual_size)
-                x_values.append(xy_seq[:-1])
-                y_values.append(xy_seq[1:])
-                y_mask.append([True]*(seq_actual_size - 1) +
-                              [False]*(sequence_size + 1 - seq_actual_size))
+#     def get_ds(data):
+#         x_values = []
+#         y_values = []
+#         y_mask = []
+#         for d in data:
+#             if len(d) < sequence_size + 1:
+#                 continue
+#             # x and y seqsize is sequence_size + 1
+#             for xy_seq in slice_data_list(d, seq_size=sequence_size + 1, pad=pad):
+#                 seq_actual_size = len(xy_seq)
+#                 if pad == True and seq_actual_size < sequence_size+1:
+#                     xy_seq = xy_seq + [(0, 2)] * \
+#                         (sequence_size+1-seq_actual_size)
+#                 x_values.append(xy_seq[:-1])
+#                 y_values.append(xy_seq[1:])
+#                 y_mask.append([True]*(seq_actual_size - 1) +
+#                               [False]*(sequence_size + 1 - seq_actual_size))
 
-        all_ds = TensorDataset(
-            torch.LongTensor(x_values).to(device),
-            torch.LongTensor(y_values).to(device),
-            torch.BoolTensor(y_mask).to(device),
-        )
-        return all_ds
+#         all_ds = TensorDataset(
+#             torch.LongTensor(x_values).to(device),
+#             torch.LongTensor(y_values).to(device),
+#             torch.BoolTensor(y_mask).to(device),
+#         )
+#         return all_ds
 
-    train_ds = get_ds(train_data)
-    eval_ds = get_ds(eval_data)
+#     train_ds = get_ds(train_data)
+#     eval_ds = get_ds(eval_data)
 
-    # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
-    train_dl = DataLoader(
-        train_ds, batch_size=config.batch_size, drop_last=True)
-    eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
-    return train_dl, eval_dl
-
-
-def prepare_dummy_dataloader(config, kc_dict: Dict, seq_size: int, batch_size: int, device):
-    x_values = []
-    y_values = []
-    y_mask = []
-    for v in kc_dict.values():
-        # wrong
-        x_values.append([(v, 0) for _ in range(seq_size)])
-        y_values.append([(v, 0) for _ in range(seq_size)])
-        y_mask.append([True] * seq_size)
-        # correct
-        x_values.append([(v, 1) for _ in range(seq_size)])
-        y_values.append([(v, 1) for _ in range(seq_size)])
-        y_mask.append([True] * seq_size)
-    dummy_ds = TensorDataset(
-        torch.LongTensor(x_values).to(device),
-        torch.LongTensor(y_values).to(device),
-        torch.BoolTensor(y_mask).to(device),
-    )
-    dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
-    return dummy_dl
+#     # all_dl = DataLoader(all_ds, batch_size=batch_size, drop_last=True)
+#     train_dl = DataLoader(
+#         train_ds, batch_size=config.batch_size, drop_last=True)
+#     eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
+#     return train_dl, eval_dl
 
 
-def slide_d(d: List, seq_size: int) -> List[List]:
-    '''
-    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-    >>> list(slide_d(d, seq_size=4))
-    [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
-    '''
-    max_iter = len(d) - seq_size + 1
-    for i in range(0, max_iter):
-        yield d[i: i + seq_size]
+# def prepare_dummy_dataloader(config, kc_dict: Dict, seq_size: int, batch_size: int, device):
+#     x_values = []
+#     y_values = []
+#     y_mask = []
+#     for v in kc_dict.values():
+#         # wrong
+#         x_values.append([(v, 0) for _ in range(seq_size)])
+#         y_values.append([(v, 0) for _ in range(seq_size)])
+#         y_mask.append([True] * seq_size)
+#         # correct
+#         x_values.append([(v, 1) for _ in range(seq_size)])
+#         y_values.append([(v, 1) for _ in range(seq_size)])
+#         y_mask.append([True] * seq_size)
+#     dummy_ds = TensorDataset(
+#         torch.LongTensor(x_values).to(device),
+#         torch.LongTensor(y_values).to(device),
+#         torch.BoolTensor(y_mask).to(device),
+#     )
+#     dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
+#     return dummy_dl
 
 
-def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
-    SEED = 42
-    # random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
-    # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
-    data = load_source(config.source_data)
+# def slide_d(d: List, seq_size: int) -> List[List]:
+#     '''
+#     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+#     >>> list(slide_d(d, seq_size=4))
+#     [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
+#     '''
+#     max_iter = len(d) - seq_size + 1
+#     for i in range(0, max_iter):
+#         yield d[i: i + seq_size]
 
-    sequence_size = config.sequence_size
 
-    train_num = int(len(data) * .8)
-    train_data, eval_data = random_split(
-        data, [train_num, len(data) - train_num])
+# def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
+#     SEED = 42
+#     # random.seed(SEED)
+#     np.random.seed(SEED)
+#     torch.manual_seed(SEED)
+#     # torch.backends.cudnn.deterministic = True
+#     # torch.backends.cudnn.benchmark = False
+#     # -> List[List[Tuple[int]]]; [[(12,1), (13,0), ...], ...]
+#     data = load_source(config.source_data)
 
-    x_values = []
-    y_values = []
-    for uid, d in enumerate(eval_data):
-        if len(d) < sequence_size + 1 or len(d) < 80 or uid < 100:
-            continue
-        # x and y seqsize is sequence_size + 1
-        # NOTE: for heatmap, use SLIDE_d to get continuous result.
-        for xy_seq in slide_d(d, seq_size=sequence_size + 1):
-            x_values.append(xy_seq[:-1])
-            y_values.append(xy_seq[1:])
-        break
+#     sequence_size = config.sequence_size
 
-    eval_ds = TensorDataset(
-        torch.LongTensor(x_values).to(device),
-        torch.LongTensor(y_values).to(device),
-    )
+#     train_num = int(len(data) * .8)
+#     train_data, eval_data = random_split(
+#         data, [train_num, len(data) - train_num])
 
-    eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
-    return uid, eval_dl
+#     x_values = []
+#     y_values = []
+#     for uid, d in enumerate(eval_data):
+#         if len(d) < sequence_size + 1 or len(d) < 80 or uid < 100:
+#             continue
+#         # x and y seqsize is sequence_size + 1
+#         # NOTE: for heatmap, use SLIDE_d to get continuous result.
+#         for xy_seq in slide_d(d, seq_size=sequence_size + 1):
+#             x_values.append(xy_seq[:-1])
+#             y_values.append(xy_seq[1:])
+#         break
+
+#     eval_ds = TensorDataset(
+#         torch.LongTensor(x_values).to(device),
+#         torch.LongTensor(y_values).to(device),
+#     )
+
+#     eval_dl = DataLoader(eval_ds, batch_size=config.batch_size, drop_last=True)
+#     return uid, eval_dl
 
 
 if __name__ == '__main__':
