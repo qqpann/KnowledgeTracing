@@ -10,7 +10,7 @@ from sklearn import metrics
 from sklearn.metrics import ndcg_score as ndcg
 from collections import defaultdict
 
-from src.data import prepare_dataloader, prepare_dummy_dataloader, prepare_heatmap_dataloader, DataHandler
+from src.data import DataHandler
 from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
 from src.utils import sAsMinutes, timeSince
 from src.log import get_logger
@@ -369,20 +369,6 @@ class Trainer(object):
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
 
-            # # Pred & Accu Relation
-            # q_all_count, q_cor_count, q_pred_list = indicators['qa_relation']
-            # pa_scat_x = list()
-            # pa_scat_y = list()
-            # for q, l in q_pred_list.items():
-            #     all_acc = q_cor_count[q] / q_all_count[q]
-            #     for p in l:
-            #         pa_scat_x.append(p)
-            #         pa_scat_y.append(all_acc)
-            # save_pred_accu_relation(self.config, pa_scat_x, pa_scat_y)
-
-            # BAD: avoid error for only DKVMN
-            # if self.config.model_name == 'dkvmn':
-            #     return
 
             # Reverse Prediction
             seq_size = self.config.sequence_size
@@ -419,77 +405,3 @@ class Trainer(object):
             self.report.set_value('RPhard', simu_ndcg)
             # raw data
             self.report.set_value('simu_pred', simu_res)
-
-    def evaluate_model_heatmap(self):
-        uid, heat_dl = prepare_heatmap_dataloader(
-            self.config, self.config.sequence_size, 1, self.device)
-        self.logger.info("Heatmap data's user id is {}".format(uid))
-        self.plot_heatmap(self.config, heat_dl)
-
-    def plot_heatmap(self, config, heat_dl=None):
-        real_batch_size = self.model.config.batch_size
-        try:
-            self.model.batch_size = 1
-        except AttributeError as e:
-            self.logger.warning('{}'.format(e))
-        except Exception as e:
-            self.logger.error('{}'.format(e))
-        self.model.config.batch_size = 1
-
-        # TODO: don't repeat yourself
-        with torch.no_grad():
-            self.model.eval()
-            all_out_prob = []
-            yticklabels = set()
-            xticklabels = []
-            for i, (xseq, yseq) in enumerate(heat_dl):
-                # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
-                out = self.model.loss_batch(xseq, yseq, opt=None)
-
-                assert out['pred_vect'].shape == (
-                    self.config.sequence_size if self.config.model_name in {'ksdkt', 'dkt'} else self.config.eddkt['extend_forward']+1, self.config.batch_size, self.config.n_skills)
-                pred_ks = out['pred_vect'][-1, :, :].squeeze()
-                # print(pred_ks.shape)
-
-                yq = int(yseq[-1, -1, 0].item())
-                ya = int(yseq[-1, -1, 1].item())
-                yticklabels.add(yq)
-                xticklabels.append((yq, ya))
-                all_out_prob.append(pred_ks)
-
-        _d = torch.stack(all_out_prob).transpose(0, 1)
-        _d = _d.cpu().numpy()
-        # print(_d.shape)
-        # print(len(yticklabels), len(xticklabels))
-        yticklabels = sorted(list(yticklabels))
-        related_d = np.matrix([_d[x, :] for x in yticklabels])
-
-        # Regular Heatmap
-        # fig, ax = plt.subplots(figsize=(20, 10))
-        # sns.heatmap(_d, ax=ax)
-
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        fig, ax = plt.subplots(figsize=(20, 7))
-        sns.heatmap(
-            related_d, vmin=0, vmax=1, ax=ax,
-            # cmap="Reds_r",
-            xticklabels=['{}'.format(y) for y in xticklabels],
-            yticklabels=['s{}'.format(x) for x in yticklabels],
-        )
-        xtick_dic = {s: i for i, s in enumerate(yticklabels)}
-        # 正解
-        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 1]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-                 qa in enumerate(xticklabels) if qa[1] == 1]
-        ax.scatter(sca_x, sca_y, marker='o', s=100, color='white')
-        # 不正解
-        sca_x = [t + 0.5 for t, qa in enumerate(xticklabels) if qa[1] == 0]
-        sca_y = [xtick_dic[qa[0]] + 0.5 for t,
-                 qa in enumerate(xticklabels) if qa[1] == 0]
-        ax.scatter(sca_x, sca_y, marker='X', s=100, color='black')
-
-        save_hm_fig(config, fig)
-
-        self.model.batch_size = real_batch_size
-        self.model.config.batch_size = real_batch_size
