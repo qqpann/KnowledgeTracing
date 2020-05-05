@@ -240,7 +240,8 @@ class Trainer(object):
         #     self.config)
 
     def exec_core(self, dl, opt, only_eval=False):
-        arr_len = len(dl) if not self.config.debug else 1
+        # assert len(dl) > 0, f'{len(dl)}, {len(dl.dataset)}'
+        # arr_len = len(dl) if not self.config.debug else 1
         # assert arr_len > 0, f'{dl}, {len(dl)}, {dl.dataset}'
         # pred_mx = np.zeros([arr_len, self.config.batch_size])
         # actu_mx = np.zeros([arr_len, self.config.batch_size])

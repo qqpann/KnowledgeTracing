@@ -69,20 +69,22 @@ def load_source(projectdir, name) -> List[List[Tuple[int]]]:
     return data
 
 
-def get_knowledge_concepts_dict(data: List[List[Tuple[int]]]):
+def get_knowledge_concepts_dict(data: List[List[Tuple[int]]]) -> Dict[int, int]:
     kc_set = set()
     for seq in data:
         for q, a in seq:
             kc_set.add(q)
     kc_dict = dict()
     for q, i in zip(sorted(kc_set), range(len(kc_set))):
+        assert type(q) is int and type(i) is int
         kc_dict[q] = i
     return kc_dict
 
 
-def re_numbering_knowledge_concepts(data, kc_dict) -> List[List[Tuple[int]]]:
+def re_numbering_knowledge_concepts(data: List[List[Tuple[int]]], kc_dict) -> List[List[Tuple[int]]]:
     res = []
     for seq in data:
+        assert type(seq) is list
         res.append([(kc_dict[q], a) for q, a in seq])
     return res
 
@@ -136,20 +138,27 @@ class DataHandler:
         self.fintest_data = re_numbering_knowledge_concepts(fintest_data, self.kc_dict)
 
     @staticmethod
-    def get_ds(config, device, data, data_idx):
+    def get_ds(config, device, data):
+        assert type(data) is list
+        assert type(data[0]) is list
+        assert type(data[0][0]) is tuple
         x_values = []
         y_values = []
         y_mask = []
-        for idx in data_idx:
-            # x and y seqsize is sequence_size + 1
-            for xy_seq in slice_data_list(data[idx], seq_size=config.sequence_size + 1, pad=config.pad):
+        for _data in data:
+            for xy_seq in slice_data_list(_data, seq_size=config.sequence_size + 1, pad=config.pad):
+                assert type(xy_seq) is list
+                assert type(xy_seq[0]) is tuple
+                assert type(xy_seq[0][0]) is int
                 seq_actual_size = len(xy_seq)
                 if config.pad == True and seq_actual_size < config.sequence_size+1:
                     xy_seq = xy_seq + [(0, 2)] * (config.sequence_size+1-seq_actual_size)
+                assert len(xy_seq) == config.sequence_size + 1
                 x_values.append(xy_seq[:-1])
                 y_values.append(xy_seq[1:])
-                y_mask.append([True]*(seq_actual_size - 1) +
-                              [False]*(config.sequence_size + 1 - seq_actual_size))
+                mask = [True]*(seq_actual_size - 1) + [False]*(config.sequence_size + 1 - seq_actual_size)
+                y_mask.append(mask)
+                assert len(xy_seq)-1 == len(mask)
 
         all_ds = TensorDataset(
             torch.LongTensor(x_values).to(device),
@@ -184,15 +193,18 @@ class DataHandler:
 
         fintrain_data = load_qa_format_source(sourcedir / train)
         fintest_data = load_qa_format_source(sourcedir / test)
+        assert type(fintrain_data) is list
+        assert type(fintrain_data[0]) is list
+        assert type(fintrain_data[0][0]) is tuple
         return fintrain_data, fintest_data
 
     def get_traintest_dl(self):
-        train_ds = self.get_ds(self.config, self.device, self.fintrain_data, range(len(self.fintrain_data)))
-        test_ds = self.get_ds(self.config, self.device, self.fintest_data, range(len(self.fintest_data)))
+        train_ds = self.get_ds(self.config, self.device, self.fintrain_data)
+        test_ds = self.get_ds(self.config, self.device, self.fintest_data)
         train_dl = DataLoader(
-            train_ds, batch_size=self.config.batch_size, drop_last=True)
+            train_ds, batch_size=self.config.batch_size, drop_last=False)
         test_dl = DataLoader(
-            test_ds, batch_size=self.config.batch_size, drop_last=True)
+            test_ds, batch_size=self.config.batch_size, drop_last=False)
         return train_dl, test_dl
 
     def generate_trainval_dl(self):
@@ -230,8 +242,8 @@ class DataHandler:
             valid_data = load_qa_format_source(sourcedir / valid.format(i))
             train_data = re_numbering_knowledge_concepts(train_data, self.kc_dict)
             valid_data = re_numbering_knowledge_concepts(valid_data, self.kc_dict)
-            train_ds = self.get_ds(self.config, self.device, train_data, range(len(train_data)))
-            valid_ds = self.get_ds(self.config, self.device, valid_data, range(len(valid_data)))
+            train_ds = self.get_ds(self.config, self.device, train_data)
+            valid_ds = self.get_ds(self.config, self.device, valid_data)
             train_dl = DataLoader(
                 train_ds, batch_size=self.config.batch_size, drop_last=False)
             valid_dl = DataLoader(
