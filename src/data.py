@@ -27,7 +27,7 @@ ASSIST2009, ASSIST2015, STATICS2011, SYNTHETIC = 'assist2009', 'assist2015', 'st
 PREPARED_SOURCES = {ASSIST2009, ASSIST2015, STATICS2011, SYNTHETIC}
 
 
-def load_source(projectdir, name) -> List[List[Tuple[int]]]:
+def load_source(projectdir, name) -> List[List[Tuple[int, int]]]:
     if name in {ASSIST2009, ASSIST2015, STATICS2011, SYNTHETIC}:
         if name == ASSIST2009:
             sourcedir = projectdir / 'data/input/assist2009_updated'
@@ -60,7 +60,7 @@ def load_source(projectdir, name) -> List[List[Tuple[int]]]:
     elif name == SOURCE_ASSIST0910_ORIG:
         trainfname = os.path.join(dirname, 'input/builder_train.csv')
         testfname = os.path.join(dirname, 'input/builder_test.csv')
-        data = load_qa_format_source(trainfname)
+        data = load_qa_format_source(Path(trainfname))
     else:
         filename = os.path.join(dirname, f'input/{name}.pickle')
         with open(filename, 'rb') as f:
@@ -69,7 +69,7 @@ def load_source(projectdir, name) -> List[List[Tuple[int]]]:
     return data
 
 
-def get_knowledge_concepts_dict(data: List[List[Tuple[int]]]) -> Dict[int, int]:
+def get_knowledge_concepts_dict(data: List[List[Tuple[int, int]]]) -> Dict[int, int]:
     kc_set = set()
     for seq in data:
         for q, a in seq:
@@ -81,7 +81,7 @@ def get_knowledge_concepts_dict(data: List[List[Tuple[int]]]) -> Dict[int, int]:
     return kc_dict
 
 
-def re_numbering_knowledge_concepts(data: List[List[Tuple[int]]], kc_dict) -> List[List[Tuple[int]]]:
+def re_numbering_knowledge_concepts(data: List[List[Tuple[int, int]]], kc_dict: Dict[int, int]) -> List[List[Tuple[int, int]]]:
     res = []
     for seq in data:
         assert type(seq) is list
@@ -89,7 +89,7 @@ def re_numbering_knowledge_concepts(data: List[List[Tuple[int]]], kc_dict) -> Li
     return res
 
 
-def load_qa_format_source(filename: str) -> List[List[Tuple[int]]]:
+def load_qa_format_source(filename: Path) -> List[List[Tuple[int, int]]]:
     with open(filename, 'r') as f:
         lines = f.readlines()
     data = []
@@ -142,10 +142,12 @@ class DataHandler:
         assert type(data) is list
         assert type(data[0]) is list
         assert type(data[0][0]) is tuple
+        assert type(data[0][0][0]) is int
         x_values = []
         y_values = []
         y_mask = []
         for _data in data:
+            # _data is sequence per student
             for xy_seq in slice_data_list(_data, seq_size=config.sequence_size + 1, pad=config.pad):
                 assert type(xy_seq) is list
                 assert type(xy_seq[0]) is tuple
