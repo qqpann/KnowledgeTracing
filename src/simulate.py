@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import math
 import tqdm
+from typing import Dict, List
 
 
 def irt_prob(difficulty: float, ability: float) -> float:
@@ -47,8 +48,8 @@ class Student:
             self.intelligence = 1
 
 
-def main(outpath):
-    STUDENT_NUMS = 4000
+def main(outpath: Path):
+    STUDENT_NUMS = 400
 
     students = []
     for num in range(STUDENT_NUMS):
@@ -61,7 +62,7 @@ def main(outpath):
             q = Question("lo{}_q{}".format(lo, q), lo, )
             questions.append(q)
 
-    d = {'SEQ': [], 'CustomerNumber': [], 'SkillID': [], 'IRTprob': [], 'AnswerResult': []}
+    d: Dict[str, List] = {'SEQ': [], 'CustomerNumber': [], 'SkillID': [], 'IRTprob': [], 'AnswerResult': []}
 
     seq = 0
     for s in tqdm.tqdm(students):
@@ -87,6 +88,5 @@ def main(outpath):
 
 
 if __name__ == '__main__':
-    outpath = sys.argv[1]
-    outpath = Path(outpath)
+    outpath = Path(sys.argv[1])
     main(outpath)
