@@ -1,6 +1,6 @@
-import time
 import datetime as dt
 import math
+import time
 
 
 def sAsMinutes(s):

@@ -1,9 +1,9 @@
-import torch
-
 import json
 import pickle
+
 import matplotlib.pyplot as plt
 import seaborn as sns
+import torch
 
 
 def save_model(config, model, fname):
