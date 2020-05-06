@@ -1,16 +1,16 @@
-import os
-import sys
 import json
-import torch
+import os
 import random
-import numpy as np
+import sys
 from pathlib import Path
 
-from src.config import get_option_fallback, Config
-from src.slack import slack_message, slack_is_available
-from src.log import get_logger
-from knowledge_tracing.trainer import Trainer
+import numpy as np
+import torch
 
+from knowledge_tracing.trainer import Trainer
+from src.config import Config, get_option_fallback
+from src.log import get_logger
+from src.slack import slack_is_available, slack_message
 
 logger = get_logger(__name__, 'tmp.log')
 

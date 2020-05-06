@@ -1,7 +1,7 @@
 import configparser
-from typing import Dict
-from pathlib import Path
 import datetime
+from pathlib import Path
+from typing import Dict
 
 
 def get_option_fallback(options: Dict, fallback: Dict, hard=False, depth=0):

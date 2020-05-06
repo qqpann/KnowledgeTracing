@@ -1,25 +1,26 @@
-import torch
-
-import time
 import logging
-import numpy as np
+import time
+from collections import defaultdict
+from math import ceil, log
 from pathlib import Path
-from math import log, ceil
 from statistics import mean, stdev
+
+import numpy as np
+import torch
 from sklearn import metrics
 from sklearn.metrics import ndcg_score as ndcg
-from collections import defaultdict
 
-from src.data import DataHandler
-from src.save import save_model, save_log, save_report, save_hm_fig, save_learning_curve, save_pred_accu_relation
-from src.utils import sAsMinutes, timeSince
-from src.log import get_logger
-from src.report import Report
 from model.dkt import DKT
-from model.ksdkt import KSDKT
+from model.dkvmn import MODEL as DKVMN
 from model.eddkt import EDDKT
 from model.geddkt import GEDDKT
-from model.dkvmn import MODEL as DKVMN
+from model.ksdkt import KSDKT
+from src.data import DataHandler
+from src.log import get_logger
+from src.report import Report
+from src.save import (save_hm_fig, save_learning_curve, save_log, save_model,
+                      save_pred_accu_relation, save_report)
+from src.utils import sAsMinutes, timeSince
 
 
 class Trainer(object):

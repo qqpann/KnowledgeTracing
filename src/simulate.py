@@ -1,12 +1,13 @@
-import sys
+import math
 import random
+import sys
 from datetime import datetime
 from pathlib import Path
-import pandas as pd
-import numpy as np
-import math
-import tqdm
 from typing import Dict, List
+
+import numpy as np
+import pandas as pd
+import tqdm
 
 
 def irt_prob(difficulty: float, ability: float) -> float:
