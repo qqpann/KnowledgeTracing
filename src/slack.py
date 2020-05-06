@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
+WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 
 
 def slack_is_available():

@@ -94,8 +94,8 @@ def load_qa_format_source(filename: Path) -> List[List[Tuple[int, int]]]:
         lines = f.readlines()
     data = []
     for idx in range(0, len(lines), 3):
-        qlist = list(map(int, lines[idx + 1].strip().rstrip(',').split(',')))
-        alist = list(map(int, lines[idx + 2].strip().rstrip(',').split(',')))
+        qlist: List[int] = list(map(int, lines[idx + 1].strip().rstrip(',').split(',')))
+        alist: List[int] = list(map(int, lines[idx + 2].strip().rstrip(',').split(',')))
         data.append([(q, a) for q, a in zip(qlist, alist)])
     return data
 
@@ -169,7 +169,7 @@ class DataHandler:
         )
         return all_ds
 
-    def get_traintest_data(self, projectdir: Path, name: str):
+    def get_traintest_data(self, projectdir: Path, name: str) -> Tuple[List[List[Tuple[int,int]]], List[List[Tuple[int,int]]]]:
         if name == ASSIST2009:
             sourcedir = projectdir / 'data/input/assist2009_updated'
             train = 'assist2009_updated_train.csv'
