@@ -27,7 +27,7 @@ class Student:
     def __init__(self, number: int):
         self.number = number
         # scale_max = 0.3
-        self.intelligence = np.random.normal(loc=0.0, scale=1.0)
+        self.intelligence = 0#np.random.normal(loc=0.0, scale=1.0)
 
     def get_irt_prob(self, question: Question) -> float:
         # prob = irt_prob(question.rank, self.intelligence[question.lo_id])
