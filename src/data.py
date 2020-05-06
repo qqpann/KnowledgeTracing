@@ -138,20 +138,14 @@ class DataHandler:
         self.fintest_data = re_numbering_knowledge_concepts(fintest_data, self.kc_dict)
 
     @staticmethod
-    def get_ds(config, device, data):
-        assert type(data) is list
-        assert type(data[0]) is list
-        assert type(data[0][0]) is tuple
-        assert type(data[0][0][0]) is int
+    def get_ds(config, device, data: List[List[Tuple[int,int]]]):
+        assert len(data)>0, ValueError('data is empty for unknown reason.')
         x_values = []
         y_values = []
         y_mask = []
         for _data in data:
             # _data is sequence per student
             for xy_seq in slice_data_list(_data, seq_size=config.sequence_size + 1, pad=config.pad):
-                assert type(xy_seq) is list
-                assert type(xy_seq[0]) is tuple
-                assert type(xy_seq[0][0]) is int
                 seq_actual_size = len(xy_seq)
                 if config.pad == True and seq_actual_size < config.sequence_size+1:
                     xy_seq = xy_seq + [(0, 2)] * (config.sequence_size+1-seq_actual_size)
@@ -161,7 +155,7 @@ class DataHandler:
                 mask = [True]*(seq_actual_size - 1) + [False]*(config.sequence_size + 1 - seq_actual_size)
                 y_mask.append(mask)
                 assert len(xy_seq)-1 == len(mask)
-        assert len(x_values)>0 and len(y_values), ValueError(f'{x_values},{y_values} are empty. Try pad:true if you are sure there is data.')
+        assert len(x_values)>0 and len(y_values)>0, ValueError(f'{x_values},{y_values} are empty. Try pad:true if you are sure there is data.')
         all_ds = TensorDataset(
             torch.LongTensor(x_values).to(device),
             torch.LongTensor(y_values).to(device),
