@@ -161,7 +161,7 @@ class DataHandler:
                 mask = [True]*(seq_actual_size - 1) + [False]*(config.sequence_size + 1 - seq_actual_size)
                 y_mask.append(mask)
                 assert len(xy_seq)-1 == len(mask)
-
+        assert len(x_values)>0 and len(y_values), ValueError(f'{x_values},{y_values} are empty. Try pad:true if you are sure there is data.')
         all_ds = TensorDataset(
             torch.LongTensor(x_values).to(device),
             torch.LongTensor(y_values).to(device),
