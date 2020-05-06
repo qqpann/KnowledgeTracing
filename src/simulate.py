@@ -16,7 +16,7 @@ def irt_prob(difficulty: float, ability: float) -> float:
 
 
 class Question:
-    def __init__(self, lo_name: str, lo_id, rank: float=None):
+    def __init__(self, lo_name: str, lo_id, rank: float = None):
         self.lo_name = lo_name
         self.lo_id = lo_id
         if rank is None:
@@ -28,7 +28,7 @@ class Student:
     def __init__(self, number: int):
         self.number = number
         # scale_max = 0.3
-        self.intelligence = 0#np.random.normal(loc=0.0, scale=1.0)
+        self.intelligence = 0  # np.random.normal(loc=0.0, scale=1.0)
 
     def get_irt_prob(self, question: Question) -> float:
         # prob = irt_prob(question.rank, self.intelligence[question.lo_id])
@@ -60,10 +60,16 @@ def main(outpath: Path):
     questions = []
     for lo in range(5):
         for q in range(10):
-            q = Question("lo{}_q{}".format(lo, q), lo, )
+            q = Question("lo{}_q{}".format(lo, q), lo,)
             questions.append(q)
 
-    d: Dict[str, List] = {'SEQ': [], 'CustomerNumber': [], 'SkillID': [], 'IRTprob': [], 'AnswerResult': []}
+    d: Dict[str, List] = {
+        "SEQ": [],
+        "CustomerNumber": [],
+        "SkillID": [],
+        "IRTprob": [],
+        "AnswerResult": [],
+    }
 
     seq = 0
     for s in tqdm.tqdm(students):
@@ -71,23 +77,29 @@ def main(outpath: Path):
             irt_prob = s.get_irt_prob(q)
             ans = s.answer(irt_prob)
 
-            d['SEQ'].append(seq)
-            d['CustomerNumber'].append(s.number)
-            d['SkillID'].append(q.lo_name)
-            d['IRTprob'].append(irt_prob)
-            d['AnswerResult'].append(int(ans))
+            d["SEQ"].append(seq)
+            d["CustomerNumber"].append(s.number)
+            d["SkillID"].append(q.lo_name)
+            d["IRTprob"].append(irt_prob)
+            d["AnswerResult"].append(int(ans))
             # print("q: %s q_rank: %d  s_intelligence:%d ans:%d" % (q.lo_name, q.rank, s.intelligence, ans))
             # if i % 10 == 0:
             #     s.levelup()
             seq += 1
 
     history_df = pd.DataFrame(data=d)
-    history_df = history_df.astype({'SEQ': 'int32', 'CustomerNumber': 'int32', 'IRTprob': 'float64',
-                                    'AnswerResult': 'int32'})
+    history_df = history_df.astype(
+        {
+            "SEQ": "int32",
+            "CustomerNumber": "int32",
+            "IRTprob": "float64",
+            "AnswerResult": "int32",
+        }
+    )
 
     history_df.to_csv(outpath)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     outpath = Path(sys.argv[1])
     main(outpath)
