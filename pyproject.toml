@@ -20,6 +20,7 @@ click = "^7.1.2"
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.1"
 isort = "^4.3.21"
+rope = "^0.17.0"
 
 [build-system]
 requires = ["poetry>=0.12"]
