@@ -149,13 +149,12 @@ class Trainer(object):
         self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
         self.test_model(fintest_dl, subname='all', do_report=True)
 
-    # def evaluate_model(self):
-    #     test_dl = self.dh.get_test_dl()
-    #     for k in range(self.config.kfold):
-    #         self.init_model()
-    #         self.load_model(self.config.resultsdir / 'checkpoints' /
-    #                         self.config.starttime / 'f{}_best.model'.format(k))
-    #         self.test_model(k, test_dl, do_report=False)
+    def evaluate_model(self, load_model: str = None):
+        self.init_report()
+        self.init_model()
+        self.load_model(load_model)
+        fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        self.test_model(fintest_dl, subname='all', do_report=True)
 
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
@@ -231,6 +230,9 @@ class Trainer(object):
             if epoch % 100 == 0:
                 self.logger.info(
                     f'{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)')
+
+        # This is the model checkpoint at the end of epoch, or early stopping
+        save_model(self.config, self.model, 'f{}_final.model'.format(subname))
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)

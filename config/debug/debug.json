@@ -1,6 +1,6 @@
 {
   "debug": true,
-  "overwrite": true,
+  "overwrite": false,
   "cuda": true,
   "source_data": "synthetic",
   "n_skills": 50,
