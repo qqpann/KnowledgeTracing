@@ -30,6 +30,14 @@ def get_report_dir(config_name: str, exp_name: str) -> Path:
     return reportdir
 
 
+def get_goodbad_dict(config_name: str, exp_name: str, fold: str = "all") -> Dict:
+    report = get_report(config_name, exp_name)
+    goodbad_list = report["indicator"]["RPsoft"][fold]["goodbad"]
+    kc_dict = _get_kc_dict(config_name, exp_name)
+    assert len(goodbad_list) == len(kc_dict)
+    return {k: goodbad_list[v] for k, v in kc_dict.items()}
+
+
 def get_ndcg_dict(config_name: str, exp_name: str, fold: str = "all") -> Dict:
     report = get_report(config_name, exp_name)
     ndcg_list = report["indicator"]["RPhard"][fold]
@@ -68,14 +76,16 @@ def main(config_name: str, exp_name: str):
     # kc_dict = _get_kc_dict(config_name, exp_name)
     simu_dict = get_simu_dict(config_name, exp_name)
     ndcg_dict = get_ndcg_dict(config_name, exp_name)
+    goodbad_dict = get_goodbad_dict(config_name, exp_name)
     reportdir = get_report_dir(config_name, exp_name)
     assert reportdir.exists()
     data = defaultdict(list)
     for lo, (simu, pred) in simu_dict.items():
-        data['LO'].append(lo)
-        data['ndcg'].append(ndcg_dict[lo])
+        data["LO"].append(lo)
+        data["ndcg"].append(ndcg_dict[lo])
+        data["goodbad"].append(goodbad_dict[lo])
         for s, p in zip(simu, pred):
-            data[f'pred_{s}'].append(p)
+            data[f"pred_{s}"].append(p)
     df = pd.DataFrame(dict(data))
     df.to_csv(reportdir / "simu.csv")
     print("saved to", reportdir / "simu.csv")
