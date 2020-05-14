@@ -73,9 +73,9 @@ def main(config_name: str, exp_name: str):
     data = defaultdict(list)
     for lo, (simu, pred) in simu_dict.items():
         data['LO'].append(lo)
-        data['simu'].append(simu)
-        data['pred'].append(pred)
         data['ndcg'].append(ndcg_dict[lo])
+        for s, p in zip(simu, pred):
+            data[f'pred_{s}'].append(p)
     df = pd.DataFrame(dict(data))
     df.to_csv(reportdir / "simu.csv")
     print("saved to", reportdir / "simu.csv")
