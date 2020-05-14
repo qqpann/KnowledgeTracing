@@ -377,6 +377,7 @@ class Trainer(object):
             # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
             # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
             good, bad = 0, 0
+            good_bad = []
             simu_res = dict()
             simu_ndcg = []
             for v in range(self.config.n_skills):
@@ -390,7 +391,9 @@ class Trainer(object):
                     preds.append(res['pred_prob'][-1].item())
                     xs.append(sum(s))
                 # RP soft
-                if preds[-1] > preds[0]:
+                _gb = int(preds[-1] > preds[0])
+                good_bad.append(_gb)
+                if _gb:
                     good += 1
                 else:
                     bad += 1
@@ -401,7 +404,7 @@ class Trainer(object):
             self.logger.info('RP soft \t good:bad = {}:{}'.format(good, bad))
             self.logger.info('RP hard \t nDCG = {:.4f}±{:.4f}'.format(mean(simu_ndcg), stdev(simu_ndcg)))
             # RP soft
-            self.report.set_value('RPsoft', {'good': good, 'bad': bad, 's_good': xs[-1], 's_bad': xs[0]})
+            self.report.set_value('RPsoft', {'good': good, 'bad': bad, 's_good': xs[-1], 's_bad': xs[0], 'goodbad': good_bad})
             # RP hard
             self.report.set_value('RPhard', simu_ndcg)
             # raw data
