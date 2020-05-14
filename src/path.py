@@ -35,7 +35,7 @@ def get_report_path(projectdir: Path, config_name: str, exp_name: str) -> Path:
     return sorted(outputdir.glob("report/*/*.json"))[-1]
 
 
-def get_report_paths(projectdir: Path, config_name: str) -> Path:
+def get_report_paths(projectdir: Path, config_name: str) -> List[Path]:
     assert projectdir.exists()
     outputdir = projectdir / "output" / config_name
     assert outputdir.exists()
