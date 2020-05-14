@@ -31,7 +31,7 @@ def check_prev_report(config_dict, projectdir):
     if not reportdir.exists() or not checkpointdir.exists():
         return None
     report_path = sorted(reportdir.glob("*/*.json"))[-1]
-    checkpoint_path = sorted(checkpointdir.glob("*/*.model"))[-1]
+    checkpoint_path = sorted(checkpointdir.glob("*/fall_final.model"))[-1]
     return report_path, checkpoint_path
 
 
@@ -58,13 +58,11 @@ def run(configpath: Path):
 
     seed_everything()
     trainer = Trainer(config)
-    # if config.load_model:
-    #     trainer.evaluate_model()
-    #     # trainer.evaluate_model_heatmap()
-    #     logger.info('All evaluations done!')
-    #     return
+    if config.load_model:
+        trainer.evaluate_model()
+        logger.info('All evaluations done!')
+        return
     try:
-        # trainer.kfold()
         trainer.cv()
     except KeyboardInterrupt as e:
         print(e)
