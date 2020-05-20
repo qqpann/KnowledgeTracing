@@ -1,9 +1,9 @@
 from collections import defaultdict
+
 from src.save import save_report
 
 
 class Report:
-
     def __init__(self, config):
         self.config = config
         self._indicator = defaultdict(lambda: defaultdict(list))
@@ -30,9 +30,9 @@ class Report:
 
     def as_dict(self):
         _report = {
-            'config': self.config.as_dict(),
-            'indicator': {k: dict(v) for k, v in self._indicator.items()},
-            'best': {k: dict(v) for k, v in self._best.items()},
+            "config": self.config.as_dict(),
+            "indicator": {k: dict(v) for k, v in self._indicator.items()},
+            "best": {k: dict(v) for k, v in self._best.items()},
         }
         return _report
 

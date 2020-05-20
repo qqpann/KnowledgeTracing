@@ -1,14 +1,14 @@
-import os
 import codecs
+import os
 import pickle
-import pandas as pd
-from tqdm import tqdm
-from typing import Dict
-from pathlib import Path
 from collections import defaultdict
-from sklearn.model_selection import train_test_split, KFold
+from pathlib import Path
+from typing import Dict
 
 import click
+import pandas as pd
+from sklearn.model_selection import KFold, train_test_split
+from tqdm import tqdm
 
 
 # Process into Sequence by user

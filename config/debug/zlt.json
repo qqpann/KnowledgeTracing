@@ -1,0 +1,26 @@
+{
+  "debug": true,
+  "model_name": "ksdkt",
+  "source_data": "Asteria_Eng_ver5",
+  "n_skills": 326,
+  "sequence_size": 20,
+  "pad": false,
+  "epoch_size": 100,
+  "early_stop": 15,
+  "pre_dummy_epoch_size": 0,
+  "batch_size": 128,
+  "lr": 0.1,
+  "waviness_l1": true,
+  "waviness_l2": true,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": 0.0,
+  "dkt": {
+    "batch_size": 128,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
+}
