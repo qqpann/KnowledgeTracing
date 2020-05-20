@@ -3,32 +3,34 @@ EDDKT - Encoder-Decoder Deep Knowledge Tracing
 ~~~~~
 Author: Qiushi Pan (@qqhann)
 '''
-from src.utils import sAsMinutes, timeSince
-from src.data import SOURCE_ASSIST0910_SELF, SOURCE_ASSIST0910_ORIG
+import logging
+import math
+import os
+import pickle
+import random
+import sys
+import time
+from math import ceil, log
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
 
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn import metrics
-import pandas as pd
 import numpy as np
-from typing import List, Tuple, Set, Dict
-from pathlib import Path
-from math import log, ceil
-import math
-import random
-import logging
-import pickle
-import time
-import sys
-import os
-
+import pandas as pd
+import seaborn as sns
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
+import torch.optim as optim
+from sklearn import metrics
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, Dataset, DataLoader, random_split
-from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_packed_sequence, pad_sequence
+from torch.nn.utils.rnn import (pack_padded_sequence, pack_sequence,
+                                pad_packed_sequence, pad_sequence)
+from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
+
+from src.data import SOURCE_ASSIST0910_ORIG, SOURCE_ASSIST0910_SELF
+from src.utils import sAsMinutes, timeSince
+
 SEED = 0
 torch.manual_seed(SEED)
 

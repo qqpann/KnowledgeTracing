@@ -3,7 +3,7 @@
   "cuda": true,
   "model_name": null,
   "load_model": "",
-  "overwrite": false,
+  "overwrite": true,
   "source_data": "assist2009",
   "n_skills": 110,
   "test_size": 0.2,
