@@ -177,7 +177,7 @@ class DataHandler:
         for _data in data:
             # _data is sequence per student
             for xy_seq in slice_data_list(
-                _data, seq_size=config.sequence_size + 1, pad=config.pad
+                _data, seq_size=config.sequence_size + 1, enwrap=config.split_data_enwrap, pad=config.pad
             ):
                 seq_actual_size = len(xy_seq)
                 if config.pad == True and seq_actual_size < config.sequence_size + 1:
