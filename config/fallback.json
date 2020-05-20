@@ -17,6 +17,7 @@
   "batch_size": 128,
   "lr": 0.05,
   "sequence_size": 20,
+  "split_data_enwrap": 0,
   "pad": false,
   "waviness_l1": true,
   "waviness_l2": true,
