@@ -104,7 +104,18 @@ def load_qa_format_source(filename: Path) -> List[List[Tuple[int, int]]]:
     return data
 
 
-def slice_data_list(d: List, seq_size: int, pad=False):
+# def slide_d(d: List, seq_size: int) -> List[List]:
+#     '''
+#     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+#     >>> list(slide_d(d, seq_size=4))
+#     [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
+#     '''
+#     max_iter = len(d) - seq_size + 1
+#     for i in range(0, max_iter):
+#         yield d[i: i + seq_size]
+
+
+def slice_data_list(d: List, seq_size: int, enwrap: int = 0, pad=False):
     """
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
     >>> list(slice_data_list(d, seq_size=3))
@@ -117,12 +128,23 @@ def slice_data_list(d: List, seq_size: int, pad=False):
     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     >>> list(slice_data_list(d, seq_size=3, pad=True))
     [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> list(slice_data_list(d, seq_size=3, enwrap=1))
+    [[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 8]]
+    >>> d = [0, 1, 2, 3, 4, 5, 6]
+    >>> list(slice_data_list(d, seq_size=3, enwrap=2))
+    [[0, 1, 2], [1, 2, 3], [2, 3, 4], [3, 4, 5], [4, 5, 6]]
+    >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> list(slice_data_list(d, seq_size=3, enwrap=1, pad=True))
+    [[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 8], [8, 9]]
     """
-    max_iter = len(d) // seq_size
+    assert seq_size > enwrap
+    step = seq_size - enwrap
+    max_iter = (len(d) - enwrap) // step
     if pad:
         max_iter += 1
     for i in range(0, max_iter):
-        res = d[i * seq_size : i * seq_size + seq_size]
+        res = d[i * step : i * step + seq_size]
         if len(res) <= 1:
             return
         yield res
@@ -373,17 +395,6 @@ class DataHandler:
 #     )
 #     dummy_dl = DataLoader(dummy_ds, batch_size=batch_size, drop_last=True)
 #     return dummy_dl
-
-
-# def slide_d(d: List, seq_size: int) -> List[List]:
-#     '''
-#     >>> d = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-#     >>> list(slide_d(d, seq_size=4))
-#     [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]]
-#     '''
-#     max_iter = len(d) - seq_size + 1
-#     for i in range(0, max_iter):
-#         yield d[i: i + seq_size]
 
 
 # def prepare_heatmap_dataloader(config, seq_size, batch_size, device):
