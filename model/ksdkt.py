@@ -26,9 +26,10 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from src.data import SOURCE_ASSIST0910_ORIG, SOURCE_ASSIST0910_SELF
 from src.utils import sAsMinutes, timeSince
+from model._base import BaseKTModel
 
 
-class KSDKT(nn.Module):
+class KSDKT(nn.Module, BaseKTModel):
     ''' Expansion of original DKT '''
 
     def __init__(self, config, device, bidirectional=False):
