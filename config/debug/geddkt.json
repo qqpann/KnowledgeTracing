@@ -1,0 +1,28 @@
+{
+  "debug": true,
+  "overwrite": true,
+  "cuda": true,
+  "source_data": "synthetic",
+  "n_skills": 50,
+  "model_name": "geddkt",
+  "lr": 0.1,
+  "sequence_size": 20,
+  "split_data_enwrap": 19,
+  "epoch_size": 100,
+  "early_stop": 200,
+  "transfer_learning": true,
+  "pre_dummy_epoch_size": 8, 
+  "batch_size": 128,
+  "waviness_l1": false,
+  "waviness_l2": false,
+  "eddkt": {
+    "ks_loss": false,
+    "extend_backward": 0,
+    "extend_forward": 5,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6,
+    "teacher_forcing_ratio": 1.0
+  }
+}
