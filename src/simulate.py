@@ -46,7 +46,7 @@ class Student:
             return False
 
     def levelup(self):
-        self.intelligence = 1.1 * self.intelligence
+        self.intelligence = 1.05 * self.intelligence
 
 
 def main(outpath: Path):
