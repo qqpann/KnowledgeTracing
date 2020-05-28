@@ -342,9 +342,9 @@ class Trainer(object):
             'loss': mean(loss_ls),
             'auc': auc,
             'ksv_auc': auc_ksv,
-            'waviness_l1': mean(wvn1_ls),
-            'waviness_l2': mean(wvn2_ls),
-            'ksvector_l1': mean(ksv1_ls),
+            'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
+            'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
+            'ksvector_l1': mean(ksv1_ls) if ksv1_ls[0]!=None else 0,
         }
         # if only_eval:
         #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
