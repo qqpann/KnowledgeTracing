@@ -27,6 +27,9 @@ class Question:
 class Student:
     def __init__(self, number: int):
         self.number = number
+        self.init_intelligence()
+
+    def init_intelligence(self):
         # scale_max = 0.3
         self.intelligence = np.random.normal(loc=0.0, scale=1.0)
 
@@ -43,10 +46,7 @@ class Student:
             return False
 
     def levelup(self):
-        return
         self.intelligence = 1.1 * self.intelligence
-        if self.intelligence > 1:
-            self.intelligence = 1
 
 
 def main(outpath: Path):
@@ -82,9 +82,13 @@ def main(outpath: Path):
             d["SkillID"].append(q.lo_name)
             d["IRTprob"].append(irt_prob)
             d["AnswerResult"].append(int(ans))
-            # print("q: %s q_rank: %d  s_intelligence:%d ans:%d" % (q.lo_name, q.rank, s.intelligence, ans))
-            # if i % 10 == 0:
-            #     s.levelup()
+            # print(
+            #     "q: %s q_rank: %d  s_intelligence:%d ans:%d"
+            #     % (q.lo_name, q.rank, s.intelligence, ans)
+            # )
+            s.levelup()
+            if i % 10 == 0:
+                s.init_intelligence()
             seq += 1
 
     history_df = pd.DataFrame(data=d)
