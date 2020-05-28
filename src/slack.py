@@ -10,10 +10,7 @@ WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
 
 def slack_is_available():
-    if WEBHOOK_URL is None:
-        return False
-    else:
-        return True
+    return bool(WEBHOOK_URL)
 
 
 def slack_message(text: str):
