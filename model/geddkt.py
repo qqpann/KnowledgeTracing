@@ -30,6 +30,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
 
 from src.data import SOURCE_ASSIST0910_ORIG, SOURCE_ASSIST0910_SELF
 from src.utils import sAsMinutes, timeSince
+from model._base import BaseKTModel
 
 
 class Encoder(nn.Module):
@@ -80,7 +81,7 @@ class Decoder(nn.Module):
         return prediction, hidden, cell
 
 
-class GEDDKT(nn.Module):
+class GEDDKT(nn.Module, BaseKTModel):
     def __init__(self, config, device):
         super().__init__()
         self.config = config
@@ -147,24 +148,29 @@ class GEDDKT(nn.Module):
 
         return outputs_prob
 
-    def forward_loss(self, xseq, yseq):
+    def forward_loss(self, xseq, yseq, mask):
         i_batch = self.config.batch_size
+        if i_batch != xseq.shape[0]:
+            # warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
+            i_batch = xseq.shape[0]
         i_skill = self.config.n_skills
         i_seqen = self.config.sequence_size
         i_extfw = self.config.eddkt['extend_forward']
         i_extbw = self.config.eddkt['extend_backward']
         assert xseq.shape == (i_batch, i_seqen, 2)
         assert yseq.shape == (i_batch, i_seqen, 2)
-        onehot_size = i_skill * 2 + 2
+        # onehot_size = i_skill * 2 + 2
         device = self.device
         # extend_forward=0; ks_loss=False
         xseq = xseq.permute(1, 0, 2)
         yseq = yseq.permute(1, 0, 2)
 
-        xseq_enc = xseq[:-1-i_extfw]
-        xseq_dec = xseq[-1-i_extfw - i_extbw:]
-        yseq = yseq[-1-i_extfw - i_extbw:]
-        # print(xseq_src.shape, xseq_trg.shape, yseq.shape)
+        i_seqlen_enc = i_seqen - i_extfw - 1
+        i_seqlen_dec = i_extbw + i_extfw + 1
+        xseq_enc = xseq[:i_seqlen_enc]
+        xseq_dec = xseq[i_seqlen_enc:]
+        yseq = yseq[i_seqlen_enc:]
+        # print(xseq_enc.shape, xseq_dec.shape, yseq.shape, i_seqlen_enc, i_seqlen_dec)
         # TODO: use only torch to simplify
         input_enc = torch.matmul(xseq_enc.float().to(device), torch.Tensor(
             [[1], [i_skill]]).to(device)).long().to(device)
@@ -186,13 +192,14 @@ class GEDDKT(nn.Module):
             device), torch.Tensor([[0], [1]]).to(device)).to(device)
         assert target.shape == (1+i_extfw, i_batch, 1)
         # target = target.squeeze(2)
+        mask = mask.to(device)
 
         # print(input_src.shape, input_trg.shape)
         out = self.forward(input_enc, input_dec, yqs)
         # print(out, out.shape)
         pred_vect = out  # .permute(1, 0, 2)
-        # assert tuple(pred_vect.shape) == (self.config.sequence_size, self.config.batch_size, self.config.n_skills), \
-        #     "Unexpected shape {}".format(pred_vect.shape)
+        assert tuple(pred_vect.shape) == (1+i_extbw+i_extfw, i_batch, i_skill), \
+            f"Unexpected shape {pred_vect.shape} != {(i_seqen, i_batch, i_skill)}"
 
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
 
@@ -205,13 +212,24 @@ class GEDDKT(nn.Module):
         #     loss = loss_func(predicted_ks, yp.float())
 
         # Olsfashion  # DeltaQ-A Loss learning (Piech et al. style)
-        loss = self._loss(pred_prob, target)
+        # TODO: pad for GEDDKT
+        if False and self.config.pad == True:
+            # TODO: Special care needed to adapt mask to dec only
+            _pred_prob = pred_prob.masked_select(mask.permute(1, 0))
+            _target = target.squeeze(2).masked_select(mask.permute(1, 0))
+        else:
+            _pred_prob = pred_prob
+            _target = target.squeeze(2)
+        assert _pred_prob.shape == _target.shape, f'{_pred_prob.shape}!={_target.shape}'
+        loss = self._loss(_pred_prob, _target)
         # print(loss, loss.shape) #=> scalar, []
 
         out_dic = {
             'loss': loss,
             'pred_vect': pred_vect,
-            'pred_prob': pred_prob
+            'pred_prob': pred_prob,
+            'filtered_pred': _pred_prob,
+            'filtered_target': _target,
         }
 
         if True:
@@ -232,7 +250,7 @@ class GEDDKT(nn.Module):
             out_dic['Sdq'] = Sdq
 
         if self.config.waviness_l1 == True:
-            assert pred_vect.shape[0] > 1, pred_vect
+            # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
@@ -242,7 +260,7 @@ class GEDDKT(nn.Module):
             out_dic['waviness_l1'] = waviness_l1.item()
 
         if self.config.waviness_l2 == True:
-            assert pred_vect.shape[0] > 1, pred_vect
+            # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(
@@ -253,8 +271,8 @@ class GEDDKT(nn.Module):
 
         return out_dic
 
-    def loss_batch(self, xseq, yseq, opt=None):
-        out = self.forward_loss(xseq, yseq)
+    def loss_batch(self, xseq, yseq, mask, opt=None):
+        out = self.forward_loss(xseq, yseq, mask)
         loss = out['loss']
 
         if opt:
