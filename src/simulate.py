@@ -120,6 +120,6 @@ def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
 
 if __name__ == "__main__":
     outpath = Path(sys.argv[1])
-    mode = LevelUpMode(sys.argv[2])
+    mode = LevelUpMode(int(sys.argv[2]))
     print('Mode:', mode)
     main(outpath, mode)
