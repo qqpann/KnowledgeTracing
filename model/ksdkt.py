@@ -64,7 +64,7 @@ class KSDKT(nn.Module, BaseKTModel):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, xseq, yseq, mask):
+    def forward(self, xseq, yseq, mask, opt=None):
         i_batch = self.config.batch_size
         if i_batch != xseq.shape[0]:
             # warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
@@ -166,6 +166,13 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l2 * waviness_l2
             out_dic['waviness_l2'] = waviness_l2.item()
 
+
+        if opt:
+            # バックプロバゲーション
+            opt.zero_grad()
+            out_dic['loss'].backward()
+            opt.step()
+
         return out_dic
 
     def init_h0(self, batch_size):
@@ -186,18 +193,3 @@ class KSDKT(nn.Module, BaseKTModel):
     def init_fc(self):
         return nn.Linear(self.hidden_size * self.directions, self.output_size).to(self.device)
 
-    def loss_batch(self, xseq, yseq, mask, opt=None):
-        '''
-        '''
-        out = self.forward(xseq, yseq, mask)
-        loss = out['loss']
-
-        if opt:
-            # バックプロバゲーション
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-
-        # hm_pred_ks = pred[-1].squeeze()
-
-        return out
