@@ -92,6 +92,7 @@ class GEDDKT(nn.Module, BaseKTModel):
         INPUT_DIM, ENC_EMB_DIM, ENC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         HID_DIM, N_LAYERS = config.eddkt['hidden_size'], config.eddkt['n_layers']
+        self.generative = config.eddkt['generative']
         self.teacher_forcing_ratio = config.eddkt['teacher_forcing_ratio']
 
         self.N_SKILLS = config.n_skills
@@ -117,9 +118,7 @@ class GEDDKT(nn.Module, BaseKTModel):
 
         input_trg = input_dec
 
-        # random.random() returns real number in the range[0.0, 1.0)
-        use_teacher_forcing = random.random() > self.teacher_forcing_ratio
-        if use_teacher_forcing:
+        if self.generative:
             input_trg_ = input_trg[0:1, :]
             outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
                                        dtype=torch.float32, device=self.device)
@@ -130,7 +129,10 @@ class GEDDKT(nn.Module, BaseKTModel):
                 o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
                 outputs_prob_ = (o_cor / (o_cor + o_wro))
                 outputs_prob[di] = outputs_prob_
-                if random.random() < .5:
+
+                # random.random() returns real number in the range[0.0, 1.0)
+                use_teacher_forcing = random.random() > self.teacher_forcing_ratio
+                if use_teacher_forcing:
                     input_trg_ = torch.max(o_all, 2)[1]
                 else:
                     input_trg_ = input_trg[di+1:di+2, :]
