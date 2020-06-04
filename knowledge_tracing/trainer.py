@@ -197,7 +197,7 @@ class Trainer(object):
                 self.report('eval_loss', v_loss)
                 self.report('eval_auc', v_auc)
                 self.report('ksvector_l1', v_idc['ksvector_l1'])
-                if self.config.waviness_l1 or self.config.waviness_l2:
+                if self.config.waviness:
                     self.report('waviness_l1', v_idc['waviness_l1'])
                     self.report('waviness_l2', v_idc['waviness_l2'])
                 if v_auc > self.report.get_best('auc'):  # best auc
@@ -209,7 +209,7 @@ class Trainer(object):
                     epoch, v_loss, v_auc))
                 self.logger.info('\tEpoch {}\tKSVectorLoss: {:.6}'.format(
                     epoch, v_idc['ksvector_l1']))
-                if self.config.waviness_l1 or self.config.waviness_l2:
+                if self.config.waviness:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
                 if v_auc >= self.report.get_best('auc'):
@@ -370,7 +370,7 @@ class Trainer(object):
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
             # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
-            if self.config.waviness_l1 or self.config.waviness_l2:
+            if self.config.waviness:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
 
