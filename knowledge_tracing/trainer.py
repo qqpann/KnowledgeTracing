@@ -163,7 +163,7 @@ class Trainer(object):
         for _ in range(1, epoch_size + 1):
             self.model.train()
             for xseq, yseq, mask in self.dummy_dl:
-                self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
+                self.model.forward(xseq, yseq, mask, opt=self.opt)
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
@@ -275,7 +275,7 @@ class Trainer(object):
         #     q_pred_list = defaultdict(list)
         for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
-            out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
+            out = self.model.forward(xseq, yseq, mask, opt=opt)
             # loss_ar[i] = out['loss'].item()
             # wvn1_ar[i] = out.get('waviness_l1')
             # wvn2_ar[i] = out.get('waviness_l2')
@@ -354,8 +354,8 @@ class Trainer(object):
         '''最小構成を見て基本を思い出す'''
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(train_dl):
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+            for i, (xseq, yseq, mask) in enumerate(train_dl):
+                out = self.model.forward(xseq, yseq, mask, opt=self.opt)
 
     def test_model(self, test_dl, subname: str, do_report=False):
         self.logger.info('Starting test')
@@ -386,7 +386,7 @@ class Trainer(object):
                 xs = []
                 preds = []
                 for s in simu:
-                    res = self.model.loss_batch(
+                    res = self.model.forward(
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
                         torch.BoolTensor([True]*seq_size).unsqueeze(0),)

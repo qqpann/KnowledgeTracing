@@ -11,18 +11,6 @@ class BaseKTModel(ABC):
         self.device = device
 
     @abstractmethod
-    def forward(self, xseq, yseq, mask):
+    def forward(self, xseq, yseq, mask, opt=None):
         out_dic = {}
         return out_dic
-
-    @abstractmethod
-    def loss_batch(self, xseq, yseq, mask, opt=None):
-        out = self.forward(xseq, yseq, mask)
-        loss = out["loss"]
-
-        if opt:
-            # バックプロバゲーション
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-        return out
