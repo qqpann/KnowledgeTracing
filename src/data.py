@@ -251,6 +251,15 @@ class DataHandler:
         )
         return train_dl, test_dl
 
+    def get_enwrap_test_dl(self):
+        config = self.config
+        config.split_data_enwrap = config.seqence_size - 1
+        test_ds = self.get_ds(config, self.device, self.fintest_data)
+        test_dl = DataLoader(
+            test_ds, batch_size=self.config.batch_size, drop_last=False
+        )
+        return test_dl
+
     def generate_trainval_dl(self):
         projectdir, name = self.projectdir, self.name
         if name == ASSIST2009:

@@ -99,13 +99,23 @@ class KSDKT(nn.Module, BaseKTModel):
         yqs = yqs.permute(1, 0, 2)
         target = target.permute(1, 0, 2)
 
-        inputs = self.embedding(inputs).squeeze(2)
-        out, _Hn = self.lstm(inputs, self.init_Hidden0(i_batch))
-        # top_n, top_i = out.topk(1)
-        # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
-        out = self.fc(out)
-        # decoded = self.sigmoid(decoded)
-        # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
+        repeat = self.config.dkt['repeat']
+        if opt is None and repeat > 0:
+            # Use result repeatedly to predict future
+            # TODO: finish WIP
+            inputs_ = inputs[0:i_seqen-repeat, :]
+            print(inputs_.shape, inputs.shape)
+            out, _Hn = self.lstm(inputs_, self.init_Hidden0(i_batch))
+            inputs_ = self.fc(out)
+            for i in range(repeat):
+                out, _Hn = self.lstm(inputs_, _Hn)
+                inputs_ = self.fc(out)
+            out = inputs_
+        else:
+            # Normal
+            inputs = self.embedding(inputs).squeeze(2)
+            out, _Hn = self.lstm(inputs, self.init_Hidden0(i_batch))
+            out = self.fc(out)
 
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
         assert pred_vect.shape == (i_seqen, i_batch, i_skill), \
