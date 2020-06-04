@@ -80,7 +80,6 @@ def run(configpath: Path):
 
 
 if __name__ == "__main__":
-    config = sys.argv[1]
-    config = Path(config)
+    config = Path(sys.argv[1])
     assert config.exists(), config
     run(config)
