@@ -46,6 +46,7 @@ class KSDKT(nn.Module, BaseKTModel):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
         self.dropout = self.config.dkt['dropout_rate']
+        self.cumsum_weights = torch.tensor([[[config.ksvector_weight_base ** i for i in range(config.sequence_size)]]],  dtype=torch.int64, device=device).permute(2, 1, 0)
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
         self.embedding = nn.Embedding(config.n_skills * 2 + config.dkt['preserved_tokens'], self.input_size).to(device)
@@ -139,10 +140,11 @@ class KSDKT(nn.Module, BaseKTModel):
             assert target.shape == (i_seqen, i_batch, 1), \
                 'Expected {}, got {}'.format((i_seqen, i_batch, 1), target.shape)
             dqa = yqs * target
-            Sdqa = torch.cumsum(dqa, dim=0)
-            Sdq = torch.cumsum(yqs, dim=0)
+            Sdqa = self.cumsum_weights * torch.cumsum(dqa, dim=0)
+            Sdq = self.cumsum_weights * torch.cumsum(yqs, dim=0)
             ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
-                / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
+                / torch.sum(Sdq > 0)
+                # / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             out_dic['loss'] += self.config.ksvector_l1 * ksvector_l1
             out_dic['ksvector_l1'] = ksvector_l1.item()
             out_dic['Sdqa'] = Sdqa

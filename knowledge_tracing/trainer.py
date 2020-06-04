@@ -154,6 +154,7 @@ class Trainer(object):
         self.init_model()
         self.load_model(load_model)
         fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        # fintest_dl = self.dh.get_enwrap_test_dl()
         self.test_model(fintest_dl, subname='all', do_report=True)
 
     def straighten_train_model(self, epoch_size: int):
