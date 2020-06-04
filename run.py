@@ -60,7 +60,7 @@ def run(configpath: Path):
     trainer = Trainer(config)
     if config.load_model:
         trainer.evaluate_model()
-        logger.info('All evaluations done!')
+        logger.info("All evaluations done!")
         return
     try:
         trainer.cv()
