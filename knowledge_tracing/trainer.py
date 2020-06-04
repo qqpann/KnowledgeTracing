@@ -334,15 +334,15 @@ class Trainer(object):
         # if self.config.model_name == 'dkvmn':
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
-        fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
-            torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
-            torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
-        auc_ksv = metrics.auc(fpr_v, tpr_v)
+        # fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
+        #     torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
+        #     torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+        # auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': mean(loss_ls),
             'auc': auc,
-            'ksv_auc': auc_ksv,
+            # 'ksv_auc': auc_ksv,
             'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
             'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
             'ksvector_l1': mean(ksv1_ls) if ksv1_ls[0]!=None else 0,
@@ -368,7 +368,8 @@ class Trainer(object):
             if do_report:
                 self.report('test_auc', v_auc)
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
-            self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
+            # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
+            self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
             if self.config.waviness_l1 or self.config.waviness_l2:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
