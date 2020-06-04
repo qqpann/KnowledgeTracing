@@ -8,7 +8,14 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 import tqdm
+from enum import Enum
 
+class LevelUpMode(Enum):
+  NORMAL = 1 # always levelup
+  CORRECT = 2 # when correct asnwer only
+  INCORRECT = 3 # when incorrect asnwer only
+  BOTH = 4 # when incorrect asnwer: level down, when correct asnwer: level up 
+  NONE = 5 # when incorrect asnwer only
 
 def irt_prob(difficulty: float, ability: float) -> float:
     c = 0.25
@@ -49,7 +56,7 @@ class Student:
         self.intelligence = 1.05 * self.intelligence
 
 
-def main(outpath: Path):
+def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
     STUDENT_NUMS = 400
 
     students = []
@@ -86,7 +93,14 @@ def main(outpath: Path):
             #     "q: %s q_rank: %d  s_intelligence:%d ans:%d"
             #     % (q.lo_name, q.rank, s.intelligence, ans)
             # )
-            s.levelup()
+
+            if mode == LevelUpMode.NORMAL:
+                s.levelup()
+            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans == 1:
+                s.levelup()
+            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans == 0:
+                s.leveldown()
+
             if i % 10 == 0:
                 s.init_intelligence()
             seq += 1
