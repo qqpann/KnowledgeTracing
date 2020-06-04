@@ -82,6 +82,8 @@ def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
     }
 
     seq = 0
+    summary_inc = 0
+    summary_dec = 0
     for s in tqdm.tqdm(students):
         for i, q in enumerate(questions):
             irt_prob = s.get_irt_prob(q)
@@ -99,14 +101,19 @@ def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
 
             if mode == LevelUpMode.NORMAL:
                 s.levelup()
-            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans:
+                summary_inc += 1
+            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans == True:
                 s.levelup()
-            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans:
+                summary_inc += 1
+            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans == False:
                 s.leveldown()
+                summary_dec += 1
 
             if i % 10 == 0:
                 s.init_intelligence()
             seq += 1
+    print('Total increase:', summary_inc)
+    print('Total decrease:', summary_dec)
 
     history_df = pd.DataFrame(data=d)
     history_df = history_df.astype(
