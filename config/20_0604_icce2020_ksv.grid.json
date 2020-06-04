@@ -1,0 +1,28 @@
+{
+  "overwrite": false,
+  "model_name": "ksdkt",
+  "source_data": "assist2009",
+  "n_skills": 110,
+  "sequence_size": 20,
+  "pad": false,
+  "epoch_size": 2000,
+  "early_stop": 150,
+  "pre_dummy_epoch_size": 0,
+  "straighten_during_train_every": 0,
+  "straighten_during_train_for": 0,
+  "batch_size": 128,
+  "lr": 0.1,
+  "waviness_l1": true,
+  "waviness_l2": true,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": [0.5, 1.0, 2.0],
+  "dkt": {
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6,
+    "repeat": 5
+  }
+}
