@@ -15,7 +15,7 @@ class LevelUpMode(Enum):
   CORRECT = 2 # when correct asnwer only
   INCORRECT = 3 # when incorrect asnwer only
   BOTH = 4 # when incorrect asnwer: level down, when correct asnwer: level up 
-  NONE = 5 # when incorrect asnwer only
+  NONE = 5 # no level up
 
 def irt_prob(difficulty: float, ability: float) -> float:
     c = 0.25
@@ -120,4 +120,6 @@ def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
 
 if __name__ == "__main__":
     outpath = Path(sys.argv[1])
-    main(outpath)
+    mode = LevelUpMode(sys.argv[2])
+    print('Mode:', mode)
+    main(outpath, mode)
