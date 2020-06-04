@@ -55,6 +55,9 @@ class Student:
     def levelup(self):
         self.intelligence = 1.05 * self.intelligence
 
+    def leveldown(self):
+        self.intelligence = 0.95 * self.intelligence
+
 
 def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
     STUDENT_NUMS = 400
@@ -96,9 +99,9 @@ def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
 
             if mode == LevelUpMode.NORMAL:
                 s.levelup()
-            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans == 1:
+            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans:
                 s.levelup()
-            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans == 0:
+            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans:
                 s.leveldown()
 
             if i % 10 == 0:
