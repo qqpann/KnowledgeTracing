@@ -1,4 +1,4 @@
-python src/simulate.py data/raw_input/simulated5_reproduction_v$1.csv
+python src/simulate.py data/raw_input/simulated5_reproduction_v$1.csv 4
 python data/prepare_input_data.py --file simulated5_reproduction_v$1 -csid SkillID -cusr CustomerNumber -cans AnswerResult --rerun
 echo '
 {
