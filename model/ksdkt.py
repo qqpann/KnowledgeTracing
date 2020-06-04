@@ -160,7 +160,7 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['Sdqa'] = Sdqa
             out_dic['Sdq'] = Sdq
 
-        if self.config.waviness_l1 == True:
+        if self.config.waviness == True:
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
@@ -169,7 +169,7 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l1 * waviness_l1
             out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.waviness_l2 == True:
+        if self.config.waviness == True:
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(
