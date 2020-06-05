@@ -160,7 +160,15 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['Sdqa'] = Sdqa
             out_dic['Sdq'] = Sdq
 
-        if self.config.waviness == True:
+        if self.config.reconstruction > 0 or self.config.reconstruction_and_waviness:
+            reconstruction_target = torch.matmul(xseq.float().to(
+                device), torch.Tensor([[0], [1]]).to(device)).to(device)
+            reconstruction_target = reconstruction_target.permute(1, 0, 2).squeeze(2)
+            reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
+            out_dic['loss'] += self.config.reconstruction * reconstruction_loss
+            out_dic['reconstruction_loss'] += reconstruction_loss.item()
+
+        if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
@@ -169,7 +177,7 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l1 * waviness_l1
             out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.waviness == True:
+        if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(
