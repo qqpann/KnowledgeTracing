@@ -265,6 +265,7 @@ class Trainer(object):
         wvn1_ls = list()
         wvn2_ls = list()
         ksv1_ls = list()
+        rcns_ls = list()
         # ##
         # if self.config.model_name == 'dkvmn':
         #     pred_list = []
@@ -285,6 +286,7 @@ class Trainer(object):
             wvn1_ls.append(out.get('waviness_l1'))
             wvn2_ls.append(out.get('waviness_l2'))
             ksv1_ls.append(out.get('ksvector_l1'))
+            rcns_ls.append(out.get('reconstruction_loss'))
             # ##
             # if self.config.model_name == 'dkvmn':
             #     right_target = np.asarray(out.get('filtered_target').data.tolist())
@@ -346,6 +348,7 @@ class Trainer(object):
             'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
             'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
             'ksvector_l1': mean(ksv1_ls) if ksv1_ls[0]!=None else 0,
+            'reconstruction_loss': mean(rcns_ls) if ksv1_ls[0]!=None else 0,
         }
         # if only_eval:
         #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
