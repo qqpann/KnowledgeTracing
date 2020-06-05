@@ -370,9 +370,12 @@ class Trainer(object):
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
             # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
-            if self.config.waviness:
+            if self.config.waviness or self.config.reconstruction_and_waviness:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
+            if self.config.reconstruction or self.config.reconstruction_and_waviness:
+                self.logger.info('\tr1: {:.6}'.format(
+                    indicators['reconstruction_loss']))
 
 
             # Reverse Prediction
