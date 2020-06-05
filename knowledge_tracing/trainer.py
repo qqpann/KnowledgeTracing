@@ -251,6 +251,7 @@ class Trainer(object):
         # actu_mx = np.zeros([arr_len, self.config.batch_size])
         pred_ls = []
         actu_ls = []
+        actu_c_ls = []
         # pred_v_mx = np.zeros(
         #     [arr_len, self.config.batch_size * self.config.n_skills])
         # actu_v_mx = np.zeros(
@@ -302,6 +303,7 @@ class Trainer(object):
             if out.get('filtered_pred', False) is not False:
                 pred_ls.append(out['filtered_pred'].reshape(-1))
                 actu_ls.append(out['filtered_target'].reshape(-1))
+                actu_c_ls.append(out['filtered_target_c'].reshape(-1))
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             if out.get('Sdq', False) is not False:
@@ -333,6 +335,10 @@ class Trainer(object):
             torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
             torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        fpr, tpr, _thresholds = metrics.roc_curve(
+            torch.cat(actu_c_ls).detach().cpu().numpy().reshape(-1),
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+        auc_c = metrics.auc(fpr, tpr)
         # if self.config.model_name == 'dkvmn':
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
@@ -344,6 +350,7 @@ class Trainer(object):
         indicators = {
             'loss': mean(loss_ls),
             'auc': auc,
+            'auc_c': auc_c,
             # 'ksv_auc': auc_ksv,
             'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
             'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
@@ -379,6 +386,7 @@ class Trainer(object):
             if self.config.reconstruction or self.config.reconstruction_and_waviness:
                 self.logger.info('\tr1: {:.6}'.format(
                     indicators['reconstruction_loss']))
+                self.logger.info('\tTest AUC(C): {:.6}'.format(indicators['auc_c']))
 
 
             # Reverse Prediction

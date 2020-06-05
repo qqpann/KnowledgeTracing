@@ -167,6 +167,7 @@ class KSDKT(nn.Module, BaseKTModel):
             reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
             out_dic['loss'] += self.config.reconstruction * reconstruction_loss
             out_dic['reconstruction_loss'] = reconstruction_loss.item()
+            out_dic['filtered_target_c'] = reconstruction_target.masked_select(mask.permute(1, 0)) if self.config.pad == True else reconstruction_target
 
         if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l1 = torch.abs(
