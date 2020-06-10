@@ -19,11 +19,14 @@
   "sequence_size": 20,
   "split_data_enwrap": 0,
   "pad": false,
-  "waviness_l1": true,
-  "waviness_l2": true,
+  "reconstruction_and_waviness": false,
+  "reconstruction": true,
+  "lambda_rec": 0.0,
+  "waviness": true,
   "lambda_l1": 0.0,
   "lambda_l2": 0.0,
   "ksvector_l1": 0.0,
+  "ksvector_weight_base": 1.2,
   "eddkt": {
     "ks_loss": false,
     "extend_backward": 0,
@@ -32,6 +35,7 @@
     "n_layers": 2,
     "preserved_tokens": 2,
     "dropout_rate": 0.6,
+    "generative": false,
     "teacher_forcing_ratio": 1.0
   },
   "dkt": {
@@ -39,6 +43,7 @@
     "n_layers": 2,
     "bidirectional": false,
     "preserved_tokens": 2,
-    "dropout_rate": 0.6
+    "dropout_rate": 0.6,
+    "repeat": 0
   }
 }

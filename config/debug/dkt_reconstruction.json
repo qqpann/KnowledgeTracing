@@ -1,0 +1,14 @@
+{
+  "debug": true,
+  "cuda": true,
+  "model_name": "ksdkt",
+  "load_model": "",
+  "overwrite": true,
+  "source_data": "assist2009",
+  "n_skills": 110,
+  "reconstruction": 0.1,
+  "waviness": true,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": 0.5
+}

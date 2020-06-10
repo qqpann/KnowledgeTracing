@@ -1,0 +1,6 @@
+{
+  "model_name": "ksdkt",
+  "source_data": "zlt_math_simulated",
+  "n_skills": 786,
+  "pad": true
+}
