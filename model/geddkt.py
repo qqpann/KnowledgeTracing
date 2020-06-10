@@ -92,6 +92,7 @@ class GEDDKT(nn.Module, BaseKTModel):
         INPUT_DIM, ENC_EMB_DIM, ENC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         OUTPUT_DIM, DEC_EMB_DIM, DEC_DROPOUT = NUM_EMBEDDIGNS, input_size, 0.6
         HID_DIM, N_LAYERS = config.eddkt['hidden_size'], config.eddkt['n_layers']
+        self.generative = config.eddkt['generative']
         self.teacher_forcing_ratio = config.eddkt['teacher_forcing_ratio']
 
         self.N_SKILLS = config.n_skills
@@ -108,7 +109,7 @@ class GEDDKT(nn.Module, BaseKTModel):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, input_enc, input_dec, yqs):
+    def forward_loss(self, input_enc, input_dec, yqs):
         max_len = input_dec.shape[0]  # should be 1
         batch_size = input_dec.shape[1]
         trg_vocab_size = self.decoder.output_dim
@@ -117,9 +118,7 @@ class GEDDKT(nn.Module, BaseKTModel):
 
         input_trg = input_dec
 
-        # random.random() returns real number in the range[0.0, 1.0)
-        use_teacher_forcing = random.random() > self.teacher_forcing_ratio
-        if use_teacher_forcing:
+        if self.generative:
             input_trg_ = input_trg[0:1, :]
             outputs_prob = torch.zeros([input_trg.shape[0], self.config.batch_size, self.N_SKILLS],
                                        dtype=torch.float32, device=self.device)
@@ -130,7 +129,10 @@ class GEDDKT(nn.Module, BaseKTModel):
                 o_cor = torch.sigmoid(output[:, :, 2+self.N_SKILLS:])
                 outputs_prob_ = (o_cor / (o_cor + o_wro))
                 outputs_prob[di] = outputs_prob_
-                if random.random() < .5:
+
+                # random.random() returns real number in the range[0.0, 1.0)
+                use_teacher_forcing = random.random() > self.teacher_forcing_ratio
+                if use_teacher_forcing:
                     input_trg_ = torch.max(o_all, 2)[1]
                 else:
                     input_trg_ = input_trg[di+1:di+2, :]
@@ -148,7 +150,7 @@ class GEDDKT(nn.Module, BaseKTModel):
 
         return outputs_prob
 
-    def forward_loss(self, xseq, yseq, mask):
+    def forward(self, xseq, yseq, mask, opt=None):
         i_batch = self.config.batch_size
         if i_batch != xseq.shape[0]:
             # warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
@@ -195,11 +197,11 @@ class GEDDKT(nn.Module, BaseKTModel):
         mask = mask.to(device)
 
         # print(input_src.shape, input_trg.shape)
-        out = self.forward(input_enc, input_dec, yqs)
+        out = self.forward_loss(input_enc, input_dec, yqs)
         # print(out, out.shape)
         pred_vect = out  # .permute(1, 0, 2)
         assert tuple(pred_vect.shape) == (1+i_extbw+i_extfw, i_batch, i_skill), \
-            f"Unexpected shape {pred_vect.shape} != {(i_seqen, i_batch, i_skill)}"
+            f"Unexpected shape {pred_vect.shape} != {(1+i_extbw+i_extfw, i_batch, i_skill)}"
 
         pred_prob = torch.max(pred_vect * yqs, 2)[0]
 
@@ -269,17 +271,11 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l2 * waviness_l2
             out_dic['waviness_l2'] = waviness_l2.item()
 
-        return out_dic
-
-    def loss_batch(self, xseq, yseq, mask, opt=None):
-        out = self.forward_loss(xseq, yseq, mask)
-        loss = out['loss']
-
         if opt:
             # バックプロバゲーション
             opt.zero_grad()
-            loss.backward()
+            out_dic['loss'].backward()
             opt.step()
 
-        # Returns loss number, batch size
-        return out
+        return out_dic
+

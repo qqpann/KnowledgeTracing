@@ -154,6 +154,7 @@ class Trainer(object):
         self.init_model()
         self.load_model(load_model)
         fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        # fintest_dl = self.dh.get_enwrap_test_dl()
         self.test_model(fintest_dl, subname='all', do_report=True)
 
     def straighten_train_model(self, epoch_size: int):
@@ -163,7 +164,7 @@ class Trainer(object):
         for _ in range(1, epoch_size + 1):
             self.model.train()
             for xseq, yseq, mask in self.dummy_dl:
-                self.model.loss_batch(xseq, yseq, mask, opt=self.opt)
+                self.model.forward(xseq, yseq, mask, opt=self.opt)
 
     def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
@@ -196,7 +197,7 @@ class Trainer(object):
                 self.report('eval_loss', v_loss)
                 self.report('eval_auc', v_auc)
                 self.report('ksvector_l1', v_idc['ksvector_l1'])
-                if self.config.waviness_l1 or self.config.waviness_l2:
+                if self.config.waviness:
                     self.report('waviness_l1', v_idc['waviness_l1'])
                     self.report('waviness_l2', v_idc['waviness_l2'])
                 if v_auc > self.report.get_best('auc'):  # best auc
@@ -208,7 +209,7 @@ class Trainer(object):
                     epoch, v_loss, v_auc))
                 self.logger.info('\tEpoch {}\tKSVectorLoss: {:.6}'.format(
                     epoch, v_idc['ksvector_l1']))
-                if self.config.waviness_l1 or self.config.waviness_l2:
+                if self.config.waviness:
                     self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
                         epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
                 if v_auc >= self.report.get_best('auc'):
@@ -250,6 +251,7 @@ class Trainer(object):
         # actu_mx = np.zeros([arr_len, self.config.batch_size])
         pred_ls = []
         actu_ls = []
+        actu_c_ls = []
         # pred_v_mx = np.zeros(
         #     [arr_len, self.config.batch_size * self.config.n_skills])
         # actu_v_mx = np.zeros(
@@ -264,6 +266,7 @@ class Trainer(object):
         wvn1_ls = list()
         wvn2_ls = list()
         ksv1_ls = list()
+        rcns_ls = list()
         # ##
         # if self.config.model_name == 'dkvmn':
         #     pred_list = []
@@ -275,7 +278,7 @@ class Trainer(object):
         #     q_pred_list = defaultdict(list)
         for i, (xseq, yseq, mask) in enumerate(dl):
             # yseq.shape : (100, 20, 2) (batch_size, seq_size, len([q, a]))
-            out = self.model.loss_batch(xseq, yseq, mask, opt=opt)
+            out = self.model.forward(xseq, yseq, mask, opt=opt)
             # loss_ar[i] = out['loss'].item()
             # wvn1_ar[i] = out.get('waviness_l1')
             # wvn2_ar[i] = out.get('waviness_l2')
@@ -284,6 +287,7 @@ class Trainer(object):
             wvn1_ls.append(out.get('waviness_l1'))
             wvn2_ls.append(out.get('waviness_l2'))
             ksv1_ls.append(out.get('ksvector_l1'))
+            rcns_ls.append(out.get('reconstruction_loss'))
             # ##
             # if self.config.model_name == 'dkvmn':
             #     right_target = np.asarray(out.get('filtered_target').data.tolist())
@@ -299,6 +303,7 @@ class Trainer(object):
             if out.get('filtered_pred', False) is not False:
                 pred_ls.append(out['filtered_pred'].reshape(-1))
                 actu_ls.append(out['filtered_target'].reshape(-1))
+                actu_c_ls.append(out['filtered_target_c'].reshape(-1))
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             if out.get('Sdq', False) is not False:
@@ -330,21 +335,27 @@ class Trainer(object):
             torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
             torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
         auc = metrics.auc(fpr, tpr)
+        fpr, tpr, _thresholds = metrics.roc_curve(
+            torch.cat(actu_c_ls).detach().cpu().numpy().reshape(-1),
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+        auc_c = metrics.auc(fpr, tpr)
         # if self.config.model_name == 'dkvmn':
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
         # KSVector AUC
-        fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
-            torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
-            torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
-        auc_ksv = metrics.auc(fpr_v, tpr_v)
+        # fpr_v, tpr_v, _thresholds_v = metrics.roc_curve(
+        #     torch.cat(actu_v_ls).detach().cpu().numpy().reshape(-1),
+        #     torch.cat(pred_v_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+        # auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
             'loss': mean(loss_ls),
             'auc': auc,
-            'ksv_auc': auc_ksv,
+            'auc_c': auc_c,
+            # 'ksv_auc': auc_ksv,
             'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
             'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
             'ksvector_l1': mean(ksv1_ls) if ksv1_ls[0]!=None else 0,
+            'reconstruction_loss': mean(rcns_ls) if ksv1_ls[0]!=None else 0,
         }
         # if only_eval:
         #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
@@ -354,8 +365,8 @@ class Trainer(object):
         '''最小構成を見て基本を思い出す'''
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
-            for i, (xseq, yseq) in enumerate(train_dl):
-                out = self.model.loss_batch(xseq, yseq, opt=self.opt)
+            for i, (xseq, yseq, mask) in enumerate(train_dl):
+                out = self.model.forward(xseq, yseq, mask, opt=self.opt)
 
     def test_model(self, test_dl, subname: str, do_report=False):
         self.logger.info('Starting test')
@@ -367,10 +378,15 @@ class Trainer(object):
             if do_report:
                 self.report('test_auc', v_auc)
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
-            self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
-            if self.config.waviness_l1 or self.config.waviness_l2:
+            # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
+            self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
+            if self.config.waviness or self.config.reconstruction_and_waviness:
                 self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
                     indicators['waviness_l1'], indicators['waviness_l2']))
+            if self.config.reconstruction or self.config.reconstruction_and_waviness:
+                self.logger.info('\tr1: {:.6}'.format(
+                    indicators['reconstruction_loss']))
+                self.logger.info('\tTest AUC(C): {:.6}'.format(indicators['auc_c']))
 
 
             # Reverse Prediction
@@ -386,7 +402,7 @@ class Trainer(object):
                 xs = []
                 preds = []
                 for s in simu:
-                    res = self.model.loss_batch(
+                    res = self.model.forward(
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
                         torch.BoolTensor([True]*seq_size).unsqueeze(0),)

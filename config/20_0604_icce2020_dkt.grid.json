@@ -1,0 +1,24 @@
+{
+  "overwrite": false,
+  "model_name": "ksdkt",
+  "source_data": ["assist2009", "assist2015", "statics2011", "synthetic"],
+  "n_skills": 110,
+  "sequence_size": 20,
+  "pad": false,
+  "epoch_size": 2000,
+  "early_stop": 150,
+  "batch_size": 128,
+  "lr": 0.1,
+  "waviness": [true, false],
+  "lambda_l1": 0.003,
+  "lambda_l2": 3.0,
+  "ksvector_l1": 0.0,
+  "dkt": {
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6,
+    "repeat": 0
+  }
+}
