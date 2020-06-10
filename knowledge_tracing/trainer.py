@@ -175,6 +175,20 @@ class Trainer(object):
         # fintest_dl = self.dh.get_enwrap_test_dl()
         self.test_model(fintest_dl, subname='all', do_report=True)
 
+    def evaluate_model_enwrapped(self, load_model: str = None):
+        self.init_report()
+        self.init_model()
+        self.load_model(load_model)
+        fintest_dl = self.dh.get_enwrap_test_dl()
+        duo_context = defaultdict(list)
+        for i, (xseq, yseq, mask) in enumerate(fintest_dl):
+            out = self.model.forward(xseq, yseq, mask, opt=None)
+            for ys, prob in zip(yseq, out['pred_prob'].permute(1,0)):
+                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))].append(prob[-1].item())
+        self.report.subname = 'all'
+        self.report('duo_context', duo_context)
+        self.report.dump(fname="duo_context.json")
+
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
