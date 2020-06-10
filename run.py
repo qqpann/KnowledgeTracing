@@ -60,7 +60,7 @@ def run(configpath: Path):
     trainer = Trainer(config)
     if config.load_model:
         trainer.evaluate_model()
-        logger.info('All evaluations done!')
+        logger.info("All evaluations done!")
         return
     try:
         trainer.cv()
@@ -80,7 +80,6 @@ def run(configpath: Path):
 
 
 if __name__ == "__main__":
-    config = sys.argv[1]
-    config = Path(config)
+    config = Path(sys.argv[1])
     assert config.exists(), config
     run(config)

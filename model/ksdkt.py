@@ -46,6 +46,7 @@ class KSDKT(nn.Module, BaseKTModel):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
         self.dropout = self.config.dkt['dropout_rate']
+        self.cumsum_weights = torch.tensor([[[config.ksvector_weight_base ** i for i in range(config.sequence_size)]]],  dtype=torch.int64, device=device).permute(2, 1, 0)
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
         self.embedding = nn.Embedding(config.n_skills * 2 + config.dkt['preserved_tokens'], self.input_size).to(device)
@@ -64,7 +65,7 @@ class KSDKT(nn.Module, BaseKTModel):
 
         self._loss = nn.BCELoss()
 
-    def forward(self, xseq, yseq, mask):
+    def forward(self, xseq, yseq, mask, opt=None):
         i_batch = self.config.batch_size
         if i_batch != xseq.shape[0]:
             # warnings.warn(f'batch size mismatch {i_batch} != {xseq.shape[0]}')
@@ -98,13 +99,23 @@ class KSDKT(nn.Module, BaseKTModel):
         yqs = yqs.permute(1, 0, 2)
         target = target.permute(1, 0, 2)
 
-        inputs = self.embedding(inputs).squeeze(2)
-        out, _Hn = self.lstm(inputs, self.init_Hidden0(i_batch))
-        # top_n, top_i = out.topk(1)
-        # decoded = self.decoder(out.contiguous().view(out.size(0) * out.size(1), out.size(2)))
-        out = self.fc(out)
-        # decoded = self.sigmoid(decoded)
-        # print(out.shape) => [20, 100, 124] (sequence_len, batch_size, skill_size)
+        repeat = self.config.dkt['repeat']
+        if opt is None and repeat > 0:
+            # Use result repeatedly to predict future
+            # TODO: finish WIP
+            inputs_ = inputs[0:i_seqen-repeat, :]
+            print(inputs_.shape, inputs.shape)
+            out, _Hn = self.lstm(inputs_, self.init_Hidden0(i_batch))
+            inputs_ = self.fc(out)
+            for i in range(repeat):
+                out, _Hn = self.lstm(inputs_, _Hn)
+                inputs_ = self.fc(out)
+            out = inputs_
+        else:
+            # Normal
+            inputs = self.embedding(inputs).squeeze(2)
+            out, _Hn = self.lstm(inputs, self.init_Hidden0(i_batch))
+            out = self.fc(out)
 
         pred_vect = torch.sigmoid(out)  # [0, 1]区間にする
         assert pred_vect.shape == (i_seqen, i_batch, i_skill), \
@@ -139,16 +150,26 @@ class KSDKT(nn.Module, BaseKTModel):
             assert target.shape == (i_seqen, i_batch, 1), \
                 'Expected {}, got {}'.format((i_seqen, i_batch, 1), target.shape)
             dqa = yqs * target
-            Sdqa = torch.cumsum(dqa, dim=0)
-            Sdq = torch.cumsum(yqs, dim=0)
+            Sdqa = self.cumsum_weights * torch.cumsum(dqa, dim=0)
+            Sdq = self.cumsum_weights * torch.cumsum(yqs, dim=0)
             ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
-                / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
+                / torch.sum(Sdq > 0)
+                # / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
             out_dic['loss'] += self.config.ksvector_l1 * ksvector_l1
             out_dic['ksvector_l1'] = ksvector_l1.item()
             out_dic['Sdqa'] = Sdqa
             out_dic['Sdq'] = Sdq
 
-        if self.config.waviness_l1 == True:
+        if self.config.reconstruction > 0 or self.config.reconstruction_and_waviness:
+            reconstruction_target = torch.matmul(xseq.float().to(
+                device), torch.Tensor([[0], [1]]).to(device)).to(device)
+            reconstruction_target = reconstruction_target.permute(1, 0, 2).squeeze(2)
+            reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
+            out_dic['loss'] += self.config.reconstruction * reconstruction_loss
+            out_dic['reconstruction_loss'] = reconstruction_loss.item()
+            out_dic['filtered_target_c'] = reconstruction_target.masked_select(mask.permute(1, 0)) if self.config.pad == True else reconstruction_target
+
+        if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
             waviness_l1 = torch.sum(
@@ -157,7 +178,7 @@ class KSDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l1 * waviness_l1
             out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.waviness_l2 == True:
+        if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
             waviness_l2 = torch.sum(
@@ -165,6 +186,13 @@ class KSDKT(nn.Module, BaseKTModel):
             lambda_l2 = self.config.lambda_l2
             out_dic['loss'] += lambda_l2 * waviness_l2
             out_dic['waviness_l2'] = waviness_l2.item()
+
+
+        if opt:
+            # バックプロバゲーション
+            opt.zero_grad()
+            out_dic['loss'].backward()
+            opt.step()
 
         return out_dic
 
@@ -186,18 +214,3 @@ class KSDKT(nn.Module, BaseKTModel):
     def init_fc(self):
         return nn.Linear(self.hidden_size * self.directions, self.output_size).to(self.device)
 
-    def loss_batch(self, xseq, yseq, mask, opt=None):
-        '''
-        '''
-        out = self.forward(xseq, yseq, mask)
-        loss = out['loss']
-
-        if opt:
-            # バックプロバゲーション
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-
-        # hm_pred_ks = pred[-1].squeeze()
-
-        return out
