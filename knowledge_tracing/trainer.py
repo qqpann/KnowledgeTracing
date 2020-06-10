@@ -140,6 +140,8 @@ class Trainer(object):
                             self.config.starttime / 'f{}_best.model'.format(k))
             self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
             self.test_model(fintest_dl, subname=k, do_report=True)
+            if self.config.debug:
+                break
         self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
         self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
         self.report.subname = 'all'
@@ -374,9 +376,11 @@ class Trainer(object):
             self.model.eval()
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
             v_loss, v_auc = indicators['loss'], indicators['auc']
+            v_auc_c = indicators['auc_c']
 
             if do_report:
                 self.report('test_auc', v_auc)
+                self.report('test_auc_c', v_auc_c)
             self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
             # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
             self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
@@ -386,7 +390,7 @@ class Trainer(object):
             if self.config.reconstruction or self.config.reconstruction_and_waviness:
                 self.logger.info('\tr1: {:.6}'.format(
                     indicators['reconstruction_loss']))
-                self.logger.info('\tTest AUC(C): {:.6}'.format(indicators['auc_c']))
+                self.logger.info('\tTest AUC(C): {:.6}'.format(v_auc_c))
 
 
             # Reverse Prediction
