@@ -8,7 +8,14 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 import tqdm
+from enum import Enum
 
+class LevelUpMode(Enum):
+  NORMAL = 1 # always levelup
+  CORRECT = 2 # when correct asnwer only
+  INCORRECT = 3 # when incorrect asnwer only
+  BOTH = 4 # when incorrect asnwer: level down, when correct asnwer: level up 
+  NONE = 5 # no level up
 
 def irt_prob(difficulty: float, ability: float) -> float:
     c = 0.25
@@ -48,8 +55,11 @@ class Student:
     def levelup(self):
         self.intelligence = 1.05 * self.intelligence
 
+    def leveldown(self):
+        self.intelligence = 0.95 * self.intelligence
 
-def main(outpath: Path):
+
+def main(outpath: Path, mode:LevelUpMode = LevelUpMode.NORMAL):
     STUDENT_NUMS = 400
 
     students = []
@@ -72,6 +82,8 @@ def main(outpath: Path):
     }
 
     seq = 0
+    summary_inc = 0
+    summary_dec = 0
     for s in tqdm.tqdm(students):
         for i, q in enumerate(questions):
             irt_prob = s.get_irt_prob(q)
@@ -86,10 +98,22 @@ def main(outpath: Path):
             #     "q: %s q_rank: %d  s_intelligence:%d ans:%d"
             #     % (q.lo_name, q.rank, s.intelligence, ans)
             # )
-            s.levelup()
+
+            if mode == LevelUpMode.NORMAL:
+                s.levelup()
+                summary_inc += 1
+            if (mode == LevelUpMode.CORRECT or mode == LevelUpMode.BOTH) and ans == True:
+                s.levelup()
+                summary_inc += 1
+            if (mode == LevelUpMode.INCORRECT or mode == LevelUpMode.BOTH) and ans == False:
+                s.leveldown()
+                summary_dec += 1
+
             if i % 10 == 0:
                 s.init_intelligence()
             seq += 1
+    print('Total increase:', summary_inc)
+    print('Total decrease:', summary_dec)
 
     history_df = pd.DataFrame(data=d)
     history_df = history_df.astype(
@@ -106,4 +130,6 @@ def main(outpath: Path):
 
 if __name__ == "__main__":
     outpath = Path(sys.argv[1])
-    main(outpath)
+    mode = LevelUpMode(int(sys.argv[2]))
+    print('Mode:', mode)
+    main(outpath, mode)
