@@ -60,6 +60,7 @@ def run(configpath: Path):
     trainer = Trainer(config)
     if config.load_model:
         trainer.evaluate_model()
+        trainer.evaluate_model_enwrapped()
         logger.info("All evaluations done!")
         return
     try:
