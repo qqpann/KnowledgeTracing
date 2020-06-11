@@ -186,11 +186,19 @@ class Trainer(object):
             for ys, prob in zip(yseq, out['pred_prob'].permute(1,0)):
                 duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['pred'].append(prob[-1].item())
                 duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['actu'].append(ys[-1:,1].item())
+        fintrain_dl, _ = self.dh.get_traintest_dl()
+        count: DefaultDict[str, int] = defaultdict(int)
+        for i, (xseq, yseq, mask) in enumerate(fintrain_dl):
+            for xs, ys in zip(xseq, yseq):  # batch loop
+                for x, y in zip(xs, ys):
+                    # TODO: make it faster.
+                    count[f'{x[0]}->{y[0]}'] += 1
         for key, value in duo_context.items():
             fpr, tpr, _ = metrics.roc_curve(value['actu'], value['pred'], pos_label=1)
             auc = metrics.auc(fpr, tpr)
             print(auc)
             duo_context[key]['auc'] = [auc]
+            duo_context[key]['count'] = [count[key]]
         self.report.subname = 'all'
         self.report('duo_context', duo_context)
         self.report.dump(fname="duo_context.json")
