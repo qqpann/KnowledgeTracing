@@ -4,7 +4,7 @@ from collections import defaultdict
 from math import ceil, log
 from pathlib import Path
 from statistics import mean, stdev
-from typing import Union
+from typing import Union, DefaultDict, List
 
 import numpy as np
 import torch
@@ -180,11 +180,17 @@ class Trainer(object):
         self.init_model()
         self.load_model(load_model)
         fintest_dl = self.dh.get_enwrap_test_dl()
-        duo_context = defaultdict(list)
+        duo_context: DefaultDict[str, DefaultDict[str, List]] = defaultdict(lambda: defaultdict(list))
         for i, (xseq, yseq, mask) in enumerate(fintest_dl):
             out = self.model.forward(xseq, yseq, mask, opt=None)
             for ys, prob in zip(yseq, out['pred_prob'].permute(1,0)):
-                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))].append(prob[-1].item())
+                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['pred'].append(prob[-1].item())
+                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['actu'].append(ys[-1:,1].item())
+        for key, value in duo_context.items():
+            fpr, tpr, _ = metrics.roc_curve(value['actu'], value['pred'], pos_label=1)
+            auc = metrics.auc(fpr, tpr)
+            print(auc)
+            duo_context[key]['auc'] = [auc]
         self.report.subname = 'all'
         self.report('duo_context', duo_context)
         self.report.dump(fname="duo_context.json")
