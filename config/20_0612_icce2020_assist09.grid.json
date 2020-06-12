@@ -1,7 +1,7 @@
 {
   "overwrite": false,
   "model_name": "ksdkt",
-  "source_data": "assist09",
+  "source_data": "assist2009",
   "n_skills": 110,
   "sequence_size": 20,
   "pad": false,
