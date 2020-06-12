@@ -68,16 +68,22 @@ def objective(trial: optuna.Trial):
         if type(val) is not list:
             continue
         if type(val[0]) == int:
-            exp[key] = trial.suggest_int(key, val[0], val[1])
+            suggestion = trial.suggest_int(key, val[0], val[1])
+            logger.info(f"suggest_int {suggestion} from low:{val[0]} high:{val[1]}")
+            exp[key] = suggestion
         if type(val[0]) == float:
-            exp[key] = trial.suggest_float(key, val[0], val[1])
+            suggestion = trial.suggest_loguniform(key, val[0], val[1])
+            logger.info(f"suggest_logiform {suggestion} from low:{val[0]} high:{val[1]}")
+            exp[key] = suggestion
+        # if type(val[0]) == float:
+        #     exp[key] = trial.suggest_float(key, val[0], val[1])
     score = run(exp, trial)
     return score
 
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=100, timeout=600)
+    study.optimize(objective, n_trials=100, timeout=60*30)
     pruned_trials = [
         t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED
     ]
