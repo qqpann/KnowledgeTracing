@@ -1,0 +1,31 @@
+{
+  "overwrite": true,
+  "model_name": "geddkt",
+  "source_data": "assist2009",
+  "n_skills": 110,
+  "sequence_size": 20,
+  "pad": false,
+  "epoch_size": 1500,
+  "early_stop": 150,
+  "pre_dummy_epoch_size": 0,
+  "straighten_during_train_every": 0,
+  "straighten_during_train_for": 0,
+  "batch_size": 128,
+  "lr": 0.1,
+  "reconstruction_and_waviness": true,
+  "lambda_rec": 0.0,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": 0,
+  "eddkt": {
+    "ks_loss": false,
+    "extend_backward": 0,
+    "extend_forward": 15,
+    "hidden_size": 200,
+    "n_layers": 2,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6,
+    "generative": false,
+    "teacher_forcing_ratio": 1.0
+  }
+}
