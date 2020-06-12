@@ -251,7 +251,7 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['Sdqa'] = Sdqa
             out_dic['Sdq'] = Sdq
 
-        if self.config.waviness_l1 == True:
+        if self.config.waviness == True:
             # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
@@ -261,7 +261,7 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l1 * waviness_l1
             out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.waviness_l2 == True:
+        if self.config.waviness == True:
             # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
