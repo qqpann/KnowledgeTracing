@@ -65,7 +65,22 @@ def objective(trial: optuna.Trial):
     exp = get_option_fallback(exp, fallback=default_cfg)
     exp["exp_name"] = config.stem
     for key, val in grid.items():
-        if type(val) is not list:
+        print(key, val)
+        if key in {'dkt', 'eddkt'}:
+            print(val)
+            for k, v in val.items():
+                if type(v) is not list:
+                    continue
+                if type(v[0]) == int:
+                    suggestion = trial.suggest_int(k, v[0], v[1])
+                    logger.info(f"suggest_int {suggestion} from low:{v[0]} high:{v[1]}")
+                    exp[key][k] = suggestion
+                if type(v[0]) == float:
+                    suggestion = trial.suggest_loguniform(k, v[0], v[1])
+                    logger.info(f"suggest_logiform {suggestion} from low:{v[0]} high:{v[1]}")
+                    exp[key][k] = suggestion
+            continue
+        if type(val) != list:
             continue
         if type(val[0]) == int:
             suggestion = trial.suggest_int(key, val[0], val[1])
