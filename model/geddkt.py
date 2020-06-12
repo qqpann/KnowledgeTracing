@@ -252,9 +252,10 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['Sdq'] = Sdq
 
         if self.config.reconstruction or self.config.reconstruction_and_waviness:
-            reconstruction_target = torch.matmul(xseq.float().to(
+            reconstruction_target = torch.matmul(xseq_dec.float().to(
                 device), torch.Tensor([[0], [1]]).to(device)).to(device)
-            reconstruction_target = reconstruction_target.permute(1, 0, 2).squeeze(2)
+            assert reconstruction_target.shape == (1+i_extfw, i_batch, 1)
+            reconstruction_target = reconstruction_target.squeeze(2)
             reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
             out_dic['loss'] += self.config.lambda_rec * reconstruction_loss
             out_dic['reconstruction_loss'] = reconstruction_loss.item()
