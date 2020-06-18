@@ -251,7 +251,17 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['Sdqa'] = Sdqa
             out_dic['Sdq'] = Sdq
 
-        if self.config.waviness_l1 == True:
+        if self.config.reconstruction or self.config.reconstruction_and_waviness:
+            reconstruction_target = torch.matmul(xseq_dec.float().to(
+                device), torch.Tensor([[0], [1]]).to(device)).to(device)
+            assert reconstruction_target.shape == (1+i_extfw, i_batch, 1)
+            reconstruction_target = reconstruction_target.squeeze(2)
+            reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
+            out_dic['loss'] += self.config.lambda_rec * reconstruction_loss
+            out_dic['reconstruction_loss'] = reconstruction_loss.item()
+            out_dic['filtered_target_c'] = reconstruction_target.masked_select(mask.permute(1, 0)) if self.config.pad == True else reconstruction_target
+
+        if self.config.waviness == True:
             # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l1 = torch.abs(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :])
@@ -261,7 +271,7 @@ class GEDDKT(nn.Module, BaseKTModel):
             out_dic['loss'] += lambda_l1 * waviness_l1
             out_dic['waviness_l1'] = waviness_l1.item()
 
-        if self.config.waviness_l2 == True:
+        if self.config.waviness == True:
             # assert pred_vect.shape[0] > 1, pred_vect
             waviness_norm_l2 = torch.pow(
                 pred_vect[1:, :, :] - pred_vect[:-1, :, :], 2)
