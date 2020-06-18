@@ -20,14 +20,19 @@ from model.ksdkt import KSDKT
 from src.data import DataHandler
 from src.log import get_logger
 from src.report import Report
-from src.save import (save_hm_fig, save_learning_curve, save_log, save_model,
-                      save_pred_accu_relation, save_report)
+from src.save import (
+    save_hm_fig,
+    save_learning_curve,
+    save_log,
+    save_model,
+    save_pred_accu_relation,
+    save_report,
+)
 from src.utils import sAsMinutes, timeSince
 
 
 class Trainer(object):
-
-    def __init__(self, config, trial: Union[None,optuna.Trial]=None):
+    def __init__(self, config, trial: Union[None, optuna.Trial] = None):
         self.config = config
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
@@ -47,7 +52,7 @@ class Trainer(object):
             load_model_path = str(self.config.load_model_path)
         else:
             return None
-        self.logger.info('Loading model {}'.format(load_model_path))
+        self.logger.info("Loading model {}".format(load_model_path))
         self.model.load_state_dict(torch.load(load_model_path))
         self.model.to(self.device)
 
@@ -58,85 +63,72 @@ class Trainer(object):
         self.report.dump()
 
     def get_logger(self, config):
-        outdir = config.resultsdir / 'log' / config.starttime
+        outdir = config.resultsdir / "log" / config.starttime
         outdir.mkdir(parents=True, exist_ok=True)
         logger = get_logger(
-            '{}/{}'.format(config.model_name, config.exp_name),
-            outdir / '{}_{}.log'.format(config.config_name, config.exp_name)
+            "{}/{}".format(config.model_name, config.exp_name),
+            outdir / "{}_{}.log".format(config.config_name, config.exp_name),
         )
         return logger
 
     def get_device(self, config):
-        self.logger.info('PyTorch: {}'.format(torch.__version__))
+        self.logger.info("PyTorch: {}".format(torch.__version__))
         device = torch.device(
-            'cuda' if config.cuda and torch.cuda.is_available() else 'cpu')
-        self.logger.info('Using Device: {}'.format(device))
+            "cuda" if config.cuda and torch.cuda.is_available() else "cpu"
+        )
+        self.logger.info("Using Device: {}".format(device))
         return device
 
     def get_model(self, config, device):
-        if config.model_name == 'eddkt':
+        if config.model_name == "eddkt":
             model = EDDKT(config, device).to(device)
-        elif config.model_name == 'geddkt':
+        elif config.model_name == "geddkt":
             model = GEDDKT(config, device).to(device)
-        elif config.model_name == 'dkt':
+        elif config.model_name == "dkt":
             model = DKT(config, device).to(device)
-        elif config.model_name == 'ksdkt':
+        elif config.model_name == "ksdkt":
             model = KSDKT(config, device).to(device)
-        elif config.model_name == 'dkvmn':
+        elif config.model_name == "dkvmn":
             model = DKVMN(config, device).to(device)
         else:
-            raise ValueError(f'model_name {config.model_name} is wrong')
+            raise ValueError(f"model_name {config.model_name} is wrong")
 
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
         self.logger.info(
-            f'The model has {count_parameters(model):,} trainable parameters')
+            f"The model has {count_parameters(model):,} trainable parameters"
+        )
         return model
 
-    # def get_dataloader(self, config, device):
-    #     train_dl, eval_dl = prepare_dataloader(
-    #         config, device=device, pad=config.pad)
-    #     self.logger.info(
-    #         'train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-    #     self.logger.info(
-    #         'eval_dl.dataset size: {}'.format(len(eval_dl.dataset)))
-    #     return train_dl, eval_dl
-
-    # def get_dummy_dataloader(self, config, device):
-    #     return prepare_dummy_dataloader(config, config.sequence_size, 1, device)
-
     def get_opt(self, model):
-        if self.config.model_name == 'dkvmn':
-            opt = torch.optim.Adam(params=model.parameters(
-            ), lr=self.config.lr, betas=(0.9, 0.9))  # from DKVMN
+        if self.config.model_name == "dkvmn":
+            opt = torch.optim.Adam(
+                params=model.parameters(), lr=self.config.lr, betas=(0.9, 0.9)
+            )  # from DKVMN
             return opt
         opt = torch.optim.SGD(model.parameters(), lr=self.config.lr)
         return opt
-
-    # def kfold(self):
-    #     self.init_report()
-    #     test_dl = self.dh.get_test_dl()
-    #     for k, (train_dl, valid_dl) in enumerate(self.dh.gen_trainval_dl()):
-    #         self.report.subname = k
-    #         self.init_model()
-    #         self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-    #         self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
-    #         self.train_model(k, train_dl, valid_dl)
-    #         self.load_model(self.config.resultsdir / 'checkpoints' /
-    #                         self.config.starttime / 'f{}_best.model'.format(k))
-    #         self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
-    #         self.test_model(k, test_dl, do_report=True)
 
     def optimize(self):
         projectdir = self.config.projectdir
         name = self.config.source_data
         self.init_report()
         fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
-        self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
-        self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
-        self.report.subname = 'all'
+        self.logger.info(
+            "fintrain_dl.dataset size: {}".format(len(fintrain_dl.dataset))
+        )
+        self.logger.info("fintest_dl.dataset size: {}".format(len(fintest_dl.dataset)))
+        self.report.subname = "all"
         self.init_model()
-        self.train_model(fintrain_dl, None, self.config.epoch_size, subname='all', validate=False, optimize=True)
+        self.train_model(
+            fintrain_dl,
+            None,
+            self.config.epoch_size,
+            subname="all",
+            validate=False,
+            optimize=True,
+        )
         # self.test_model(fintest_dl, subname='all', do_report=True)
 
     def cv(self):
@@ -147,25 +139,35 @@ class Trainer(object):
         for k, (train_dl, valid_dl) in enumerate(self.dh.generate_trainval_dl()):
             self.report.subname = k
             self.init_model()
-            self.logger.info('train_dl.dataset size: {}'.format(len(train_dl.dataset)))
-            self.logger.info('valid_dl.dataset size: {}'.format(len(valid_dl.dataset)))
+            self.logger.info("train_dl.dataset size: {}".format(len(train_dl.dataset)))
+            self.logger.info("valid_dl.dataset size: {}".format(len(valid_dl.dataset)))
             # assert len(train_dl) > 0 and len(valid_dl) > 0, 'k:{},train:{},valid:{}'.format(k, len(train_dl), len(valid_dl))
             self.train_model(train_dl, valid_dl, self.config.epoch_size, subname=k)
 
-            self.load_model(self.config.resultsdir / 'checkpoints' /
-                            self.config.starttime / 'f{}_best.model'.format(k))
-            self.logger.info('test_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+            self.load_model(
+                self.config.resultsdir
+                / "checkpoints"
+                / self.config.starttime
+                / "f{}_best.model".format(k)
+            )
+            self.logger.info("test_dl.dataset size: {}".format(len(fintest_dl.dataset)))
             self.test_model(fintest_dl, subname=k, do_report=True)
             if self.config.debug:
                 break
-        self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
-        self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
-        self.report.subname = 'all'
+        self.logger.info(
+            "fintrain_dl.dataset size: {}".format(len(fintrain_dl.dataset))
+        )
+        self.logger.info("fintest_dl.dataset size: {}".format(len(fintest_dl.dataset)))
+        self.report.subname = "all"
         self.init_model()
         # TODO: Fix bad usage of k
-        test_epoch_size = round(mean([self.report._best['auc_epoch'][i] for i in range(k+1)]), -1)
-        self.train_model(fintrain_dl, None, test_epoch_size, subname='all', validate=False)
-        self.test_model(fintest_dl, subname='all', do_report=True)
+        test_epoch_size = round(
+            mean([self.report._best["auc_epoch"][i] for i in range(k + 1)]), -1
+        )
+        self.train_model(
+            fintrain_dl, None, test_epoch_size, subname="all", validate=False
+        )
+        self.test_model(fintest_dl, subname="all", do_report=True)
 
     def evaluate_model(self, load_model: str = None):
         self.init_report()
@@ -173,7 +175,7 @@ class Trainer(object):
         self.load_model(load_model)
         fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
         # fintest_dl = self.dh.get_enwrap_test_dl()
-        self.test_model(fintest_dl, subname='all', do_report=True)
+        self.test_model(fintest_dl, subname="all", do_report=True)
 
     def evaluate_model_enwrapped(self, load_model: str = None):
         self.init_report()
@@ -183,116 +185,157 @@ class Trainer(object):
         for student_data in self.dh.fintrain_data:
             q, _ = student_data[0]
             for qnext, _ in student_data[1:]:
-                defaultcount[f'{q}->{qnext}'] -= 1
+                defaultcount[f"{q}->{qnext}"] -= 1
                 q = qnext
         count: Dict[str, int] = dict(defaultcount)
         fintrain_dl, _ = self.dh.get_traintest_dl()
         for i, (xseq, yseq, mask) in enumerate(fintrain_dl):
             masks = [int(torch.sum(m).item()) for m in mask]
-            for xq, yq, m in zip(xseq[:,:,0], yseq[:,:,0], masks):  # batch loop
+            for xq, yq, m in zip(xseq[:, :, 0], yseq[:, :, 0], masks):  # batch loop
                 for x, y in zip(xq[:m], yq[:m]):
-                    count[f'{x.item()}->{y.item()}'] += 1
-        print('enwrap:', self.config.split_data_enwrap)
+                    count[f"{x.item()}->{y.item()}"] += 1
+        print("enwrap:", self.config.split_data_enwrap)
         fintest_dl = self.dh.get_enwrap_test_dl()
-        duo_context: DefaultDict[str, DefaultDict[str, List]] = defaultdict(lambda: defaultdict(list))
+        duo_context: DefaultDict[str, DefaultDict[str, List]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for i, (xseq, yseq, mask) in enumerate(fintest_dl):
             out = self.model.forward(xseq, yseq, mask, opt=None)
-            for ys, prob in zip(yseq, out['pred_prob'].permute(1,0)):
-                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['pred'].append(prob[-1].item())
-                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['actu'].append(ys[-1:,1].item())
+            for ys, prob in zip(yseq, out["pred_prob"].permute(1, 0)):
+                duo_context["->".join(map(str, ys[-2:, 0].cpu().numpy()))][
+                    "pred"
+                ].append(prob[-1].item())
+                duo_context["->".join(map(str, ys[-2:, 0].cpu().numpy()))][
+                    "actu"
+                ].append(ys[-1:, 1].item())
         fintrain_dl, _ = self.dh.get_traintest_dl()
         for key, value in duo_context.items():
-            fpr, tpr, _ = metrics.roc_curve(value['actu'], value['pred'], pos_label=1)
+            fpr, tpr, _ = metrics.roc_curve(value["actu"], value["pred"], pos_label=1)
             auc = metrics.auc(fpr, tpr)
             print(key, auc)
-            duo_context[key]['auc'] = [auc]
-            duo_context[key]['count'] = [count[key]]
-        self.report.subname = 'all'
-        self.report('duo_context', duo_context)
+            duo_context[key]["auc"] = [auc]
+            duo_context[key]["count"] = [count[key]]
+        self.report.subname = "all"
+        self.report("duo_context", duo_context)
         self.report.dump(fname="duo_context.json")
 
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
-        self.logger.info('Start straightening pre-train')
+        self.logger.info("Start straightening pre-train")
         for _ in range(1, epoch_size + 1):
             self.model.train()
             for xseq, yseq, mask in self.dummy_dl:
                 self.model.forward(xseq, yseq, mask, opt=self.opt)
 
-    def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True, optimize=False):
+    def train_model(
+        self,
+        train_dl,
+        valid_dl,
+        epoch_size: int,
+        subname: str,
+        validate=True,
+        optimize=False,
+    ):
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
         # if self.config.transfer_learning:
         #     self.logger.info('Transfer learning')
         #     self.model.embedding.weight.requires_grad = False
-        self.logger.info('Starting train')
+        self.logger.info("Starting train")
         start_time = time.time()
         for epoch in range(1, epoch_size + 1):
             self.model.train()
-            if self.config.straighten_during_train_every and epoch % self.config.straighten_during_train_every == 0:
-                self.logger.info('Start straightening during train')
-                self.straighten_train_model(epoch_size=self.config.straighten_during_train_for)
+            if (
+                self.config.straighten_during_train_every
+                and epoch % self.config.straighten_during_train_every == 0
+            ):
+                self.logger.info("Start straightening during train")
+                self.straighten_train_model(
+                    epoch_size=self.config.straighten_during_train_for
+                )
             t_idc = self.exec_core(train_dl, self.opt)
-            t_loss, t_auc = t_idc['loss'], t_idc['auc']
+            t_loss, t_auc = t_idc["loss"], t_idc["auc"]
 
             if epoch % 10 == 0:
-                self.report('epoch', epoch)
-                self.report('train_loss', t_loss)
-                self.report('train_auc', t_auc)
+                self.report("epoch", epoch)
+                self.report("train_loss", t_loss)
+                self.report("train_auc", t_auc)
             if epoch % 100 == 0:
-                self.logger.info('\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}'.format(
-                    epoch, t_loss, t_auc))
+                self.logger.info(
+                    "\tEpoch {}\tTrain Loss: {:.6}\tAUC: {:.6}".format(
+                        epoch, t_loss, t_auc
+                    )
+                )
 
             if epoch % 10 == 0 and validate:
                 with torch.no_grad():
                     self.model.eval()
                     v_idc = self.exec_core(dl=valid_dl, opt=None)
-                    v_loss, v_auc = v_idc['loss'], v_idc['auc']
-                self.report('eval_loss', v_loss)
-                self.report('eval_auc', v_auc)
-                self.report('ksvector_l1', v_idc['ksvector_l1'])
+                    v_loss, v_auc = v_idc["loss"], v_idc["auc"]
+                self.report("eval_loss", v_loss)
+                self.report("eval_auc", v_auc)
+                self.report("ksvector_l1", v_idc["ksvector_l1"])
                 if self.config.waviness:
-                    self.report('waviness_l1', v_idc['waviness_l1'])
-                    self.report('waviness_l2', v_idc['waviness_l2'])
-                if v_auc > self.report.get_best('auc'):  # best auc
-                    self.report.set_best('auc', v_auc)
-                    self.report.set_best('auc_epoch', epoch)
-                    save_model(self.config, self.model, 'f{}_best.model'.format(subname))
+                    self.report("waviness_l1", v_idc["waviness_l1"])
+                    self.report("waviness_l2", v_idc["waviness_l2"])
+                if v_auc > self.report.get_best("auc"):  # best auc
+                    self.report.set_best("auc", v_auc)
+                    self.report.set_best("auc_epoch", epoch)
+                    save_model(
+                        self.config, self.model, "f{}_best.model".format(subname)
+                    )
             if epoch % 100 == 0 and validate:
-                self.logger.info('\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}'.format(
-                    epoch, v_loss, v_auc))
-                self.logger.info('\tEpoch {}\tKSVectorLoss: {:.6}'.format(
-                    epoch, v_idc['ksvector_l1']))
+                self.logger.info(
+                    "\tEpoch {}\tValid Loss: {:.6}\tAUC: {:.6}".format(
+                        epoch, v_loss, v_auc
+                    )
+                )
+                self.logger.info(
+                    "\tEpoch {}\tKSVectorLoss: {:.6}".format(
+                        epoch, v_idc["ksvector_l1"]
+                    )
+                )
                 if self.config.waviness:
-                    self.logger.info('\tEpoch {}\tW1: {:.6}\tW2: {:.6}'.format(
-                        epoch, v_idc['waviness_l1'], v_idc['waviness_l2']))
-                if v_auc >= self.report.get_best('auc'):
-                    # refresh.
-                    save_model(self.config, self.model, f'{self.config.model_name}_auc{v_auc:.4f}_e{epoch}.model')
                     self.logger.info(
-                        f'Best AUC {v_auc:.6} refreshed and saved!')
-                elif (epoch - self.report.get_best('auc_epoch')) > self.config.early_stop:
+                        "\tEpoch {}\tW1: {:.6}\tW2: {:.6}".format(
+                            epoch, v_idc["waviness_l1"], v_idc["waviness_l2"]
+                        )
+                    )
+                if v_auc >= self.report.get_best("auc"):
+                    # refresh.
+                    save_model(
+                        self.config,
+                        self.model,
+                        f"{self.config.model_name}_auc{v_auc:.4f}_e{epoch}.model",
+                    )
+                    self.logger.info(f"Best AUC {v_auc:.6} refreshed and saved!")
+                elif (
+                    epoch - self.report.get_best("auc_epoch")
+                ) > self.config.early_stop:
                     # early stop.
                     self.logger.info(
-                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
-                    self.logger.info(f'Early stopping.')
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}'
+                    )
+                    self.logger.info(f"Early stopping.")
                     break
                 else:
                     # no refresh, but no early stop yet.
                     self.logger.info(
-                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}')
+                        f'Best AUC {self.report.get_best("auc"):.6} at epoch {self.report.get_best("auc_epoch")}'
+                    )
 
             if epoch % 100 == 0:
                 self.logger.info(
-                    f'{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)')
+                    f"{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)"
+                )
                 if optimize and self.trial is not None:
-                    self.best_score = self.report.get_best('auc')
+                    self.best_score = self.report.get_best("auc")
                     self.trial.report(t_auc, epoch)
                     if self.trial.should_prune():
                         raise optuna.exceptions.TrialPruned()
 
         # This is the model checkpoint at the end of epoch, or early stopping
-        save_model(self.config, self.model, 'f{}_final.model'.format(subname))
+        save_model(self.config, self.model, "f{}_final.model".format(subname))
 
         # save_log(self.config, (x_list, train_loss_list, train_auc_list,
         #                   eval_loss_list, eval_auc_list), v_auc, epoch)
@@ -342,11 +385,11 @@ class Trainer(object):
             # wvn1_ar[i] = out.get('waviness_l1')
             # wvn2_ar[i] = out.get('waviness_l2')
             # ksv1_ar[i] = out.get('ksvector_l1')
-            loss_ls.append(out['loss'].item())
-            wvn1_ls.append(out.get('waviness_l1'))
-            wvn2_ls.append(out.get('waviness_l2'))
-            ksv1_ls.append(out.get('ksvector_l1'))
-            rcns_ls.append(out.get('reconstruction_loss'))
+            loss_ls.append(out["loss"].item())
+            wvn1_ls.append(out.get("waviness_l1"))
+            wvn2_ls.append(out.get("waviness_l2"))
+            ksv1_ls.append(out.get("ksvector_l1"))
+            rcns_ls.append(out.get("reconstruction_loss"))
             # ##
             # if self.config.model_name == 'dkvmn':
             #     right_target = np.asarray(out.get('filtered_target').data.tolist())
@@ -359,18 +402,20 @@ class Trainer(object):
             #     # print(out['pred_prob'], out['pred_prob'].shape)
             #     pred_mx[i] = out['pred_prob'][-1, :].detach().view(-1).cpu()
             # actu_mx[i] = yseq[:, -1, 1].view(-1).cpu()
-            if out.get('filtered_pred', False) is not False:
-                pred_ls.append(out['filtered_pred'].reshape(-1))
-                actu_ls.append(out['filtered_target'].reshape(-1))
-                actu_c_ls.append(out['filtered_target_c'].reshape(-1))
+            if out.get("filtered_pred", False) is not False:
+                pred_ls.append(out["filtered_pred"].reshape(-1))
+                actu_ls.append(out["filtered_target"].reshape(-1))
+                actu_c_ls.append(out["filtered_target_c"].reshape(-1))
             # ksvector_l1 = torch.sum(torch.abs((Sdq * pred_vect) - (Sdqa))) \
             #     / (Sdq.shape[0] * Sdq.shape[1] * Sdq.shape[2])
-            if out.get('Sdq', False) is not False:
+            if out.get("Sdq", False) is not False:
                 # pred_v_mx[i] = (out['Sdq'] * out['pred_vect'])[-1, :, :]\
                 #     .detach().view(-1).cpu()
                 # actu_v_mx[i] = out['Sdqa'][-1, :, :].view(-1).cpu()
-                pred_v_ls.append((out['Sdq'] * out['pred_vect'])[-1, :, :].detach().view(-1).cpu())
-                actu_v_ls.append(out['Sdqa'][-1, :, :].view(-1).cpu())
+                pred_v_ls.append(
+                    (out["Sdq"] * out["pred_vect"])[-1, :, :].detach().view(-1).cpu()
+                )
+                actu_v_ls.append(out["Sdqa"][-1, :, :].view(-1).cpu())
             # if only_eval:
             #     for p, a, q in zip(pred_mx[i], actu_mx[i], yseq[:, -1, 0].view(-1).cpu()):
             #         q_all_count[q.item()] += 1
@@ -388,15 +433,19 @@ class Trainer(object):
         # fpr, tpr, _thresholds = metrics.roc_curve(
         #     actu_mx.reshape(-1), pred_mx.reshape(-1), pos_label=1)
 
-        assert len(actu_ls)>0 and len(pred_ls)>0, f'{len(actu_ls)},{len(pred_ls)}'
+        assert len(actu_ls) > 0 and len(pred_ls) > 0, f"{len(actu_ls)},{len(pred_ls)}"
 
         fpr, tpr, _thresholds = metrics.roc_curve(
             torch.cat(actu_ls).detach().cpu().numpy().reshape(-1),
-            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1),
+            pos_label=1,
+        )
         auc = metrics.auc(fpr, tpr)
         fpr, tpr, _thresholds = metrics.roc_curve(
             torch.cat(actu_c_ls).detach().cpu().numpy().reshape(-1),
-            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1), pos_label=1)
+            torch.cat(pred_ls).detach().cpu().numpy().reshape(-1),
+            pos_label=1,
+        )
         auc_c = metrics.auc(fpr, tpr)
         # if self.config.model_name == 'dkvmn':
         #     auc = metrics.roc_auc_score(all_target, all_pred)  # for DKVMN
@@ -407,52 +456,55 @@ class Trainer(object):
         # auc_ksv = metrics.auc(fpr_v, tpr_v)
 
         indicators = {
-            'loss': mean(loss_ls),
-            'auc': auc,
-            'auc_c': auc_c,
+            "loss": mean(loss_ls),
+            "auc": auc,
+            "auc_c": auc_c,
             # 'ksv_auc': auc_ksv,
-            'waviness_l1': mean(wvn1_ls) if wvn1_ls[0]!=None else 0,
-            'waviness_l2': mean(wvn2_ls) if wvn2_ls[0]!=None else 0,
-            'ksvector_l1': mean(ksv1_ls) if ksv1_ls[0]!=None else 0,
-            'reconstruction_loss': mean(rcns_ls) if ksv1_ls[0]!=None else 0,
+            "waviness_l1": mean(wvn1_ls) if wvn1_ls[0] != None else 0,
+            "waviness_l2": mean(wvn2_ls) if wvn2_ls[0] != None else 0,
+            "ksvector_l1": mean(ksv1_ls) if ksv1_ls[0] != None else 0,
+            "reconstruction_loss": mean(rcns_ls) if ksv1_ls[0] != None else 0,
         }
         # if only_eval:
         #     indicators['qa_relation'] = (q_all_count, q_cor_count, q_pred_list)
         return indicators
 
     def _train_model_simple(self, train_dl):
-        '''最小構成を見て基本を思い出す'''
+        """最小構成を見て基本を思い出す"""
         for epoch in range(1, self.config.epoch_size + 1):
             self.model.train()
             for i, (xseq, yseq, mask) in enumerate(train_dl):
                 out = self.model.forward(xseq, yseq, mask, opt=self.opt)
 
     def test_model(self, test_dl, subname: str, do_report=False):
-        self.logger.info('Starting test')
+        self.logger.info("Starting test")
         with torch.no_grad():
             self.model.eval()
             indicators = self.exec_core(dl=test_dl, opt=None, only_eval=True)
-            v_loss, v_auc = indicators['loss'], indicators['auc']
-            v_auc_c = indicators['auc_c']
+            v_loss, v_auc = indicators["loss"], indicators["auc"]
+            v_auc_c = indicators["auc_c"]
 
             if do_report:
-                self.report('test_auc', v_auc)
-                self.report('test_auc_c', v_auc_c)
-            self.logger.info('\tTest Loss: {:.6}\tAUC: {:.6}'.format(v_loss, v_auc))
+                self.report("test_auc", v_auc)
+                self.report("test_auc_c", v_auc_c)
+            self.logger.info("\tTest Loss: {:.6}\tAUC: {:.6}".format(v_loss, v_auc))
             # self.logger.info('\tTest KSV AUC: {:.6}'.format(indicators['ksv_auc']))
-            self.logger.info('\tTest KSV Loss: {:.6}'.format(indicators['ksvector_l1']))
+            self.logger.info("\tTest KSV Loss: {:.6}".format(indicators["ksvector_l1"]))
             if self.config.waviness or self.config.reconstruction_and_waviness:
-                self.logger.info('\tW1: {:.6}\tW2: {:.6}'.format(
-                    indicators['waviness_l1'], indicators['waviness_l2']))
+                self.logger.info(
+                    "\tW1: {:.6}\tW2: {:.6}".format(
+                        indicators["waviness_l1"], indicators["waviness_l2"]
+                    )
+                )
             if self.config.reconstruction or self.config.reconstruction_and_waviness:
-                self.logger.info('\tr1: {:.6}'.format(
-                    indicators['reconstruction_loss']))
-                self.logger.info('\tTest AUC(C): {:.6}'.format(v_auc_c))
-
+                self.logger.info(
+                    "\tr1: {:.6}".format(indicators["reconstruction_loss"])
+                )
+                self.logger.info("\tTest AUC(C): {:.6}".format(v_auc_c))
 
             # Reverse Prediction
             seq_size = self.config.sequence_size
-            simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size+1)[::-1]]
+            simu = [[0] * i + [1] * (seq_size - i) for i in range(seq_size + 1)[::-1]]
             # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
             # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
             good, bad = 0, 0
@@ -466,8 +518,9 @@ class Trainer(object):
                     res = self.model.forward(
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
                         torch.Tensor([(v, a) for a in s]).unsqueeze(0),
-                        torch.BoolTensor([True]*seq_size).unsqueeze(0),)
-                    preds.append(res['pred_prob'][-1].item())
+                        torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                    )
+                    preds.append(res["pred_prob"][-1].item())
                     xs.append(sum(s))
                 # RP soft
                 _gb = int(preds[-1] > preds[0])
@@ -480,11 +533,25 @@ class Trainer(object):
                 simu_ndcg.append(ndcg(np.asarray([xs]), np.asarray([preds])))
                 # raw data
                 simu_res[v] = (xs, preds)
-            self.logger.info('RP soft \t good:bad = {}:{}'.format(good, bad))
-            self.logger.info('RP hard \t nDCG = {:.4f}±{:.4f}'.format(mean(simu_ndcg), stdev(simu_ndcg)))
+            self.logger.info("RP soft \t good:bad = {}:{}".format(good, bad))
+            self.logger.info(
+                "RP hard \t nDCG = {:.4f}±{:.4f}".format(
+                    mean(simu_ndcg), stdev(simu_ndcg)
+                )
+            )
             # RP soft
-            self.report.set_value('RPsoft', {'good': good, 'bad': bad, 's_good': xs[-1], 's_bad': xs[0], 'goodbad': good_bad})
+            self.report.set_value(
+                "RPsoft",
+                {
+                    "good": good,
+                    "bad": bad,
+                    "s_good": xs[-1],
+                    "s_bad": xs[0],
+                    "goodbad": good_bad,
+                },
+            )
             # RP hard
-            self.report.set_value('RPhard', simu_ndcg)
+            self.report.set_value("RPhard", simu_ndcg)
             # raw data
-            self.report.set_value('simu_pred', simu_res)
+            self.report.set_value("simu_pred", simu_res)
+
