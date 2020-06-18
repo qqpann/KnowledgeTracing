@@ -10,7 +10,7 @@ import optuna
 import torch
 import numpy as np
 
-from knowledge_tracing.trainer import Trainer
+from src.trainer import Trainer
 from src.config import Config, get_option_fallback
 from src.slack import slack_message, slack_is_available
 from src.log import get_logger
