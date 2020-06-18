@@ -19,10 +19,10 @@ def save_log(config, data, auc, epoch):
         pickle.dump(data, f)
 
 
-def save_report(config, report):
+def save_report(config, report, fname="report.json"):
     outdir = config.resultsdir / "report" / config.starttime
     outdir.mkdir(parents=True, exist_ok=True)
-    with open(outdir / "report.json", "w") as f:
+    with open(outdir / fname, "w") as f:
         json.dump(report, f, indent=2)
 
 

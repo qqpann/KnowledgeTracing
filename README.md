@@ -48,6 +48,41 @@ python main.py config/my-experiment.json
 ```
 後はDocker内に入った場合と同様に実行する．
 
+## Advanced
+
+### Optuna
+
+`*.optuna.json`で終わるファイル名のconfigを作成し、
+最適化したい数値の範囲（選択肢ではない）を指定してチューニングを行うことができる。
+
+例
+
+```json
+// config/debug/optimize.optuna.json
+{
+  "debug": true,
+  "cuda": true,
+  "model_name": "ksdkt",
+  "load_model": "",
+  "overwrite": true,
+  "source_data": "assist2009",
+  "n_skills": 110,
+  "sequence_size": [10, 100],
+  "waviness_l1": true,
+  "waviness_l2": true,
+  "lambda_l1": 0.0,
+  "lambda_l2": 0.0,
+  "ksvector_l1": 0.5
+}
+```
+
+上の例はsequence_sizeを10から100の範囲内の整数でチューニングを行う。
+実行するには以下のように`optimize.py`を呼び出す。
+
+```bash
+python optimize.py config/debug/optimize.optuna.json
+```
+
 ## Datasets
 
 We used prepared data by Zhang et al. <https://github.com/jennyzhang0215/DKVMN>

@@ -4,11 +4,13 @@ from collections import defaultdict
 from math import ceil, log
 from pathlib import Path
 from statistics import mean, stdev
+from typing import Union, DefaultDict, Dict, List
 
 import numpy as np
 import torch
 from sklearn import metrics
 from sklearn.metrics import ndcg_score as ndcg
+import optuna
 
 from model.dkt import DKT
 from model.dkvmn import MODEL as DKVMN
@@ -25,12 +27,14 @@ from src.utils import sAsMinutes, timeSince
 
 class Trainer(object):
 
-    def __init__(self, config):
+    def __init__(self, config, trial: Union[None,optuna.Trial]=None):
         self.config = config
         self.logger = self.get_logger(self.config)
         self.device = self.get_device(self.config)
         self.dh = DataHandler(self.config, self.device)
         self.dummy_dl = self.dh.get_straighten_dl()
+        self.best_score = 0.0
+        self.trial = trial
 
     def init_model(self):
         self.model = self.get_model(self.config, self.device)
@@ -123,6 +127,18 @@ class Trainer(object):
     #         self.logger.info('test_dl.dataset size: {}'.format(len(test_dl.dataset)))
     #         self.test_model(k, test_dl, do_report=True)
 
+    def optimize(self):
+        projectdir = self.config.projectdir
+        name = self.config.source_data
+        self.init_report()
+        fintrain_dl, fintest_dl = self.dh.get_traintest_dl()
+        self.logger.info('fintrain_dl.dataset size: {}'.format(len(fintrain_dl.dataset)))
+        self.logger.info('fintest_dl.dataset size: {}'.format(len(fintest_dl.dataset)))
+        self.report.subname = 'all'
+        self.init_model()
+        self.train_model(fintrain_dl, None, self.config.epoch_size, subname='all', validate=False, optimize=True)
+        # self.test_model(fintest_dl, subname='all', do_report=True)
+
     def cv(self):
         projectdir = self.config.projectdir
         name = self.config.source_data
@@ -159,6 +175,42 @@ class Trainer(object):
         # fintest_dl = self.dh.get_enwrap_test_dl()
         self.test_model(fintest_dl, subname='all', do_report=True)
 
+    def evaluate_model_enwrapped(self, load_model: str = None):
+        self.init_report()
+        self.init_model()
+        self.load_model(load_model)
+        defaultcount: DefaultDict[str, int] = defaultdict(int)
+        for student_data in self.dh.fintrain_data:
+            q, _ = student_data[0]
+            for qnext, _ in student_data[1:]:
+                defaultcount[f'{q}->{qnext}'] -= 1
+                q = qnext
+        count: Dict[str, int] = dict(defaultcount)
+        fintrain_dl, _ = self.dh.get_traintest_dl()
+        for i, (xseq, yseq, mask) in enumerate(fintrain_dl):
+            masks = [int(torch.sum(m).item()) for m in mask]
+            for xq, yq, m in zip(xseq[:,:,0], yseq[:,:,0], masks):  # batch loop
+                for x, y in zip(xq[:m], yq[:m]):
+                    count[f'{x.item()}->{y.item()}'] += 1
+        print('enwrap:', self.config.split_data_enwrap)
+        fintest_dl = self.dh.get_enwrap_test_dl()
+        duo_context: DefaultDict[str, DefaultDict[str, List]] = defaultdict(lambda: defaultdict(list))
+        for i, (xseq, yseq, mask) in enumerate(fintest_dl):
+            out = self.model.forward(xseq, yseq, mask, opt=None)
+            for ys, prob in zip(yseq, out['pred_prob'].permute(1,0)):
+                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['pred'].append(prob[-1].item())
+                duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['actu'].append(ys[-1:,1].item())
+        fintrain_dl, _ = self.dh.get_traintest_dl()
+        for key, value in duo_context.items():
+            fpr, tpr, _ = metrics.roc_curve(value['actu'], value['pred'], pos_label=1)
+            auc = metrics.auc(fpr, tpr)
+            print(key, auc)
+            duo_context[key]['auc'] = [auc]
+            duo_context[key]['count'] = [count[key]]
+        self.report.subname = 'all'
+        self.report('duo_context', duo_context)
+        self.report.dump(fname="duo_context.json")
+
     def straighten_train_model(self, epoch_size: int):
         if epoch_size == 0:
             return
@@ -168,7 +220,7 @@ class Trainer(object):
             for xseq, yseq, mask in self.dummy_dl:
                 self.model.forward(xseq, yseq, mask, opt=self.opt)
 
-    def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True):
+    def train_model(self, train_dl, valid_dl, epoch_size: int, subname: str, validate=True, optimize=False):
         self.straighten_train_model(epoch_size=self.config.pre_dummy_epoch_size)
         # if self.config.transfer_learning:
         #     self.logger.info('Transfer learning')
@@ -233,6 +285,11 @@ class Trainer(object):
             if epoch % 100 == 0:
                 self.logger.info(
                     f'{timeSince(start_time, epoch / epoch_size)} ({epoch}epoch {epoch / epoch_size * 100:.1f}%)')
+                if optimize and self.trial is not None:
+                    self.best_score = self.report.get_best('auc')
+                    self.trial.report(t_auc, epoch)
+                    if self.trial.should_prune():
+                        raise optuna.exceptions.TrialPruned()
 
         # This is the model checkpoint at the end of epoch, or early stopping
         save_model(self.config, self.model, 'f{}_final.model'.format(subname))
