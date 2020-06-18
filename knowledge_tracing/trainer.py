@@ -4,7 +4,7 @@ from collections import defaultdict
 from math import ceil, log
 from pathlib import Path
 from statistics import mean, stdev
-from typing import Union, DefaultDict, List
+from typing import Union, DefaultDict, Dict, List
 
 import numpy as np
 import torch
@@ -179,6 +179,20 @@ class Trainer(object):
         self.init_report()
         self.init_model()
         self.load_model(load_model)
+        defaultcount: DefaultDict[str, int] = defaultdict(int)
+        for student_data in self.dh.fintrain_data:
+            q, _ = student_data[0]
+            for qnext, _ in student_data[1:]:
+                defaultcount[f'{q}->{qnext}'] -= 1
+                q = qnext
+        count: Dict[str, int] = dict(defaultcount)
+        fintrain_dl, _ = self.dh.get_traintest_dl()
+        for i, (xseq, yseq, mask) in enumerate(fintrain_dl):
+            masks = [int(torch.sum(m).item()) for m in mask]
+            for xq, yq, m in zip(xseq[:,:,0], yseq[:,:,0], masks):  # batch loop
+                for x, y in zip(xq[:m], yq[:m]):
+                    count[f'{x.item()}->{y.item()}'] += 1
+        print('enwrap:', self.config.split_data_enwrap)
         fintest_dl = self.dh.get_enwrap_test_dl()
         duo_context: DefaultDict[str, DefaultDict[str, List]] = defaultdict(lambda: defaultdict(list))
         for i, (xseq, yseq, mask) in enumerate(fintest_dl):
@@ -187,16 +201,10 @@ class Trainer(object):
                 duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['pred'].append(prob[-1].item())
                 duo_context['->'.join(map(str, ys[-2:,0].cpu().numpy()))]['actu'].append(ys[-1:,1].item())
         fintrain_dl, _ = self.dh.get_traintest_dl()
-        count: DefaultDict[str, int] = defaultdict(int)
-        for i, (xseq, yseq, mask) in enumerate(fintrain_dl):
-            for xs, ys in zip(xseq, yseq):  # batch loop
-                for x, y in zip(xs, ys):
-                    # TODO: make it faster.
-                    count[f'{x[0]}->{y[0]}'] += 1
         for key, value in duo_context.items():
             fpr, tpr, _ = metrics.roc_curve(value['actu'], value['pred'], pos_label=1)
             auc = metrics.auc(fpr, tpr)
-            print(auc)
+            print(key, auc)
             duo_context[key]['auc'] = [auc]
             duo_context[key]['count'] = [count[key]]
         self.report.subname = 'all'
