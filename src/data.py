@@ -253,7 +253,7 @@ class DataHandler:
 
     def get_enwrap_test_dl(self):
         config = self.config
-        config.split_data_enwrap = config.seqence_size - 1
+        config.split_data_enwrap = config.sequence_size  # sequence_size will have 1 buffer anyway
         test_ds = self.get_ds(config, self.device, self.fintest_data)
         test_dl = DataLoader(
             test_ds, batch_size=self.config.batch_size, drop_last=False

@@ -23,22 +23,24 @@ def get_exp_paths(projectdir: Path, config_name: str,) -> List[Path]:
 def get_exp_names(projectdir: Path, config_name: str) -> List[str]:
     outputdir = projectdir / "output" / config_name
     if outputdir.exists():
-        return [exp_path.name for exp_path in outputdir.iterdir()]
+        res = [exp_path.name for exp_path in outputdir.iterdir()]
+        print(res)
+        return res
     else:
         return None
 
 
 def get_report_path(projectdir: Path, config_name: str, exp_name: str) -> Path:
     outputdir = projectdir / "output" / config_name / exp_name
-    assert outputdir.exists()
+    assert outputdir.exists(), FileNotFoundError(f"{outputdir} not found")
     # report.json from latest starttime
-    return sorted(outputdir.glob("report/*/*.json"))[-1]
+    return sorted(outputdir.glob("report/*/report.json"))[-1]
 
 
 def get_report_paths(projectdir: Path, config_name: str) -> List[Path]:
     assert projectdir.exists()
     outputdir = projectdir / "output" / config_name
-    assert outputdir.exists()
+    assert outputdir.exists(), FileNotFoundError(f"{outputdir} not found")
     exp_paths = [expoutdir for expoutdir in outputdir.iterdir() if expoutdir.is_dir()]
     # report.json from latest starttime
     return [sorted(d.glob("report/*/*.json"))[-1] for d in exp_paths]

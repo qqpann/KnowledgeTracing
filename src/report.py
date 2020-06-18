@@ -36,5 +36,5 @@ class Report:
         }
         return _report
 
-    def dump(self):
-        save_report(self.config, self.as_dict())
+    def dump(self, fname="report.json"):
+        save_report(self.config, self.as_dict(), fname)
