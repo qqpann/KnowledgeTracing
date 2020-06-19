@@ -46,7 +46,7 @@ class KSDKT(nn.Module, BaseKTModel):
         self.bidirectional = config.dkt['bidirectional']
         self.directions = 2 if self.bidirectional else 1
         self.dropout = self.config.dkt['dropout_rate']
-        self.cumsum_weights = torch.tensor([[[config.ksvector_weight_base ** i for i in range(config.sequence_size)]]],  dtype=torch.int64, device=device).permute(2, 1, 0)
+        self.cumsum_weights = torch.tensor([[[config.ksvector_weight_base ** i for i in range(config.sequence_size)]]],  dtype=torch.float, device=device).permute(2, 1, 0)
 
         # self.cs_basis = torch.randn(config.n_skills * 2 + 2, self.input_size).to(device)
         self.embedding = nn.Embedding(config.n_skills * 2 + config.dkt['preserved_tokens'], self.input_size).to(device)
