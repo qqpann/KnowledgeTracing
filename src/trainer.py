@@ -209,12 +209,13 @@ class Trainer(object):
                     "actu"
                 ].append(ys[-1:, 1].item())
         fintrain_dl, _ = self.dh.get_traintest_dl()
+        print(count)
         for key, value in duo_context.items():
             fpr, tpr, _ = metrics.roc_curve(value["actu"], value["pred"], pos_label=1)
             auc = metrics.auc(fpr, tpr)
             print(key, auc)
             duo_context[key]["auc"] = [auc]
-            duo_context[key]["count"] = [count[key]]
+            duo_context[key]["count"] = [count.get(key, 0)]
         self.report.subname = "all"
         self.report("duo_context", duo_context)
         self.report.dump(fname="duo_context.json")
