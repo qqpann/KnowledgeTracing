@@ -1,0 +1,23 @@
+{
+  "cuda": true,
+  "overwrite": false,
+  "model_name": "ksdkt",
+  "source_data": "Asteria_Eng_ver5",
+  "n_skills": 326,
+  "pad": false,
+  "test_size": 0.2,
+  "kfold": 5,
+  "epoch_size": 2000,
+  "early_stop": 150,
+  "batch_size": 128,
+  "lr": 0.05,
+  "sequence_size": 20,
+  "split_data_enwrap": [0, 1],
+  "dkt": {
+    "hidden_size": 200,
+    "n_layers": 2,
+    "bidirectional": false,
+    "preserved_tokens": 2,
+    "dropout_rate": 0.6
+  }
+}
