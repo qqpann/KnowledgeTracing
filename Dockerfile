@@ -1,5 +1,5 @@
 # https://hub.docker.com/r/nvidia/cuda
-FROM nvidia/cuda:10.1-runtime-ubuntu18.04
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04
 LABEL maintainer "NVIDIA CORPORATION <cudatools@nvidia.com>"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cuda-command-line-tools-$CUDA_PKG_VERSION \
         cuda-libraries-dev-$CUDA_PKG_VERSION \
         cuda-minimal-build-$CUDA_PKG_VERSION \
-        libnccl-dev=$NCCL_VERSION-1+cuda10.1 \
+        # libnccl-dev \
         && \
         rm -rf /var/lib/apt/lists/*
 
