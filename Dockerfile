@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         git \
         curl \
+        tree \
         ca-certificates \
         libjpeg-dev \
         mercurial \
@@ -55,6 +56,7 @@ WORKDIR /code
 RUN chmod +x /code/train
 
 ENV PATH /code:$PATH
+ENV ENV sagemaker
 
 RUN pip install -U pip
 RUN pip install -r requirements.txt
