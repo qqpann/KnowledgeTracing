@@ -3,6 +3,18 @@ from pathlib import Path
 from typing import List
 
 
+class PathHandler:
+    def __init__(self, project_path: str):
+        is_sm = os.environ.get("ENV") == "sagemaker"
+        self.is_sagemaker = is_sm
+        self.projectdir = Path(project_path)
+        if self.is_sagemaker:
+            self.projectdir = Path("/opt/ml")
+            assert self.projectdir.exists(), FileNotFoundError(
+                f"{self.projectdir} not found."
+            )
+
+
 def load_json(cfgjsonpath: Path) -> dict:
     with open(cfgjsonpath, "r") as f:
         return json.load(f)
