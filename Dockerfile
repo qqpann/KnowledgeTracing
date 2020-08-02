@@ -5,11 +5,11 @@ LABEL maintainer "NVIDIA CORPORATION <cudatools@nvidia.com>"
 RUN apt-get update && apt-get install -y --no-install-recommends \
         cuda-nvml-dev-$CUDA_PKG_VERSION \
         cuda-command-line-tools-$CUDA_PKG_VERSION \
-cuda-libraries-dev-$CUDA_PKG_VERSION \
+        cuda-libraries-dev-$CUDA_PKG_VERSION \
         cuda-minimal-build-$CUDA_PKG_VERSION \
         libnccl-dev=$NCCL_VERSION-1+cuda10.1 \
-&& \
-    rm -rf /var/lib/apt/lists/*
+        && \
+        rm -rf /var/lib/apt/lists/*
 
 ENV LIBRARY_PATH /usr/local/cuda/lib64/stubs
 
@@ -21,24 +21,24 @@ RUN apt-get update
 RUN apt-get install -y --no-install-recommends apt-utils
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-         build-essential \
-         cmake \
-         git \
-         curl \
-         ca-certificates \
-         libjpeg-dev \
-         mercurial \
-         libffi-dev \
-         libreadline-gplv2-dev \
-         libncursesw5-dev \
-         libssl-dev \
-         libsqlite3-dev \
-         tk-dev libgdbm-dev \
-         libc6-dev \
-         libbz2-dev \
-         liblzma-dev \
-         libpng-dev && \
-     rm -rf /var/lib/apt/lists/*
+        build-essential \
+        cmake \
+        git \
+        curl \
+        ca-certificates \
+        libjpeg-dev \
+        mercurial \
+        libffi-dev \
+        libreadline-gplv2-dev \
+        libncursesw5-dev \
+        libssl-dev \
+        libsqlite3-dev \
+        tk-dev libgdbm-dev \
+        libc6-dev \
+        libbz2-dev \
+        liblzma-dev \
+        libpng-dev && \
+        rm -rf /var/lib/apt/lists/*
 
 ENV PYENV_ROOT /root/.pyenv
 ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
@@ -57,5 +57,5 @@ RUN pip install -r requirements.txt
 # Install jupyterlab vim extension, which requires nodejs
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt install nodejs
-RUN jupyter labextension install jupyterlab_vim
+RUN jupyter labextension install @axlair/jupyterlab_vim
 RUN jupyter labextension install @jupyterlab/toc
