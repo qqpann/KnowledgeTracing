@@ -83,6 +83,17 @@ python main.py config/my-experiment.json
 python optimize.py config/debug/optimize.optuna.json
 ```
 
+## SageMaker
+
+### [Input](https://docs.aws.amazon.com/sagemaker/latest/dg/your-algorithms-training-algo-running-container.html)
+
+- `/opt/ml/input/data/{channel_name}` channel_name is set by user when creating SM Algorithm. S3 data will be copied here.
+
+### [Output](https://docs.aws.amazon.com/sagemaker/latest/dg/your-algorithms-training-algo-output.html)
+
+- `/opt/ml/output/failure` Failure output should be here
+- `/opt/ml/model` (Directory) Model checkpoints should be here.
+
 ## Datasets
 
 We used prepared data by Zhang et al. <https://github.com/jennyzhang0215/DKVMN>
