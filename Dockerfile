@@ -50,12 +50,16 @@ RUN pyenv global 3.7.4
 
 RUN rm -rf /usr/bin/python* /usr/bin/pip*
 
+COPY . /code
 WORKDIR /code
-COPY requirements.txt /code
+RUN chmod +x /code/train
+
+ENV PATH /code:$PATH
+
 RUN pip install -U pip
 RUN pip install -r requirements.txt
 # Install jupyterlab vim extension, which requires nodejs
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
-RUN apt install nodejs
-RUN jupyter labextension install @axlair/jupyterlab_vim
-RUN jupyter labextension install @jupyterlab/toc
+# RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
+# RUN apt install nodejs
+# # RUN jupyter labextension install @axlair/jupyterlab_vim
+# # RUN jupyter labextension install @jupyterlab/toc
