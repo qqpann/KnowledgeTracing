@@ -210,14 +210,13 @@ class KSDKT(nn.Module, BaseKTModel):
                 xseq.float().to(device), torch.Tensor([[0], [1]]).to(device)
             ).to(device)
             reconstruction_target = reconstruction_target.permute(1, 0, 2).squeeze(2)
-            reconstruction_loss = self._loss(_pred_prob, reconstruction_target)
+            reconstruction_target = reconstruction_target.masked_select(
+                mask.permute(1, 0)
+            )
+            reconstruction_loss = self._loss(_pred_prob.view(-1), reconstruction_target)
             out_dic["loss"] += self.config.lambda_rec * reconstruction_loss
             out_dic["reconstruction_loss"] = reconstruction_loss.item()
-            out_dic["filtered_target_c"] = (
-                reconstruction_target.masked_select(mask.permute(1, 0))
-                if self.config.pad == True
-                else reconstruction_target
-            )
+            out_dic["filtered_target_c"] = reconstruction_target
 
         if self.config.waviness == True or self.config.reconstruction_and_waviness:
             waviness_norm_l1 = torch.abs(pred_vect[1:, :, :] - pred_vect[:-1, :, :])
