@@ -1,18 +1,41 @@
+import os
 import json
 from pathlib import Path
 from typing import List
+
+# /opt/ml
+# |-- input
+# | |-- config
+# | | |-- hyperparameters.json
+# | | |-- init-config.json
+# | | |-- inputdataconfig.json
+# | | |-- metric-definition-regex.json
+# | | |-- resourceconfig.json
+# | | |-- trainingjobconfig.json
+# | | `-- upstreamoutputdataconfig.json
+# | `-- data
+# |   |-- {channel_name}
+# |-- model
+# `-- output |-- data |-- metrics | `-- sagemaker `-- profiler
 
 
 class PathHandler:
     def __init__(self, project_path: str):
         is_sm = os.environ.get("ENV") == "sagemaker"
         self.is_sagemaker = is_sm
+        self.codedir = Path(project_path)
         self.projectdir = Path(project_path)
+        self.outdir = self.projectdir / "output"
+        self.inputdir = self.projectdir / "data/input"
         if self.is_sagemaker:
             self.projectdir = Path("/opt/ml")
             assert self.projectdir.exists(), FileNotFoundError(
                 f"{self.projectdir} not found."
             )
+            self.outdir = self.projectdir / "model"
+            channel_name = "train"
+            self.inputdir = self.projectdir / "input/data" / channel_name
+        self.outdir.mkdir(exist_ok=True)
 
 
 def load_json(cfgjsonpath: Path) -> dict:
