@@ -1,5 +1,5 @@
 # https://hub.docker.com/r/nvidia/cuda
-FROM nvidia/cuda:10.1-runtime-ubuntu18.04
+FROM nvidia/cuda:10.2-runtime-ubuntu18.04
 LABEL maintainer "NVIDIA CORPORATION <cudatools@nvidia.com>"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cuda-command-line-tools-$CUDA_PKG_VERSION \
         cuda-libraries-dev-$CUDA_PKG_VERSION \
         cuda-minimal-build-$CUDA_PKG_VERSION \
-        libnccl-dev=$NCCL_VERSION-1+cuda10.1 \
+        # libnccl-dev \
         && \
         rm -rf /var/lib/apt/lists/*
 
@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cmake \
         git \
         curl \
+        tree \
         ca-certificates \
         libjpeg-dev \
         mercurial \
@@ -50,12 +51,17 @@ RUN pyenv global 3.7.4
 
 RUN rm -rf /usr/bin/python* /usr/bin/pip*
 
+COPY . /code
 WORKDIR /code
-COPY requirements.txt /code
+RUN chmod +x /code/train
+
+ENV PATH /code:$PATH
+ENV ENV sagemaker
+
 RUN pip install -U pip
 RUN pip install -r requirements.txt
 # Install jupyterlab vim extension, which requires nodejs
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
-RUN apt install nodejs
-RUN jupyter labextension install @axlair/jupyterlab_vim
-RUN jupyter labextension install @jupyterlab/toc
+# RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
+# RUN apt install nodejs
+# # RUN jupyter labextension install @axlair/jupyterlab_vim
+# # RUN jupyter labextension install @jupyterlab/toc

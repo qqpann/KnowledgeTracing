@@ -11,6 +11,7 @@ from src.trainer import Trainer
 from src.config import Config, get_option_fallback
 from src.log import get_logger
 from src.slack import slack_is_available, slack_message
+from src.path import PathHandler
 
 logger = get_logger(__name__, "tmp.log")
 
@@ -36,10 +37,14 @@ def check_prev_report(config_dict, projectdir):
 
 
 def run(configpath: Path):
-    projectdir = Path(os.path.dirname(os.path.realpath(__file__)))
+    project_path = os.path.dirname(os.path.realpath(__file__))
+    ph = PathHandler(project_path)
+    projectdir = ph.projectdir
+    codedir = Path(project_path)
+
     with open(configpath, "r") as f:
         cfg = json.load(f)
-    with open(projectdir / "config/fallback.json", "r") as f:
+    with open("config/fallback.json", "r") as f:
         default_cfg = json.load(f)
     default_cfg["config_name"] = configpath.parent.name
 
@@ -51,7 +56,7 @@ def run(configpath: Path):
             report_dict = json.load(f)
         config_dict = report_dict["config"]
         config_dict["load_model"] = str(checkpoint_path)
-    config = Config(config_dict, projectdir=projectdir)
+    config = Config(config_dict, ph=ph)
     if not slack_is_available():
         logger.warning("Slack message is not available.")
     logger.info("Starting Experiment: {}".format(config.exp_name))

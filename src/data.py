@@ -154,7 +154,8 @@ class DataHandler:
     def __init__(self, config, device):
         self.config = config
         self.device = device
-        self.projectdir = self.config.projectdir
+        self.ph = self.config.ph
+        self.projectdir = self.ph.codedir
         self.name = self.config.source_data
         fintrain_data, fintest_data = self.get_traintest_data(
             projectdir=self.projectdir, name=self.name
@@ -177,7 +178,10 @@ class DataHandler:
         for _data in data:
             # _data is sequence per student
             for xy_seq in slice_data_list(
-                _data, seq_size=config.sequence_size + 1, enwrap=config.split_data_enwrap, pad=config.pad
+                _data,
+                seq_size=config.sequence_size + 1,
+                enwrap=config.split_data_enwrap,
+                pad=config.pad,
             ):
                 seq_actual_size = len(xy_seq)
                 if config.pad == True and seq_actual_size < config.sequence_size + 1:
@@ -253,7 +257,8 @@ class DataHandler:
 
     def get_enwrap_test_dl(self):
         config = self.config
-        config.split_data_enwrap = config.sequence_size  # sequence_size will have 1 buffer anyway
+        # sequence_size will have 1 buffer anyway
+        config.split_data_enwrap = config.sequence_size
         test_ds = self.get_ds(config, self.device, self.fintest_data)
         test_dl = DataLoader(
             test_ds, batch_size=self.config.batch_size, drop_last=False
