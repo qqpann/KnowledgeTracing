@@ -3,6 +3,8 @@ import datetime
 from pathlib import Path
 from typing import Dict
 
+from src.path import PathHandler
+
 
 def get_option_fallback(options: Dict, fallback: Dict, hard=False, depth=0):
     """
@@ -54,11 +56,11 @@ class Config(BaseConfig):
     Specific functionalities.
     """
 
-    def __init__(self, options: Dict, projectdir: Path):
+    def __init__(self, options: Dict, ph: PathHandler):
         super().__init__(options)
-        self.projectdir = projectdir
-        self.outdir = projectdir / "output"
-        self.outdir.mkdir(exist_ok=True)
+        self.ph = ph
+        self.projectdir = ph.projectdir
+        self.outdir = ph.outdir
         self._init_starttime()
 
     def _init_starttime(self):
