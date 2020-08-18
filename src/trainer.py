@@ -279,6 +279,8 @@ class Trainer(object):
                 if self.config.waviness:
                     self.report("waviness_l1", v_idc["waviness_l1"])
                     self.report("waviness_l2", v_idc["waviness_l2"])
+                if self.config.reconstruction or self.config.reconstruction_and_waviness:
+                    self.report("eval_auc_c", v_idc["reconstruction_loss"])
                 if v_auc > self.report.get_best("auc"):  # best auc
                     self.report.set_best("auc", v_auc)
                     self.report.set_best("auc_epoch", epoch)
