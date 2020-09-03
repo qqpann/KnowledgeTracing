@@ -279,6 +279,11 @@ class Trainer(object):
                 if self.config.waviness:
                     self.report("waviness_l1", v_idc["waviness_l1"])
                     self.report("waviness_l2", v_idc["waviness_l2"])
+                if (
+                    self.config.reconstruction
+                    or self.config.reconstruction_and_waviness
+                ):
+                    self.report("eval_auc_c", v_idc["reconstruction_loss"])
                 if v_auc > self.report.get_best("auc"):  # best auc
                     self.report.set_best("auc", v_auc)
                     self.report.set_best("auc_epoch", epoch)
@@ -584,4 +589,31 @@ class Trainer(object):
             )
             # RP hard (reversed)
             self.report.set_value("RPhard_reversed", simu_ndcg)
+
+            # Inverted Performance (Reverse Predictionと同じ)
+            simu_res = dict()
+            all_cor_preds = []
+            all_wro_preds = []
+            for q in range(self.config.n_skills):
+                # change the length of synthetic input sequence from 2 to 50
+                cor_res = self.model.forward(
+                    torch.Tensor([(q, 1) for _ in range(seq_size)]).unsqueeze(0),
+                    torch.Tensor([(q, 1) for _ in range(seq_size)]).unsqueeze(0),
+                    torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                )
+                wro_res = self.model.forward(
+                    torch.Tensor([(q, 0) for _ in range(seq_size)]).unsqueeze(0),
+                    torch.Tensor([(q, 0) for _ in range(seq_size)]).unsqueeze(0),
+                    torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                )
+                # IP
+                all_cor_preds.append(
+                    cor_res["pred_prob"].view(-1).detach().cpu().tolist()
+                )
+                all_wro_preds.append(
+                    wro_res["pred_prob"].view(-1).detach().cpu().tolist()
+                )
+            # raw data
+            self.report.set_value("inverted_performance_cor", all_cor_preds)
+            self.report.set_value("inverted_performance_wro", all_wro_preds)
 
