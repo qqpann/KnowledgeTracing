@@ -59,7 +59,6 @@ def get_exp_names(projectdir: Path, config_name: str) -> List[str]:
     outputdir = projectdir / "output" / config_name
     if outputdir.exists():
         res = [exp_path.name for exp_path in outputdir.iterdir()]
-        print(res)
         return res
     else:
         return None
