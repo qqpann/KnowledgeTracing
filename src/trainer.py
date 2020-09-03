@@ -555,4 +555,33 @@ class Trainer(object):
             self.report.set_value("RPhard", simu_ndcg)
             # raw data
             self.report.set_value("simu_pred", simu_res)
+            # Referse prediction *reversed* (from oracle to failing)
+            # simu = [[0] * i + [1] * (seq_size - i) for i in range(seq_size + 1)[::-1]]
+            simu = [[1] * i + [0] * (seq_size - i) for i in range(seq_size + 1)[::-1]]
+            # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
+            # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
+            simu_res = dict()
+            simu_ndcg = []
+            for v in range(self.config.n_skills):
+                xs = []
+                preds = []
+                for s in simu:
+                    res = self.model.forward(
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.Tensor([(v, a) for a in s]).unsqueeze(0),
+                        torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                    )
+                    preds.append(res["pred_prob"][-1].item())
+                    xs.append(sum(s))
+                # RP hard
+                simu_ndcg.append(ndcg(np.asarray([xs]), np.asarray([preds])))
+                # raw data
+                simu_res[v] = (xs, preds)
+            self.logger.info(
+                "RP hard *reversed* \t nDCG = {:.4f}±{:.4f}".format(
+                    mean(simu_ndcg), stdev(simu_ndcg)
+                )
+            )
+            # RP hard (reversed)
+            self.report.set_value("RPhard_reversed", simu_ndcg)
 
