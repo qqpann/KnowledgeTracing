@@ -118,16 +118,30 @@ def main(config_name: str, exp_name: str):
     df.to_csv(reportdir / "simu_oracle_to_fail.csv")
     print("saved to", reportdir / "simu_oracle_to_fail.csv")
 
-    # fold = "all"
-    # cor = report["indicator"]["inverted_performance_cor"][fold]
-    # wro = report["indicator"]["inverted_performance_wro"][fold]
-    # xidx = list(range(len(cor[0])))
-    # xs = xidx * len(cor)
-    # sns.lineplot(xs, [y for yl in cor for y in yl])
-    # sns.lineplot(xs, [y for yl in wro for y in yl])
-    # data = defaultdict(list)
-    # for yl in cor:
-    #     pass
+    fold = "all"
+    ip = report["indicator"]["inverted_performance"][fold]
+    # ip: dic fold[0,all]
+    # /lst KC[0, N]
+    # /dic s(cor num included)[0,T]
+    # /lst t(sequence time step)
+    seq_len = len(ip[0]["0"])
+    assert len(ip) == len(kc_dict)
+    data = defaultdict(list)
+    data_fail = defaultdict(list)
+    for lo, kcip in cast_kc(kc_dict, ip).items():
+        oracle = kcip[str(seq_len)]
+        failing = kcip["0"]
+        data["LO"].append(lo)
+        data_fail["LO"].append(lo)
+        for i, s in enumerate(oracle):
+            data[f"seq{i}pad{seq_len-i}"].append(s)
+            data_fail[f"seq{i}pad{seq_len-i}"].append(s)
+    df = pd.DataFrame(dict(data))
+    df.to_csv(reportdir / "pad_pred_of_each_timestep.csv")
+    print("saved to", reportdir / "pad_pred_of_each_timestep.csv")
+    df = pd.DataFrame(dict(data_fail))
+    df.to_csv(reportdir / "pad_pred_of_each_timestep_fail.csv")
+    print("saved to", reportdir / "pad_pred_of_each_timestep_fail.csv")
 
 
 if __name__ == "__main__":

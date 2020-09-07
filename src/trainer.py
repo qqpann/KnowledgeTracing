@@ -582,7 +582,7 @@ class Trainer(object):
                     preds.append(res["pred_prob"][-1].item())
                     xs.append(sum(s))
                 # RP soft
-                _gb = int(preds[-1] > preds[0])
+                _gb = int(preds[-1] <= preds[0])
                 good_bad.append(_gb)
                 if _gb:
                     good += 1
@@ -633,4 +633,22 @@ class Trainer(object):
                 ip_all_res.append(ip_res)
             # raw data
             self.report.set_value("inverted_performance", ip_all_res)
+
+            # Inverted Performance *oracle to failing*
+            ip_all_res = []
+            for q in range(self.config.n_skills):
+                # change the length of synthetic input sequence from 2 to 50
+                ip_res = dict()
+                for ss in range(seq_size + 1):
+                    sequence = [(q, 1 * (_s < ss)) for _s in range(seq_size)]
+                    res = self.model.forward(
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                    )
+                    # IP
+                    ip_res[str(ss)] = res["pred_prob"].view(-1).detach().cpu().tolist()
+                ip_all_res.append(ip_res)
+            # raw data
+            self.report.set_value("inverted_performance_oracle2fail", ip_all_res)
 
