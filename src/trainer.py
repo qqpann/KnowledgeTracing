@@ -279,6 +279,11 @@ class Trainer(object):
                 if self.config.waviness:
                     self.report("waviness_l1", v_idc["waviness_l1"])
                     self.report("waviness_l2", v_idc["waviness_l2"])
+                if (
+                    self.config.reconstruction
+                    or self.config.reconstruction_and_waviness
+                ):
+                    self.report("eval_auc_c", v_idc["reconstruction_loss"])
                 if v_auc > self.report.get_best("auc"):  # best auc
                     self.report.set_best("auc", v_auc)
                     self.report.set_best("auc_epoch", epoch)
@@ -555,4 +560,22 @@ class Trainer(object):
             self.report.set_value("RPhard", simu_ndcg)
             # raw data
             self.report.set_value("simu_pred", simu_res)
+
+            # Inverted Performance (Reverse Predictionと同じ)
+            ip_all_res = []
+            for q in range(self.config.n_skills):
+                # change the length of synthetic input sequence from 2 to 50
+                ip_res = dict()
+                for ss in range(seq_size + 1):
+                    sequence = [(q, 1 * (_s >= ss)) for _s in range(seq_size)]
+                    res = self.model.forward(
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                    )
+                    # IP
+                    ip_res[str(ss)] = res["pred_prob"].view(-1).detach().cpu().tolist()
+                ip_all_res.append(ip_res)
+            # raw data
+            self.report.set_value("inverted_performance", ip_all_res)
 
