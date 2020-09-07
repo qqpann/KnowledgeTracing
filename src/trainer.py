@@ -591,29 +591,20 @@ class Trainer(object):
             self.report.set_value("RPhard_reversed", simu_ndcg)
 
             # Inverted Performance (Reverse Predictionと同じ)
-            simu_res = dict()
-            all_cor_preds = []
-            all_wro_preds = []
+            ip_all_res = []
             for q in range(self.config.n_skills):
                 # change the length of synthetic input sequence from 2 to 50
-                cor_res = self.model.forward(
-                    torch.Tensor([(q, 1) for _ in range(seq_size)]).unsqueeze(0),
-                    torch.Tensor([(q, 1) for _ in range(seq_size)]).unsqueeze(0),
-                    torch.BoolTensor([True] * seq_size).unsqueeze(0),
-                )
-                wro_res = self.model.forward(
-                    torch.Tensor([(q, 0) for _ in range(seq_size)]).unsqueeze(0),
-                    torch.Tensor([(q, 0) for _ in range(seq_size)]).unsqueeze(0),
-                    torch.BoolTensor([True] * seq_size).unsqueeze(0),
-                )
-                # IP
-                all_cor_preds.append(
-                    cor_res["pred_prob"].view(-1).detach().cpu().tolist()
-                )
-                all_wro_preds.append(
-                    wro_res["pred_prob"].view(-1).detach().cpu().tolist()
-                )
+                ip_res = dict()
+                for ss in range(seq_size + 1):
+                    sequence = [(q, 1 * (_s >= ss)) for _s in range(seq_size)]
+                    res = self.model.forward(
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.Tensor(sequence).unsqueeze(0),
+                        torch.BoolTensor([True] * seq_size).unsqueeze(0),
+                    )
+                    # IP
+                    ip_res[str(ss)] = res["pred_prob"].view(-1).detach().cpu().tolist()
+                ip_all_res.append(ip_res)
             # raw data
-            self.report.set_value("inverted_performance_cor", all_cor_preds)
-            self.report.set_value("inverted_performance_wro", all_wro_preds)
+            self.report.set_value("inverted_performance", ip_all_res)
 
