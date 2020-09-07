@@ -3,7 +3,7 @@ import sys
 import pickle
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict
+from typing import List, Dict, Optional, Union
 
 import click
 import pandas as pd
@@ -54,6 +54,14 @@ def get_simu_dict(config_name: str, exp_name: str, fold: str = "all") -> Dict:
     return {k: simu_dict[str(v)] for k, v in kc_dict.items()}
 
 
+def cast_kc(kc_dict: Dict, target) -> Dict:
+    assert len(target) == len(kc_dict)
+    if type(target) is list:
+        return {k: target[v] for k, v in kc_dict.items()}
+    else:
+        return {k: target[str(v)] for k, v in kc_dict.items()}
+
+
 def _get_kc_dict(config_name: str, exp_name: str) -> Dict:
     report = get_report(config_name, exp_name)
     config = report["config"]
@@ -73,12 +81,15 @@ def _get_kc_dict(config_name: str, exp_name: str) -> Dict:
 @click.option("--config-name", "config_name", default="")
 @click.option("--exp-name", "exp_name", default="")
 def main(config_name: str, exp_name: str):
-    # kc_dict = _get_kc_dict(config_name, exp_name)
+    report = load_json(get_report_path(projectdir, config_name, exp_name))
+    kc_dict = _get_kc_dict(config_name, exp_name)
+    reportdir = get_report_dir(config_name, exp_name)
+    assert reportdir.exists(), f"reportdir {reportdir} not found."
+
+    # NDCG, goodbad -> simu.csv
     simu_dict = get_simu_dict(config_name, exp_name)
     ndcg_dict = get_ndcg_dict(config_name, exp_name)
     goodbad_dict = get_goodbad_dict(config_name, exp_name)
-    reportdir = get_report_dir(config_name, exp_name)
-    assert reportdir.exists()
     data = defaultdict(list)
     for lo, (simu, pred) in simu_dict.items():
         data["LO"].append(lo)
@@ -89,6 +100,34 @@ def main(config_name: str, exp_name: str):
     df = pd.DataFrame(dict(data))
     df.to_csv(reportdir / "simu.csv")
     print("saved to", reportdir / "simu.csv")
+
+    # NDCG oracle->fail, goodbad -> simu.csv
+    simu_dict = cast_kc(kc_dict, report["indicator"]["simu_pred_oracle2fail"]["all"])
+    ndcg_dict = cast_kc(kc_dict, report["indicator"]["RPhard_oracle2fail"]["all"])
+    goodbad_dict = cast_kc(
+        kc_dict, report["indicator"]["RPsoft_oracle2fail"]["all"]["goodbad"]
+    )
+    data = defaultdict(list)
+    for lo, (simu, pred) in simu_dict.items():
+        data["LO"].append(lo)
+        data["ndcg"].append(ndcg_dict[lo])
+        data["goodbad"].append(goodbad_dict[lo])
+        for s, p in zip(simu, pred):
+            data[f"pred_{s}"].append(p)
+    df = pd.DataFrame(dict(data))
+    df.to_csv(reportdir / "simu_oracle_to_fail.csv")
+    print("saved to", reportdir / "simu_oracle_to_fail.csv")
+
+    # fold = "all"
+    # cor = report["indicator"]["inverted_performance_cor"][fold]
+    # wro = report["indicator"]["inverted_performance_wro"][fold]
+    # xidx = list(range(len(cor[0])))
+    # xs = xidx * len(cor)
+    # sns.lineplot(xs, [y for yl in cor for y in yl])
+    # sns.lineplot(xs, [y for yl in wro for y in yl])
+    # data = defaultdict(list)
+    # for yl in cor:
+    #     pass
 
 
 if __name__ == "__main__":

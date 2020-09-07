@@ -560,11 +560,14 @@ class Trainer(object):
             self.report.set_value("RPhard", simu_ndcg)
             # raw data
             self.report.set_value("simu_pred", simu_res)
+
             # Referse prediction *reversed* (from oracle to failing)
             # simu = [[0] * i + [1] * (seq_size - i) for i in range(seq_size + 1)[::-1]]
             simu = [[1] * i + [0] * (seq_size - i) for i in range(seq_size + 1)[::-1]]
             # simu = [[1]*i + [0]*(seq_size - i) for i in range(seq_size+1)]
             # simu = [[0]*i + [1]*(seq_size - i) for i in range(seq_size)] + [[1]*i + [0]*(seq_size - i) for i in range(seq_size)]
+            good, bad = 0, 0
+            good_bad = []
             simu_res = dict()
             simu_ndcg = []
             for v in range(self.config.n_skills):
@@ -578,17 +581,40 @@ class Trainer(object):
                     )
                     preds.append(res["pred_prob"][-1].item())
                     xs.append(sum(s))
+                # RP soft
+                _gb = int(preds[-1] > preds[0])
+                good_bad.append(_gb)
+                if _gb:
+                    good += 1
+                else:
+                    bad += 1
                 # RP hard
                 simu_ndcg.append(ndcg(np.asarray([xs]), np.asarray([preds])))
                 # raw data
                 simu_res[v] = (xs, preds)
             self.logger.info(
-                "RP hard *reversed* \t nDCG = {:.4f}±{:.4f}".format(
+                "RP soft (oracle->fail) \t good:bad = {}:{}".format(good, bad)
+            )
+            self.logger.info(
+                "RP hard (oracle->fail) \t nDCG = {:.4f}±{:.4f}".format(
                     mean(simu_ndcg), stdev(simu_ndcg)
                 )
             )
-            # RP hard (reversed)
-            self.report.set_value("RPhard_reversed", simu_ndcg)
+            # RP soft
+            self.report.set_value(
+                "RPsoft_oracle2fail",
+                {
+                    "good": good,
+                    "bad": bad,
+                    "s_good": xs[-1],
+                    "s_bad": xs[0],
+                    "goodbad": good_bad,
+                },
+            )
+            # RP hard
+            self.report.set_value("RPhard_oracle2fail", simu_ndcg)
+            # raw data
+            self.report.set_value("simu_pred_oracle2fail", simu_res)
 
             # Inverted Performance (Reverse Predictionと同じ)
             ip_all_res = []
