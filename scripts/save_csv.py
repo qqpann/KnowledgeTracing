@@ -129,8 +129,10 @@ def main(config_name: str, exp_name: str):
     data = defaultdict(list)
     data_fail = defaultdict(list)
     for lo, kcip in cast_kc(kc_dict, ip).items():
-        oracle = kcip[str(seq_len)]
-        failing = kcip["0"]
+        # kcip key is not s (sum of correct answers)
+        # it is the turning point id of correct/wrong answers
+        oracle = kcip["0"]
+        failing = kcip[str(seq_len)]
         data["LO"].append(lo)
         data_fail["LO"].append(lo)
         for i, s in enumerate(oracle, start=1):
