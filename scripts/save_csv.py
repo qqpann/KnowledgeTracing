@@ -135,6 +135,7 @@ def main(config_name: str, exp_name: str):
         data_fail["LO"].append(lo)
         for i, s in enumerate(oracle):
             data[f"seq{i}pad{seq_len-i}"].append(s)
+        for i, s in enumerate(failing):
             data_fail[f"seq{i}pad{seq_len-i}"].append(s)
     df = pd.DataFrame(dict(data))
     df.to_csv(reportdir / "pad_pred_of_each_timestep.csv")
