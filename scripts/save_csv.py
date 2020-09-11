@@ -133,9 +133,9 @@ def main(config_name: str, exp_name: str):
         failing = kcip["0"]
         data["LO"].append(lo)
         data_fail["LO"].append(lo)
-        for i, s in enumerate(oracle):
+        for i, s in enumerate(oracle, start=1):
             data[f"seq{i}pad{seq_len-i}"].append(s)
-        for i, s in enumerate(failing):
+        for i, s in enumerate(failing, start=1):
             data_fail[f"seq{i}pad{seq_len-i}"].append(s)
     df = pd.DataFrame(dict(data))
     df.to_csv(reportdir / "pad_pred_of_each_timestep.csv")
