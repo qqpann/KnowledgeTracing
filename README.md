@@ -2,60 +2,42 @@
 
 ## Quick start
 
-前提：
-Docker環境またはEnviromnentsに書かれた環境が整備できていること．
-GitHubアカウントの認証が通ること．
+### Using docker
 
-### Git clone
-```
-git clone git@github.com:qqhann/KnowledgeTracing.git
-```
-または
-```
+```terminal
 git clone https://github.com/qqhann/KnowledgeTracing.git
-```
-
-### Docker start
-```
 cd KnowledgeTracing
-pwd
-```
-pwdで絶対パスが出力される．これを仮に`/home/zlt/KnowledgeTracing`だとする．（環境により異なる）
-
-```
 make build
-HOST_DIR=/home/zlt/KnowledgeTracing make run
+HOST_DIR={absolute path to KnowledgeTracing} make run
 make exec
+# You are now inside docker
+python main.py config/{your-experiment}.json
 ```
-makeコマンドの命令内容はMakefileにより管理されている．
-make execによってdocker内に入ることができた．
 
-```
-python main.py config/my-experiment.json
-```
-docker内では先ほどのmake buildで環境が整っているので，そのままpythonを実行できる．
-configディレクトリ以下に`my-experiment.json`という設定ファイルがあると仮定して，その設定に基づいて学習を行う．
+### Using pip
 
-### Python start
-Dockerを用いずにPythonなどの環境をEnvironmentsに書かれているように設定できている場合．
-```
+```terminal
 pip install -r requirements.txt
-```
-これによりPythonの依存ライブラリをインストール．
-
-```
 python main.py config/my-experiment.json
 ```
-後はDocker内に入った場合と同様に実行する．
+
+### Using poetry
+
+```terminal
+poetry install
+poetry run python main.py config/my-experiment.json
+```
 
 ## Advanced
 
 ### Optuna
 
-`*.optuna.json`で終わるファイル名のconfigを作成し、
-最適化したい数値の範囲（選択肢ではない）を指定してチューニングを行うことができる。
+Create config file ended with `*.optuna.json`.
+Specify the range you want to explore by giving the range as list.
 
-例
+**Example**:
+
+To explore `sequence_size` between 10 and 100, create a config file like below.
 
 ```json
 // config/debug/optimize.optuna.json
@@ -76,8 +58,7 @@ python main.py config/my-experiment.json
 }
 ```
 
-上の例はsequence_sizeを10から100の範囲内の整数でチューニングを行う。
-実行するには以下のように`optimize.py`を呼び出す。
+And run it with the following command:
 
 ```bash
 python optimize.py config/debug/optimize.optuna.json
