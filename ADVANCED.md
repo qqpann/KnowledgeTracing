@@ -4,6 +4,8 @@
 
 ### Using docker
 
+Docker version: 19.03
+
 ```terminal
 git clone https://github.com/qqhann/KnowledgeTracing.git
 cd KnowledgeTracing
