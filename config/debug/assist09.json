@@ -1,5 +1,5 @@
 {
-    "overwrite": false,
+    "overwrite": true,
     "model_name": "ksdkt",
     "source_data": "assist2009",
     "n_skills": 110,
