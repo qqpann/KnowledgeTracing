@@ -21,12 +21,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from sklearn import metrics
 from torch.autograd import Variable
-from torch.nn.utils.rnn import (
-    pack_padded_sequence,
-    pack_sequence,
-    pad_packed_sequence,
-    pad_sequence,
-)
+from torch.nn.utils.rnn import (pack_padded_sequence, pack_sequence,
+                                pad_packed_sequence, pad_sequence)
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from src.data import SOURCE_ASSIST0910_ORIG, SOURCE_ASSIST0910_SELF
