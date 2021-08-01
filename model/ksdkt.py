@@ -1,3 +1,10 @@
+"""
+DKT with the following expansions:
+- Pre-training Regularizaiton
+- Knowledge State Vector Loss
+~~~~~
+Author: Qiushi Pan (@qqhann)
+"""
 import logging
 import math
 import os
