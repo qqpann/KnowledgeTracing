@@ -2,19 +2,17 @@
 
 ## Quick start
 
-### Using pip
-
-```terminal
-pip install -r requirements.txt
-python main.py config/my-experiment.json
-```
-
 ### Using poetry
 
 ```terminal
 poetry install
-poetry run python main.py config/my-experiment.json
+poetry shell
+# Alternatively, you can use pip instead of poetry
+# pip install -r requirements.txt
+python main.py config/debug/debug.json
 ```
+
+Create your own config JSON file and you can start your experiment.
 
 ## Datasets
 
@@ -36,8 +34,35 @@ We used prepared data by Zhang et al. <https://github.com/jennyzhang0215/DKVMN>
 | ------------ | ------- |
 | Python       | 3.7     |
 | CUDA         | 10.1    |
-| PyTorch      | 1.3.0   |
+| PyTorch      | 1.5.0   |
 | Docker       | 19.03   |
+
+## BibTex
+
+Please cite our paper if you use the code.
+
+### Pre-training
+
+To reproduce, read `notebook/Results_EDM2021.ipynb` and run the same experiment.
+
+```bibtex
+# To be added
+```
+
+Title: Prior Knowledge on the Dynamics of Skill Acquisition Improves Deep Knowledge Tracing
+Author: Qiushi Pan & Taro Tezuka
+Conference: ICCE2021
+
+### Knowledge State Vector Loss
+
+To reproduce, read `notebook/Results_EDM2020.ipynb` and run the same experiment.
+
+```bibtex
+@article{panaccuracy,
+  title={Accuracy-aware Deep Knowledge Tracing with Knowledge State Vector Loss},
+  author={PAN, Qiushi and TEZUKA, Taro}
+}
+```
 
 ## References
 
