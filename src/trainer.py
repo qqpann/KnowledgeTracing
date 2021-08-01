@@ -4,13 +4,13 @@ from collections import defaultdict
 from math import ceil, log
 from pathlib import Path
 from statistics import mean, stdev
-from typing import Union, DefaultDict, Dict, List
+from typing import DefaultDict, Dict, List, Union
 
 import numpy as np
+import optuna
 import torch
 from sklearn import metrics
 from sklearn.metrics import ndcg_score as ndcg
-import optuna
 
 from model.dkt import DKT
 from model.dkvmn import MODEL as DKVMN
@@ -20,14 +20,8 @@ from model.ksdkt import KSDKT
 from src.data import DataHandler
 from src.log import get_logger
 from src.report import Report
-from src.save import (
-    save_hm_fig,
-    save_learning_curve,
-    save_log,
-    save_model,
-    save_pred_accu_relation,
-    save_report,
-)
+from src.save import (save_hm_fig, save_learning_curve, save_log, save_model,
+                      save_pred_accu_relation, save_report)
 from src.utils import sAsMinutes, timeSince
 
 
@@ -578,4 +572,3 @@ class Trainer(object):
                 ip_all_res.append(ip_res)
             # raw data
             self.report.set_value("inverted_performance", ip_all_res)
-

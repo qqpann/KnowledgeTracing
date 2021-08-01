@@ -7,11 +7,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from src.trainer import Trainer
 from src.config import Config, get_option_fallback
 from src.log import get_logger
-from src.slack import slack_is_available, slack_message
 from src.path import PathHandler
+from src.slack import slack_is_available, slack_message
+from src.trainer import Trainer
 
 logger = get_logger(__name__, "tmp.log")
 

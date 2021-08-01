@@ -1,19 +1,19 @@
 import json
 import os
+import random
 import shutil
 import sys
-import random
 from pathlib import Path
 from typing import Dict
 
+import numpy as np
 import optuna
 import torch
-import numpy as np
 
-from src.trainer import Trainer
 from src.config import Config, get_option_fallback
-from src.slack import slack_message, slack_is_available
 from src.log import get_logger
+from src.slack import slack_is_available, slack_message
+from src.trainer import Trainer
 
 logger = get_logger(__name__, "tmp.log")
 

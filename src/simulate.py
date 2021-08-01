@@ -2,13 +2,14 @@ import math
 import random
 import sys
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 import tqdm
-from enum import Enum
+
 
 class LevelUpMode(Enum):
   NORMAL = 1 # always levelup
