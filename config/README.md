@@ -1,19 +1,21 @@
 # Config
 
-実験のConfigについて．
+実験の Config について．
 
 ## Fallback
+
 `fallback.json`
 このファイルがデフォルトの設定です．
 
 ## Params
+
 ```json
 {
   "debug": false,
   "cuda": true,
   "model_name": null,
-  "source_data": "***REMOVED***_Eng_ver5",
-  "n_skills": 326,
+  "source_data": "{{YOUR_DATASET_NAME}}",
+  "n_skills": 100, // Your skill num
   "test_size": 0.2,
   "kfold": 5,
   "epoch_size": 2000,
@@ -40,13 +42,12 @@
 }
 ```
 
-- `cuda`: GPUを利用する
+- `cuda`: GPU を利用する
 - `source_data`: 利用するデータのファイル名．前処理済みのデータであることが必要．
 - `n_skills`: データに含まれるスキル数（knowledge concept; learning object）
 - `epoch_size`: 最大エポック数
 - `early_stopping`: このエポック数続けて向上がなければ実験を切り上げる
-- `pre_dummy_epoch_size`: pre-trainのエポック数
+- `pre_dummy_epoch_size`: pre-train のエポック数
 - `lr`: 学習率．
 - `sequence_size`: 扱うシーケンス長の上限
-- `pad`: paddingを行ってシーケンス長に満たないものを学習に含める
-
+- `pad`: padding を行ってシーケンス長に満たないものを学習に含める
