@@ -1,6 +1,6 @@
 # Knowledge Tracing
 
-Customizable Deep Knowledge Tracing models and reproductive experiment codes in one place.
+Customizable Deep Knowledge Tracing models and reproducible experimental scripts in one place.
 
 ## Quick start
 
