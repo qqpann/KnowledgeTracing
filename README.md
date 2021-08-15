@@ -50,7 +50,7 @@ To reproduce, read `notebook/Results_ICCE2021.ipynb` and run the same experiment
 @article{panaccuracy,
   title={Prior knowledge on the dynamics of skill acquisition improves deep knowledge tracing},
   author={Qiushi Pan and Taro Tezuka},
-  booktitle={Proceedings of the 29th International Conference on Computers in Education, },
+  booktitle={Proceedings of the 29th International Conference on Computers in Education},
   year={2021}
 }
 ```
