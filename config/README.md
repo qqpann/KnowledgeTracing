@@ -1,11 +1,11 @@
 # Config
 
-実験の Config について．
+About experimental config JSON files.
 
 ## Fallback
 
 `fallback.json`
-このファイルがデフォルトの設定です．
+This is the fallback config containing default fields that any experiment will fallback to if a field is not overwritten.
 
 ## Params
 
@@ -42,12 +42,12 @@
 }
 ```
 
-- `cuda`: GPU を利用する
-- `source_data`: 利用するデータのファイル名．前処理済みのデータであることが必要．
-- `n_skills`: データに含まれるスキル数（knowledge concept; learning object）
-- `epoch_size`: 最大エポック数
-- `early_stopping`: このエポック数続けて向上がなければ実験を切り上げる
-- `pre_dummy_epoch_size`: pre-train のエポック数
-- `lr`: 学習率．
-- `sequence_size`: 扱うシーケンス長の上限
-- `pad`: padding を行ってシーケンス長に満たないものを学習に含める
+- `cuda`: Use GPU if set true.
+- `source_data`: The file name to use as source data. Requires preprocessed.
+- `n_skills`: The number of skills (knowledge concept; learning object) included in the dataset.
+- `epoch_size`: The maximum epoch size if not early stopped.
+- `early_stopping`: How many epochs to keep training before early stopping.
+- `pre_dummy_epoch_size`: How many epochs to do pre-training.
+- `lr`: Leaning rate.
+- `sequence_size`: Maximum sequence length to trim to.
+- `pad`: If set true, use padding to handle sequences shorter than `sequence_size` after trimming.
