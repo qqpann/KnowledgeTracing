@@ -1,18 +1,19 @@
 import os
-import sys
 import pickle
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict
 
 import click
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+
+from src.path import get_exp_paths, get_report_path, load_json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from src.path import load_json, get_report_path, get_exp_paths
 
 
 projectdir = Path(".")

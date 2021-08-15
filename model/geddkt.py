@@ -28,9 +28,9 @@ from torch.nn.utils.rnn import (pack_padded_sequence, pack_sequence,
                                 pad_packed_sequence, pad_sequence)
 from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
 
+from model._base import BaseKTModel
 from src.data import SOURCE_ASSIST0910_ORIG, SOURCE_ASSIST0910_SELF
 from src.utils import sAsMinutes, timeSince
-from model._base import BaseKTModel
 
 
 class Encoder(nn.Module):
@@ -288,4 +288,3 @@ class GEDDKT(nn.Module, BaseKTModel):
             opt.step()
 
         return out_dic
-
