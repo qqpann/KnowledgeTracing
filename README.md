@@ -43,7 +43,7 @@ Please cite our paper if you use the code.
 
 ### Pre-training
 
-To reproduce, read `notebook/Results_EDM2021.ipynb` and run the same experiment.
+To reproduce, read `notebook/Results_ICCE2021.ipynb` and run the same experiment.
 
 ```bibtex
 # To be added
@@ -53,9 +53,11 @@ To reproduce, read `notebook/Results_EDM2021.ipynb` and run the same experiment.
 - Author: Qiushi Pan & Taro Tezuka
 - Conference: ICCE2021
 
+Qiushi Pan and Taro Tezuka, Prior knowledge on the dynamics of skill acquisition improves deep knowledge tracing, Proceedings of the 29th International Conference on Computers in Education, November 2021 (ICCE2021). (to appear)
+
 ### Knowledge State Vector Loss
 
-To reproduce, read `notebook/Results_EDM2020.ipynb` and run the same experiment.
+To reproduce, read `notebook/Results_ICCE2020.ipynb` and run the same experiment.
 
 ```bibtex
 @article{panaccuracy,
@@ -63,6 +65,10 @@ To reproduce, read `notebook/Results_EDM2020.ipynb` and run the same experiment.
   author={PAN, Qiushi and TEZUKA, Taro}
 }
 ```
+
+Qiushi Pan and Taro Tezuka, Accuracy-aware deep knowledge tracing with knowledge state vectors and an encoder-decoder architecture, Proceedings of the 28th International Conference on Computers in Education (ICCE2020), Online, November 23-27, 2020.
+
+https://apsce.net/icce/icce2020/proceedings/paper_58.pdf
 
 ## References
 
