@@ -1,5 +1,7 @@
 # Knowledge Tracing
 
+Customizable Deep Knowledge Tracing models and reproductive experiment codes in one place.
+
 ## Quick start
 
 ### Install and run an experiment
