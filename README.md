@@ -45,6 +45,8 @@ Please cite our paper if you use the code.
 
 ### Pre-training
 
+[Proceeding p.265](https://icce2021.apsce.net/proceedings/volume1/) | [Slide](https://speakerdeck.com/qqhann/icce2021-prior-knowledge-on-the-dynamics-of-skill-acquisition-improves-deep-knowledge-tracing)
+
 To reproduce, read `notebook/Results_ICCE2021.ipynb` and run the same experiment.
 
 ```bibtex
