@@ -1,3 +1,5 @@
+> **Warning**: This code is provided as-is for reproductivity. No updates and security patches are planned so far.
+
 # Knowledge Tracing
 
 Customizable Deep Knowledge Tracing models and reproducible experimental scripts in one place.
